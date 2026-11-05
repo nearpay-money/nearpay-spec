@@ -3,6 +3,12 @@
 `@nearpay/spec` and `@nearpay-internal/spec` share one version. Within a version line changes are
 additive only (`pnpm compat` gates every release against `test/compat/baseline/`, the last release).
 
+## 0.1.2 — Stage 1, step 1.2
+
+- ID prefix `pol_` (geo policy, compliance): the aggregate id of `evt.compliance.policy.updated`.
+- `Review.subject.type` gains `execution` (open enum): compliance reviews a rails execution (post-screen
+  hits, held executions, sentinel audit mismatches); payments maps it to the payment intent.
+
 ## 0.1.1 — Stage 1, step 1.2
 
 - `sandboxQuote` (`POST /v0/quote` on nearpay-sandbox) takes `SandboxQuoteRequest`: the 1Click quote

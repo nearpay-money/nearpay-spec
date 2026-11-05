@@ -38,6 +38,7 @@ export const ID_PREFIXES = {
   evt: { object: "event", owner: "webhooks" },
   we: { object: "webhook_endpoint", owner: "webhooks" },
   case: { object: "compliance_case", owner: "compliance" },
+  pol: { object: "geo_policy", owner: "compliance" },
   scr: { object: "screening", owner: "compliance" },
   fnd: { object: "audit_finding", owner: "sentinel" },
   msg: { object: "message", owner: "notify" },

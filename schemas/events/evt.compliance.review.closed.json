@@ -72,12 +72,13 @@
               "type": "string"
             },
             "type": {
-              "description": "Reviewed object type.",
+              "description": "Reviewed object type (`execution`: a rails execution; payments maps it to its payment intent).",
               "type": "string",
               "x-extensible-enum": [
                 "payment_intent",
                 "agent_payment",
-                "settlement_destination"
+                "settlement_destination",
+                "execution"
               ]
             }
           },
