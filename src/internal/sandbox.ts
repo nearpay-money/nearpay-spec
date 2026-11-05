@@ -27,6 +27,26 @@ import {
 
 const SANDBOX_AUTH = ["service:sandbox.use"] as const;
 
+/**
+ * Sandbox quote request: the 1Click request plus the merchant-facing amount that picks the
+ * test-mode scenario (sandbox LLD §4: last two digits of the fiat amount in minor units, or of the
+ * asset amount in base units). The quoted `amount` cannot carry it: it is the settlement amount
+ * plus the amount tag. Rails' sandbox provider sets it; 1Click never sees it.
+ */
+export const SandboxQuoteRequest = OneClickQuoteRequest.extend({
+  scenario_amount: z
+    .string()
+    .regex(/^\d{1,78}$/)
+    .optional()
+    .describe(
+      "Pricing amount of the payment (fiat minor units or asset base units); its last two digits pick the scenario. Defaults to `amount`.",
+    ),
+}).meta({
+  id: "SandboxQuoteRequest",
+  description: "Sandbox `POST /v0/quote` request (1Click request + scenario amount).",
+});
+export type SandboxQuoteRequest = z.infer<typeof SandboxQuoteRequest>;
+
 export const sandboxTokens = route({
   id: "sandboxTokens",
   method: "GET",
@@ -51,7 +71,7 @@ export const sandboxQuote = route({
   summary: "1Click mirror: deterministic quote; scenario from the amount suffix or refund address.",
   auth: SANDBOX_AUTH,
   idempotent: false,
-  body: OneClickQuoteRequest,
+  body: SandboxQuoteRequest,
   response: OneClickQuoteResponse,
   status: 200,
   errors: [],

@@ -6722,7 +6722,7 @@ info:
   license:
     name: Apache-2.0
   title: NearPay domain events
-  version: 0.1.0
+  version: 0.1.1
 operations:
   evt_agentpay_agent_payment_failed_send:
     action: send
