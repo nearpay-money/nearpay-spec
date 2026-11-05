@@ -1,0 +1,62 @@
+{
+  "$defs": {
+    "IntentsRequirement": {
+      "additionalProperties": {},
+      "description": "What a payer must sign: transfer(pay_to, amount) and transfer(fee_to, fee_amount), both with memo = binding.",
+      "properties": {
+        "amount": {
+          "description": "Amount the merchant receives, base units.",
+          "pattern": "^(0|[1-9][0-9]{0,77})$",
+          "type": "string"
+        },
+        "binding": {
+          "description": "Memo that both transfers must carry.",
+          "pattern": "^np1:[1-9A-HJ-NP-Za-km-z]{43,44}$",
+          "type": "string"
+        },
+        "deadline": {
+          "description": "Latest acceptable payload deadline.",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+          "type": "string"
+        },
+        "fee_amount": {
+          "description": "NearPay fee, base units, in the same asset.",
+          "pattern": "^(0|[1-9][0-9]{0,77})$",
+          "type": "string"
+        },
+        "fee_to": {
+          "description": "NearPay treasury Intents account.",
+          "pattern": "^(?=.{2,64}$)(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+$",
+          "type": "string"
+        },
+        "pay_to": {
+          "description": "Merchant Intents account that receives the payment.",
+          "pattern": "^(?=.{2,64}$)(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+$",
+          "type": "string"
+        },
+        "token": {
+          "description": "Asset to transfer (equals the settlement asset).",
+          "examples": [
+            "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1"
+          ],
+          "maxLength": 256,
+          "pattern": "^(nep141:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+|nep245:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+:[\\x21-\\x7e]{1,128})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pay_to",
+        "token",
+        "amount",
+        "fee_to",
+        "fee_amount",
+        "binding",
+        "deadline"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/IntentsRequirement",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

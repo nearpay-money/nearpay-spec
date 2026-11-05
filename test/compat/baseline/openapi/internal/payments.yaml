@@ -1,0 +1,911 @@
+components:
+  schemas:
+    AgentAttempt:
+      additionalProperties: {}
+      description: An agent's attempt and what to sign.
+      properties:
+        account_id:
+          description: account id (`acct_` + 26 base32 chars).
+          examples:
+            - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        attempt_id:
+          description: payment_attempt id (`pa_` + 26 base32 chars).
+          examples:
+            - pa_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^pa_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        attestation_ticket:
+          description: "`base64url(JCS payload).base64url(Ed25519 signature)` issued by payments; pass it to sentinel unchanged."
+          pattern: ^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$
+          type: string
+        execution_id:
+          description: execution id (`ex_` + 26 base32 chars).
+          examples:
+            - ex_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^ex_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        intents_requirement:
+          $ref: "#/components/schemas/IntentsRequirement"
+        livemode:
+          description: Mode.
+          type: boolean
+      required:
+        - attempt_id
+        - execution_id
+        - account_id
+        - livemode
+        - intents_requirement
+        - attestation_ticket
+      type: object
+    DestinationSnapshot:
+      additionalProperties: {}
+      description: Settlement destination as snapshotted at creation (INV-6).
+      properties:
+        address:
+          description: Settlement address or Intents account.
+          maxLength: 256
+          minLength: 1
+          type: string
+        asset_id:
+          description: Settlement asset.
+          examples:
+            - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+          maxLength: 256
+          pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+          type: string
+        chain:
+          description: Settlement chain.
+          examples:
+            - eip155:8453
+          pattern: ^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$
+          type: string
+        settlement_destination:
+          description: settlement_destination id (`sd_` + 26 base32 chars).
+          examples:
+            - sd_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^sd_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        type:
+          description: "Where funds settle: an address on a chain, or a NEAR Intents account."
+          enum:
+            - chain_address
+            - intents_account
+          type: string
+      required:
+        - settlement_destination
+        - asset_id
+        - type
+        - chain
+        - address
+      type: object
+    Error:
+      additionalProperties: {}
+      description: Envelope returned with every non-2xx response.
+      properties:
+        error:
+          $ref: "#/components/schemas/ErrorBody"
+      required:
+        - error
+      type: object
+    ErrorBody:
+      additionalProperties: {}
+      description: Details of a failed request.
+      properties:
+        code:
+          description: Machine-readable error code from the error catalogue.
+          type: string
+          x-extensible-enum:
+            - invalid_request
+            - resource_missing
+            - authentication_required
+            - invalid_api_key
+            - permission_denied
+            - csrf_token_invalid
+            - ip_not_allowed
+            - account_suspended
+            - step_up_required
+            - rate_limited
+            - idempotency_key_reused
+            - idempotency_in_progress
+            - api_error
+            - state_conflict
+            - livemode_forbidden
+            - link_expired
+            - link_used
+            - webauthn_failed
+            - invalid_client
+            - turnstile_failed
+            - invalid_setting
+            - scope_unknown
+            - address_invalid
+            - asset_unsupported
+            - memo_destination_unsupported
+            - destination_in_use
+            - recovery_lock
+            - screening_blocked
+            - attestation_invalid
+            - challenge_expired
+            - destination_not_active
+            - account_not_live
+            - amount_below_destination_minimum
+            - amount_above_unverified_cap
+            - currency_unsupported
+            - allowed_origins_required
+            - attempt_in_flight
+            - client_secret_invalid
+            - session_not_open
+            - too_many_attempts
+            - route_too_slow
+            - refund_address_invalid
+            - geo_blocked
+            - intent_invalid
+            - insufficient_balance
+            - rail_unavailable
+            - route_unavailable
+            - pricing_unavailable
+            - deadline_too_short
+            - quote_rejected
+            - quote_integrity_failed
+            - ticket_invalid
+            - attestation_refused
+            - attestation_stale
+            - attestation_unavailable
+            - destination_not_intents_account
+            - amount_below_minimum
+            - screening_unavailable
+            - url_invalid
+            - event_type_unknown
+        doc_url:
+          description: Documentation page for this error code.
+          format: uri
+          type: string
+        message:
+          description: Human-readable message; safe to show to developers, not to payers.
+          type: string
+        param:
+          description: The request parameter the error relates to, when there is one.
+          type: string
+        request_id:
+          description: Request id, also returned in the `X-Request-Id` header.
+          examples:
+            - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        type:
+          description: Error category; decides whether a retry can help.
+          type: string
+          x-extensible-enum:
+            - invalid_request_error
+            - authentication_error
+            - permission_error
+            - payment_error
+            - idempotency_error
+            - state_conflict
+            - rate_limit_error
+            - api_error
+            - rail_unavailable
+      required:
+        - type
+        - code
+        - message
+        - doc_url
+        - request_id
+      type: object
+    Evidence:
+      additionalProperties: {}
+      description: Independent on-chain proof that a settlement reached the merchant (INV-2).
+      properties:
+        amount:
+          description: Amount received by the recipient, base units.
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        asset_id:
+          description: Asset that settled.
+          examples:
+            - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+          maxLength: 256
+          pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+          type: string
+        block_ref:
+          description: Block height or hash containing the transaction.
+          type:
+            - string
+            - "null"
+        chain:
+          description: Chain where the settlement happened.
+          examples:
+            - eip155:8453
+          pattern: ^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$
+          type: string
+        explorer_url:
+          anyOf:
+            - format: uri
+              type: string
+            - type: "null"
+          description: Block-explorer link for the transaction.
+        finality:
+          description: Finality reached when the evidence was accepted.
+          type: string
+          x-extensible-enum:
+            - final
+            - finalized
+            - confirmed
+        observed_at:
+          description: When NearPay accepted the evidence.
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+          type: string
+        recipient:
+          description: Recipient that received the funds (the merchant destination).
+          maxLength: 256
+          minLength: 1
+          type: string
+        source:
+          description: Detector that produced the evidence.
+          type: string
+          x-extensible-enum:
+            - watcher
+            - indexer
+            - verifier
+            - provider
+            - operator
+        tier:
+          description: "Verification tier: A = independently verified on chain, B = provider-attested within limits."
+          type: string
+          x-extensible-enum:
+            - A
+            - B
+        tx_hash:
+          description: Settlement transaction (NEAR receipt / tx hash for Intents).
+          maxLength: 128
+          minLength: 8
+          type: string
+      required:
+        - chain
+        - tx_hash
+        - block_ref
+        - recipient
+        - asset_id
+        - amount
+        - finality
+        - tier
+        - source
+        - observed_at
+        - explorer_url
+      type: object
+    FeeSummary:
+      additionalProperties: {}
+      description: Fee snapshot of a payment (INV-6).
+      properties:
+        bearer:
+          description: Who bears the fee.
+          enum:
+            - payer
+            - merchant
+          type: string
+        total_bps:
+          description: NearPay fee applied to this payment's route, in basis points.
+          maximum: 10000
+          minimum: 0
+          type: integer
+      required:
+        - bearer
+        - total_bps
+      type: object
+    IntentsRequirement:
+      additionalProperties: {}
+      description: "What a payer must sign: transfer(pay_to, amount) and transfer(fee_to, fee_amount), both with memo = binding."
+      properties:
+        amount:
+          description: Amount the merchant receives, base units.
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        binding:
+          description: Memo that both transfers must carry.
+          pattern: ^np1:[1-9A-HJ-NP-Za-km-z]{43,44}$
+          type: string
+        deadline:
+          description: Latest acceptable payload deadline.
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+          type: string
+        fee_amount:
+          description: NearPay fee, base units, in the same asset.
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        fee_to:
+          description: NearPay treasury Intents account.
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        pay_to:
+          description: Merchant Intents account that receives the payment.
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        token:
+          description: Asset to transfer (equals the settlement asset).
+          examples:
+            - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+          maxLength: 256
+          pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+          type: string
+      required:
+        - pay_to
+        - token
+        - amount
+        - fee_to
+        - fee_amount
+        - binding
+        - deadline
+      type: object
+    PaymentAttemptSummary:
+      additionalProperties: {}
+      description: One payment attempt of an intent, as merchants see it.
+      properties:
+        created:
+          description: Unix time in seconds.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        deadline:
+          anyOf:
+            - description: Unix time in seconds.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: Deposit deadline.
+        evidence:
+          anyOf:
+            - $ref: "#/components/schemas/Evidence"
+            - type: "null"
+          description: Settlement evidence, once verified.
+        failure_code:
+          description: Why the attempt failed, refunded or was held.
+          type:
+            - string
+            - "null"
+        id:
+          description: payment_attempt id (`pa_` + 26 base32 chars).
+          examples:
+            - pa_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^pa_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        is_overpayment:
+          description: Settled after another attempt already paid the intent.
+          type: boolean
+        method:
+          description: "`route_quote`: deposit to a 1Click address from any chain. `intents_transfer`: signed transfer from a NEAR Intents balance."
+          enum:
+            - route_quote
+            - intents_transfer
+          type: string
+        object:
+          const: payment_attempt
+          description: Always `payment_attempt`.
+          type: string
+        origin_asset_id:
+          description: Asset the payer pays with.
+          examples:
+            - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+          maxLength: 256
+          pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+          type: string
+        origin_chain:
+          description: Chain the payer pays from.
+          examples:
+            - eip155:8453
+          pattern: ^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$
+          type: string
+        settled_amount:
+          anyOf:
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+            - type: "null"
+          description: Amount that settled, base units.
+        settlement_amount:
+          anyOf:
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+            - type: "null"
+          description: Expected settlement including the amount tag, base units.
+        status:
+          description: Attempt status (mirrors the rails execution, domain-model §4.3).
+          type: string
+          x-extensible-enum:
+            - quoting
+            - awaiting_deposit
+            - deposit_detected
+            - incomplete_deposit
+            - settling
+            - verifying
+            - succeeded
+            - refunded
+            - failed
+            - expired_unpaid
+            - held
+      required:
+        - id
+        - object
+        - created
+        - status
+        - method
+        - origin_asset_id
+        - origin_chain
+        - settlement_amount
+        - settled_amount
+        - deadline
+        - is_overpayment
+        - failure_code
+        - evidence
+      type: object
+    PaymentIntent:
+      additionalProperties: {}
+      description: One payment the merchant expects (FR-PAY-01).
+      properties:
+        amount:
+          anyOf:
+            - description: Fiat amount in minor units (e.g. cents), integer.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+          description: "Fiat: integer minor units. Asset: base units as a decimal string."
+        amount_refunded:
+          description: Refunded amount, base units of the settlement asset.
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        amount_settled:
+          description: Settled amount, base units of the settlement asset.
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        asset_id:
+          anyOf:
+            - description: NEAR Intents asset id, e.g. `nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1`.
+              examples:
+                - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+              maxLength: 256
+              pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+              type: string
+            - type: "null"
+          description: Pricing asset when `currency` is `asset`.
+        attempts:
+          description: Attempts, newest first.
+          items:
+            $ref: "#/components/schemas/PaymentAttemptSummary"
+          type: array
+        canceled_at:
+          anyOf:
+            - description: Unix time in seconds.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: When the intent was canceled.
+        cancellation_reason:
+          description: Reason given on cancel.
+          type:
+            - string
+            - "null"
+        checkout_session:
+          anyOf:
+            - description: checkout_session id (`cs_` + 26 base32 chars).
+              examples:
+                - cs_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^cs_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Checkout session that owns the intent.
+        created:
+          description: Unix time in seconds.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        currency:
+          anyOf:
+            - description: ISO 4217 currency code, lower-case (e.g. `usd`).
+              pattern: ^[a-z]{3}$
+              type: string
+            - const: asset
+              type: string
+          description: ISO 4217 code for fiat pricing, or `asset` when priced in an asset (then `asset_id` is set).
+        description:
+          description: Description shown to the payer.
+          type:
+            - string
+            - "null"
+        destination:
+          $ref: "#/components/schemas/DestinationSnapshot"
+        fee:
+          $ref: "#/components/schemas/FeeSummary"
+        id:
+          description: payment_intent id (`pi_` + 26 base32 chars).
+          examples:
+            - pi_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^pi_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        late:
+          description: Settled after its checkout session expired (INV-3).
+          type: boolean
+        livemode:
+          description: "`true` for live mode, `false` for test mode."
+          type: boolean
+        metadata:
+          additionalProperties:
+            maxLength: 500
+            type: string
+          description: Up to 50 key/value pairs (key ≤ 40 chars, value ≤ 500 chars) for your own use.
+          propertyNames:
+            maxLength: 40
+            minLength: 1
+            type: string
+          type: object
+        object:
+          const: payment_intent
+          description: Always `payment_intent`.
+          type: string
+        overpayments:
+          description: Settlements beyond the one that paid the intent (refund recommended).
+          items:
+            additionalProperties: {}
+            description: An extra settlement.
+            properties:
+              amount:
+                description: Extra amount that settled, base units.
+                pattern: ^(0|[1-9][0-9]{0,77})$
+                type: string
+              attempt:
+                description: payment_attempt id (`pa_` + 26 base32 chars).
+                examples:
+                  - pa_01jbz9k3m4n5p6q7r8s9t0v1w2
+                pattern: ^pa_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                type: string
+              reason:
+                description: Why it counts as an overpayment.
+                type: string
+                x-extensible-enum:
+                  - duplicate
+                  - after_cancel
+                  - after_expiry
+            required:
+              - attempt
+              - amount
+              - reason
+            type: object
+          type: array
+        review_reason:
+          anyOf:
+            - description: Why the intent needs review.
+              type: string
+              x-extensible-enum:
+                - short_settlement
+                - verification_held
+            - type: "null"
+        sequence:
+          description: Increases with every change; discard webhook objects with a lower sequence.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        settlement_asset_id:
+          description: Asset the merchant receives.
+          examples:
+            - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+          maxLength: 256
+          pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+          type: string
+        source:
+          description: What created the intent.
+          type: string
+          x-extensible-enum:
+            - checkout
+            - invoice
+            - payment_link
+            - api
+        status:
+          description: Payment intent status (domain-model §4.2).
+          type: string
+          x-extensible-enum:
+            - requires_payment
+            - processing
+            - requires_review
+            - succeeded
+            - canceled
+            - expired
+        succeeded_at:
+          anyOf:
+            - description: Unix time in seconds.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: When the intent succeeded.
+      required:
+        - id
+        - object
+        - created
+        - livemode
+        - status
+        - amount
+        - currency
+        - asset_id
+        - description
+        - source
+        - checkout_session
+        - destination
+        - fee
+        - settlement_asset_id
+        - amount_settled
+        - amount_refunded
+        - succeeded_at
+        - late
+        - canceled_at
+        - cancellation_reason
+        - review_reason
+        - attempts
+        - overpayments
+        - sequence
+        - metadata
+      type: object
+    ReceiptContext:
+      additionalProperties: {}
+      description: Receipt data.
+      properties:
+        amount:
+          anyOf:
+            - description: Fiat amount in minor units (e.g. cents), integer.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+          description: "Fiat: integer minor units. Asset: base units as a decimal string."
+        currency:
+          anyOf:
+            - description: ISO 4217 currency code, lower-case (e.g. `usd`).
+              pattern: ^[a-z]{3}$
+              type: string
+            - const: asset
+              type: string
+          description: ISO 4217 code for fiat pricing, or `asset` when priced in an asset (then `asset_id` is set).
+        customer_email:
+          anyOf:
+            - format: email
+              pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+              type: string
+            - type: "null"
+          description: Receipt recipient, if the session collected one.
+        email_receipts:
+          description: "Account setting: send receipts."
+          type: boolean
+        evidence_links:
+          description: Explorer links of the settlement.
+          items:
+            format: uri
+            type: string
+          type: array
+        merchant_display_name:
+          description: Merchant name.
+          type: string
+        settled:
+          $ref: "#/components/schemas/SettlementValue"
+      required:
+        - customer_email
+        - merchant_display_name
+        - amount
+        - currency
+        - settled
+        - evidence_links
+        - email_receipts
+      type: object
+    SettlementValue:
+      additionalProperties: {}
+      description: An amount of an asset with display information.
+      properties:
+        amount:
+          description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        asset_id:
+          description: NEAR Intents asset id, e.g. `nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1`.
+          examples:
+            - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+          maxLength: 256
+          pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+          type: string
+        decimals:
+          description: Decimals of the asset.
+          maximum: 255
+          minimum: 0
+          type: integer
+        display:
+          description: Human-readable amount, e.g. `25.00 USDC (Base)`.
+          type: string
+      required:
+        - amount
+        - asset_id
+        - decimals
+        - display
+      type: object
+  securitySchemes:
+    internalToken:
+      description: "Internal Ed25519 JWT: request token or service token."
+      in: header
+      name: X-NearPay-Token
+      type: apiKey
+    serviceClient:
+      description: Service client credentials (`client_id` + secret file).
+      scheme: basic
+      type: http
+info:
+  description: NearPay internal service API. Generated from `nearpay-spec`; do not edit by hand.
+  license:
+    identifier: Apache-2.0
+    name: Apache-2.0
+  title: nearpay-payments internal API
+  version: 0.1.0
+openapi: 3.1.0
+paths:
+  /internal/checkout_sessions/{id}/agent_attempts:
+    post:
+      description: Same guards as payer attempts (§8.2); limits apply per session.
+      operationId: createAgentAttempt
+      parameters:
+        - description: checkout_session id (`cs_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: checkout_session id (`cs_` + 26 base32 chars).
+            examples:
+              - cs_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^cs_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                payer_wallet:
+                  description: Agent's Intents account.
+                  pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+                  type: string
+              required:
+                - payer_wallet
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentAttempt"
+          description: Create (or reuse) an `intents_transfer` attempt for an agent payer.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `session_not_open`, `attempt_in_flight`, `destination_not_intents_account`."
+          x-error-codes:
+            - session_not_open
+            - attempt_in_flight
+            - destination_not_intents_account
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `too_many_attempts`."
+          x-error-codes:
+            - too_many_attempts
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `rail_unavailable`."
+          x-error-codes:
+            - rail_unavailable
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Create (or reuse) an `intents_transfer` attempt for an agent payer.
+      tags:
+        - payments
+      x-nearpay:
+        auth:
+          - service:payments.attempts.create
+        idempotent: false
+        service: payments
+        stage: 1
+  /internal/payment_intents/{id}:
+    get:
+      operationId: getInternalPaymentIntent
+      parameters:
+        - description: payment_intent id (`pi_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: payment_intent id (`pi_` + 26 base32 chars).
+            examples:
+              - pi_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^pi_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentIntent"
+          description: Full payment intent.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Full payment intent.
+      tags:
+        - payments
+      x-nearpay:
+        auth:
+          - service:payments.read
+          - ops:payments.read
+        idempotent: false
+        service: payments
+        stage: 1
+  /internal/payment_intents/{id}/receipt-context:
+    get:
+      operationId: getReceiptContext
+      parameters:
+        - description: payment_intent id (`pi_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: payment_intent id (`pi_` + 26 base32 chars).
+            examples:
+              - pi_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^pi_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReceiptContext"
+          description: Data for the payment receipt email (PII; never in events).
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Data for the payment receipt email (PII; never in events).
+      tags:
+        - payments
+      x-nearpay:
+        auth:
+          - service:payments.receipts.read
+        idempotent: false
+        service: payments
+        stage: 1
+servers:
+  - url: http://payments-api:8080

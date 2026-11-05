@@ -1,0 +1,51 @@
+{
+  "$defs": {
+    "X402VerifyResponse": {
+      "additionalProperties": {},
+      "description": "Facilitator `/verify` result.",
+      "properties": {
+        "invalidMessage": {
+          "description": "Human-readable detail.",
+          "type": "string"
+        },
+        "invalidReason": {
+          "description": "Why a payment payload is invalid.",
+          "type": "string",
+          "x-extensible-enum": [
+            "invalid_x402_version",
+            "invalid_scheme",
+            "invalid_network",
+            "invalid_payment_requirements",
+            "requirement_unknown",
+            "requirement_expired",
+            "requirement_consumed",
+            "invalid_payload",
+            "invalid_signature",
+            "recipient_mismatch",
+            "amount_mismatch",
+            "deadline_invalid",
+            "insufficient_funds",
+            "nonce_used",
+            "payer_blocked",
+            "quota_exceeded"
+          ]
+        },
+        "isValid": {
+          "description": "Whether the payload would settle.",
+          "type": "boolean"
+        },
+        "payer": {
+          "description": "Payer Intents account.",
+          "pattern": "^(?=.{2,64}$)(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "isValid"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/X402VerifyResponse",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

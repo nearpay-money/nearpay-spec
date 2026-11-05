@@ -1,0 +1,184 @@
+{
+  "$defs": {
+    "DestinationBlockedEvent": {
+      "additionalProperties": {},
+      "description": "Compliance blocked a destination.",
+      "properties": {
+        "account_id": {
+          "description": "account id (`acct_` + 26 base32 chars).",
+          "examples": [
+            "acct_01jbz9k3m4n5p6q7r8s9t0v1w2"
+          ],
+          "pattern": "^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+          "type": "string"
+        },
+        "destination_id": {
+          "description": "settlement_destination id (`sd_` + 26 base32 chars).",
+          "examples": [
+            "sd_01jbz9k3m4n5p6q7r8s9t0v1w2"
+          ],
+          "pattern": "^sd_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+          "type": "string"
+        },
+        "reason": {
+          "description": "Why it was blocked.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "destination_id",
+        "account_id",
+        "reason"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": {},
+  "description": "Envelope of `evt.compliance.destination.blocked`.",
+  "properties": {
+    "account_id": {
+      "anyOf": [
+        {
+          "description": "UUID (RFC 9562).",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Merchant account UUID (null for platform events)."
+    },
+    "aggregate": {
+      "additionalProperties": {},
+      "description": "The aggregate that changed.",
+      "properties": {
+        "id": {
+          "description": "Aggregate id (prefixed).",
+          "type": "string"
+        },
+        "type": {
+          "description": "Aggregate type.",
+          "type": "string"
+        },
+        "version": {
+          "description": "Aggregate version after the change.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "version"
+      ],
+      "type": "object"
+    },
+    "data": {
+      "additionalProperties": {},
+      "description": "Payload.",
+      "properties": {
+        "object": {
+          "$ref": "#/$defs/DestinationBlockedEvent"
+        },
+        "previous": {
+          "additionalProperties": {},
+          "description": "Changed fields with previous values.",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "object"
+      ],
+      "type": "object"
+    },
+    "id": {
+      "description": "Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+      "type": "string"
+    },
+    "livemode": {
+      "description": "Mode (null for platform events).",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "occurred_at": {
+      "description": "When the state change committed.",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+      "type": "string"
+    },
+    "request": {
+      "additionalProperties": {},
+      "description": "Request context (copied into public events).",
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "description": "Request id, also returned in the `X-Request-Id` header.",
+              "examples": [
+                "req_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "API request that caused the change."
+        },
+        "idempotency_key": {
+          "description": "Its Idempotency-Key.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "idempotency_key"
+      ],
+      "type": "object"
+    },
+    "subject": {
+      "const": "evt.compliance.destination.blocked",
+      "description": "Subject.",
+      "type": "string"
+    },
+    "trace": {
+      "additionalProperties": {},
+      "description": "Trace context.",
+      "properties": {
+        "traceparent": {
+          "description": "W3C traceparent.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "traceparent"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "id",
+    "occurred_at",
+    "account_id",
+    "livemode",
+    "aggregate",
+    "subject",
+    "data"
+  ],
+  "type": "object"
+}

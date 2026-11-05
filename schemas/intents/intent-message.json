@@ -1,0 +1,112 @@
+{
+  "$defs": {
+    "IntentMessage": {
+      "additionalProperties": {},
+      "description": "Verifier message (`DefusePayload`).",
+      "properties": {
+        "deadline": {
+          "description": "Latest time the Verifier accepts the payload.",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+          "type": "string"
+        },
+        "intents": {
+          "description": "Intents executed atomically.",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TransferIntent"
+              },
+              {
+                "additionalProperties": {},
+                "properties": {
+                  "intent": {
+                    "description": "Intent kind.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "intent"
+                ],
+                "type": "object"
+              }
+            ],
+            "description": "A Verifier intent."
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "nonce": {
+          "description": "32-byte nonce (4-byte Verifier salt ‖ 28 random bytes), standard base64.",
+          "pattern": "^[A-Za-z0-9+/]{43}=$",
+          "type": "string"
+        },
+        "signer_id": {
+          "description": "Intents account that signs (the payer).",
+          "pattern": "^(?=.{2,64}$)(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+$",
+          "type": "string"
+        },
+        "verifying_contract": {
+          "const": "intents.near",
+          "description": "Verifier contract id.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "signer_id",
+        "verifying_contract",
+        "deadline",
+        "nonce",
+        "intents"
+      ],
+      "type": "object"
+    },
+    "TransferIntent": {
+      "additionalProperties": {},
+      "description": "NEAR Intents `transfer` intent.",
+      "properties": {
+        "intent": {
+          "const": "transfer",
+          "description": "Intent kind.",
+          "type": "string"
+        },
+        "memo": {
+          "description": "Memo; NearPay puts the binding here.",
+          "maxLength": 512,
+          "type": "string"
+        },
+        "receiver_id": {
+          "description": "Receiving Intents account.",
+          "pattern": "^(?=.{2,64}$)(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+$",
+          "type": "string"
+        },
+        "tokens": {
+          "additionalProperties": {
+            "description": "Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).",
+            "pattern": "^(0|[1-9][0-9]{0,77})$",
+            "type": "string"
+          },
+          "description": "Asset id → amount in base units.",
+          "propertyNames": {
+            "description": "NEAR Intents asset id, e.g. `nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1`.",
+            "examples": [
+              "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1"
+            ],
+            "maxLength": 256,
+            "pattern": "^(nep141:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+|nep245:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+:[\\x21-\\x7e]{1,128})$",
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "intent",
+        "receiver_id",
+        "tokens"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/IntentMessage",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

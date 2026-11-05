@@ -1,0 +1,448 @@
+{
+  "$defs": {
+    "AttestationChallenge": {
+      "additionalProperties": {},
+      "description": "Message proving control of a settlement destination (FR-SET-02).",
+      "properties": {
+        "expires_at": {
+          "description": "Challenge expiry (10 minutes).",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "id": {
+          "description": "attestation_challenge id (`chl_` + 26 base32 chars).",
+          "examples": [
+            "chl_01jbz9k3m4n5p6q7r8s9t0v1w2"
+          ],
+          "pattern": "^chl_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+          "type": "string"
+        },
+        "message": {
+          "description": "Exact UTF-8 message the destination key must sign.",
+          "type": "string"
+        },
+        "nonce": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9+/]{43}=$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "NEP-413 nonce (32 bytes, base64); null for other standards."
+        },
+        "recipient": {
+          "description": "NEP-413 recipient (`nearpay.money`); null for other standards.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "signing_standard": {
+          "description": "How to sign the message.",
+          "type": "string",
+          "x-extensible-enum": [
+            "nep413",
+            "eip191",
+            "solana",
+            "bip322"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "message",
+        "signing_standard",
+        "nonce",
+        "recipient",
+        "expires_at"
+      ],
+      "type": "object"
+    },
+    "InternalSettlementDestination": {
+      "additionalProperties": {},
+      "description": "Settlement destination with internal fields.",
+      "properties": {
+        "account": {
+          "description": "account id (`acct_` + 26 base32 chars).",
+          "examples": [
+            "acct_01jbz9k3m4n5p6q7r8s9t0v1w2"
+          ],
+          "pattern": "^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+          "type": "string"
+        },
+        "active_at": {
+          "anyOf": [
+            {
+              "description": "Unix time in seconds.",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "When the destination became (or becomes) active."
+        },
+        "address": {
+          "description": "Receiving address or Intents account.",
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
+        },
+        "address_norm": {
+          "description": "Normalised address (lower-case for EVM).",
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
+        },
+        "asset_id": {
+          "description": "Asset the merchant receives.",
+          "examples": [
+            "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1"
+          ],
+          "maxLength": 256,
+          "pattern": "^(nep141:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+|nep245:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+:[\\x21-\\x7e]{1,128})$",
+          "type": "string"
+        },
+        "attestation_challenge": {
+          "$ref": "#/$defs/AttestationChallenge",
+          "description": "Present on creation while the destination awaits its ownership signature."
+        },
+        "attestation_hash": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "sha256 of the stored attestation (hex); null for unverified/test."
+        },
+        "chain": {
+          "description": "Chain of the address; `near:mainnet` for Intents accounts.",
+          "examples": [
+            "eip155:8453"
+          ],
+          "pattern": "^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$",
+          "type": "string"
+        },
+        "created": {
+          "description": "Unix time in seconds.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "disabled_reason": {
+          "anyOf": [
+            {
+              "description": "Why it was disabled.",
+              "type": "string",
+              "x-extensible-enum": [
+                "merchant",
+                "compliance",
+                "replaced"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fingerprint": {
+          "description": "Short fingerprint shown on checkout next to the merchant name, e.g. `7KQ2-M9XA-31`.",
+          "pattern": "^[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{2}$",
+          "type": "string"
+        },
+        "id": {
+          "description": "settlement_destination id (`sd_` + 26 base32 chars).",
+          "examples": [
+            "sd_01jbz9k3m4n5p6q7r8s9t0v1w2"
+          ],
+          "pattern": "^sd_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+          "type": "string"
+        },
+        "is_default": {
+          "description": "Default destination for its asset or for the account.",
+          "type": "boolean"
+        },
+        "label": {
+          "description": "Merchant label.",
+          "type": "string"
+        },
+        "livemode": {
+          "description": "`true` for live mode, `false` for test mode.",
+          "type": "boolean"
+        },
+        "min_payment_amount": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UsdAmount"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Smallest payment that is economic for this destination (FR-SET-04)."
+        },
+        "object": {
+          "const": "settlement_destination",
+          "description": "Always `settlement_destination`.",
+          "type": "string"
+        },
+        "per_payment_cap": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UsdAmount"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Cap per payment for unverified destinations."
+        },
+        "per_payment_cap_usd_micros": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Cap for unverified destinations, USD micros."
+        },
+        "status": {
+          "description": "Lifecycle status; only `active` destinations receive new payments.",
+          "type": "string",
+          "x-extensible-enum": [
+            "pending_verification",
+            "pending_approval",
+            "cooling_off",
+            "active",
+            "disabled"
+          ]
+        },
+        "type": {
+          "description": "Where funds settle: an address on a chain, or a NEAR Intents account.",
+          "enum": [
+            "chain_address",
+            "intents_account"
+          ],
+          "type": "string"
+        },
+        "verification": {
+          "description": "How ownership was established.",
+          "type": "string",
+          "x-extensible-enum": [
+            "signature",
+            "unverified",
+            "test"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "object",
+        "created",
+        "livemode",
+        "asset_id",
+        "type",
+        "chain",
+        "address",
+        "label",
+        "status",
+        "verification",
+        "fingerprint",
+        "is_default",
+        "active_at",
+        "min_payment_amount",
+        "per_payment_cap",
+        "disabled_reason",
+        "account",
+        "address_norm",
+        "attestation_hash",
+        "per_payment_cap_usd_micros"
+      ],
+      "type": "object"
+    },
+    "UsdAmount": {
+      "additionalProperties": {},
+      "description": "An amount in US dollars (minor units).",
+      "properties": {
+        "amount": {
+          "description": "Fiat amount in minor units (e.g. cents), integer.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "currency": {
+          "const": "usd",
+          "description": "Always `usd`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount",
+        "currency"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": {},
+  "description": "Envelope of `evt.identity.settlement_destination.created`.",
+  "properties": {
+    "account_id": {
+      "anyOf": [
+        {
+          "description": "UUID (RFC 9562).",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Merchant account UUID (null for platform events)."
+    },
+    "aggregate": {
+      "additionalProperties": {},
+      "description": "The aggregate that changed.",
+      "properties": {
+        "id": {
+          "description": "Aggregate id (prefixed).",
+          "type": "string"
+        },
+        "type": {
+          "description": "Aggregate type.",
+          "type": "string"
+        },
+        "version": {
+          "description": "Aggregate version after the change.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "version"
+      ],
+      "type": "object"
+    },
+    "data": {
+      "additionalProperties": {},
+      "description": "Payload.",
+      "properties": {
+        "object": {
+          "$ref": "#/$defs/InternalSettlementDestination"
+        },
+        "previous": {
+          "additionalProperties": {},
+          "description": "Changed fields with previous values.",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "object"
+      ],
+      "type": "object"
+    },
+    "id": {
+      "description": "Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+      "type": "string"
+    },
+    "livemode": {
+      "description": "Mode (null for platform events).",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "occurred_at": {
+      "description": "When the state change committed.",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+      "type": "string"
+    },
+    "request": {
+      "additionalProperties": {},
+      "description": "Request context (copied into public events).",
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "description": "Request id, also returned in the `X-Request-Id` header.",
+              "examples": [
+                "req_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "API request that caused the change."
+        },
+        "idempotency_key": {
+          "description": "Its Idempotency-Key.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "idempotency_key"
+      ],
+      "type": "object"
+    },
+    "subject": {
+      "const": "evt.identity.settlement_destination.created",
+      "description": "Subject.",
+      "type": "string"
+    },
+    "trace": {
+      "additionalProperties": {},
+      "description": "Trace context.",
+      "properties": {
+        "traceparent": {
+          "description": "W3C traceparent.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "traceparent"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "id",
+    "occurred_at",
+    "account_id",
+    "livemode",
+    "aggregate",
+    "subject",
+    "data"
+  ],
+  "type": "object"
+}

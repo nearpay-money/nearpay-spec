@@ -1,0 +1,80 @@
+{
+  "$defs": {
+    "X402SettleResponse": {
+      "additionalProperties": {},
+      "description": "Facilitator `/settle` result; body of `PAYMENT-RESPONSE`.",
+      "properties": {
+        "amount": {
+          "description": "Amount settled to `payTo`.",
+          "pattern": "^(0|[1-9][0-9]{0,77})$",
+          "type": "string"
+        },
+        "errorMessage": {
+          "description": "Human-readable detail.",
+          "type": "string"
+        },
+        "errorReason": {
+          "description": "Why settlement did not (yet) succeed; `settlement_pending` is not terminal.",
+          "type": "string",
+          "x-extensible-enum": [
+            "invalid_x402_version",
+            "invalid_scheme",
+            "invalid_network",
+            "invalid_payment_requirements",
+            "requirement_unknown",
+            "requirement_expired",
+            "requirement_consumed",
+            "invalid_payload",
+            "invalid_signature",
+            "recipient_mismatch",
+            "amount_mismatch",
+            "deadline_invalid",
+            "insufficient_funds",
+            "nonce_used",
+            "payer_blocked",
+            "quota_exceeded",
+            "settlement_pending",
+            "unexpected_settle_error"
+          ]
+        },
+        "network": {
+          "const": "near:mainnet",
+          "description": "Network.",
+          "type": "string"
+        },
+        "payer": {
+          "description": "Payer Intents account.",
+          "pattern": "^(?=.{2,64}$)(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+$",
+          "type": "string"
+        },
+        "success": {
+          "description": "Settled on NEAR (final).",
+          "type": "boolean"
+        },
+        "transaction": {
+          "anyOf": [
+            {
+              "description": "Transaction hash in the chain's text form.",
+              "maxLength": 128,
+              "minLength": 8,
+              "type": "string"
+            },
+            {
+              "const": "",
+              "type": "string"
+            }
+          ],
+          "description": "NEAR transaction hash (empty when not submitted)."
+        }
+      },
+      "required": [
+        "success",
+        "transaction",
+        "network"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/X402SettleResponse",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

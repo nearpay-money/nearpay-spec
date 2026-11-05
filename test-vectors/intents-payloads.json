@@ -1,0 +1,41 @@
+{
+  "description": "MultiPayload vectors. NEP-413: ed25519 over sha256(borsh(u32 2147484061) ‖ borsh({message, nonce[32], recipient, callback_url: None})). ERC-191: secp256k1 over keccak256('\\x19Ethereum Signed Message:\\n' + len + payload), signature r‖s‖v with v∈{0,1}. raw_ed25519: ed25519 over the UTF-8 payload. Nonce = 4-byte Verifier salt ‖ 28 bytes.",
+  "salt_hex": "252812b3",
+  "nonce_base64": "JSgSs0khI/8D3+uekOiXOHsqE8dftv1+p+W/bj6OA3Q=",
+  "binding": "np1:AQDxa2L6a5d8egVC7YP85UgtUCYp3cUotS6S3EsGcF7h",
+  "nep413": {
+    "seed_hex": "2d5e13473137a1fc7f90ae139f0b598ddf22ab838618ba77af87591e13023d44",
+    "signer_id": "154f38285fe33bd9457bcfdc765ddd0591f4eb942b449ac02fb3de24a3c96386",
+    "hash_hex": "2c2156e2801ea3703cd6044210e3783c6a1ae34163e2e33b65eb353ab2bd439c",
+    "multipayload": {
+      "standard": "nep413",
+      "payload": {
+        "recipient": "intents.near",
+        "nonce": "JSgSs0khI/8D3+uekOiXOHsqE8dftv1+p+W/bj6OA3Q=",
+        "message": "{\"signer_id\":\"154f38285fe33bd9457bcfdc765ddd0591f4eb942b449ac02fb3de24a3c96386\",\"deadline\":\"2026-11-05T10:02:00.000Z\",\"intents\":[{\"intent\":\"transfer\",\"receiver_id\":\"merchant.near\",\"tokens\":{\"nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1\":\"2000000\"},\"memo\":\"np1:AQDxa2L6a5d8egVC7YP85UgtUCYp3cUotS6S3EsGcF7h\"},{\"intent\":\"transfer\",\"receiver_id\":\"treasury.nearpay.near\",\"tokens\":{\"nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1\":\"6000\"},\"memo\":\"np1:AQDxa2L6a5d8egVC7YP85UgtUCYp3cUotS6S3EsGcF7h\"}]}"
+      },
+      "public_key": "ed25519:2SBdAzviwkHZ4YkAdGqXTitBPqw752YyNhYtzBQiBb25",
+      "signature": "ed25519:3j2D1ujbTgKaGixwZHypNdSLuoyBNDjevMDG8pJYb62armAs5VW9kocNCa1SQ6PhGjkHAfh1LcwNoZp4QftxExcE"
+    }
+  },
+  "erc191": {
+    "private_key_hex": "904c39071d24b9874429284e4b4a3a7aed728fedace1d0f87c726820b600020f",
+    "address": "0x42e06263bb5346ae6421ab1ec1019824e7b284e1",
+    "hash_hex": "675fcb2b1b6e21cc6226f1f4f0b69b6d8199ecbea5f88593f265d2e6bac9a035",
+    "multipayload": {
+      "standard": "erc191",
+      "payload": "{\"signer_id\":\"0x42e06263bb5346ae6421ab1ec1019824e7b284e1\",\"verifying_contract\":\"intents.near\",\"deadline\":\"2026-11-05T10:02:00.000Z\",\"nonce\":\"JSgSs0khI/8D3+uekOiXOHsqE8dftv1+p+W/bj6OA3Q=\",\"intents\":[{\"intent\":\"transfer\",\"receiver_id\":\"merchant.near\",\"tokens\":{\"nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1\":\"2000000\"},\"memo\":\"np1:AQDxa2L6a5d8egVC7YP85UgtUCYp3cUotS6S3EsGcF7h\"},{\"intent\":\"transfer\",\"receiver_id\":\"treasury.nearpay.near\",\"tokens\":{\"nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1\":\"6000\"},\"memo\":\"np1:AQDxa2L6a5d8egVC7YP85UgtUCYp3cUotS6S3EsGcF7h\"}]}",
+      "signature": "secp256k1:D52z7CuSmb9aeWvAS5USn6JZJSMAdhhhsPnSrkUgQsMjQqJaTXf1cq4xRfxkCHYuxbBHnQPGyHrqH5JmAYNjiu9Yk"
+    }
+  },
+  "raw_ed25519": {
+    "seed_hex": "8aa76d33bba3bc5145c4792d27b40faddaafda19c91b717e53e5424d236ccefd",
+    "signer_id": "fabadda23f93737f4855d989557f6e25ca92975a5545e5441af5d2af71927630",
+    "multipayload": {
+      "standard": "raw_ed25519",
+      "payload": "{\"signer_id\":\"fabadda23f93737f4855d989557f6e25ca92975a5545e5441af5d2af71927630\",\"verifying_contract\":\"intents.near\",\"deadline\":\"2026-11-05T10:02:00.000Z\",\"nonce\":\"JSgSs0khI/8D3+uekOiXOHsqE8dftv1+p+W/bj6OA3Q=\",\"intents\":[{\"intent\":\"transfer\",\"receiver_id\":\"merchant.near\",\"tokens\":{\"nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1\":\"2000000\"},\"memo\":\"np1:AQDxa2L6a5d8egVC7YP85UgtUCYp3cUotS6S3EsGcF7h\"},{\"intent\":\"transfer\",\"receiver_id\":\"treasury.nearpay.near\",\"tokens\":{\"nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1\":\"6000\"},\"memo\":\"np1:AQDxa2L6a5d8egVC7YP85UgtUCYp3cUotS6S3EsGcF7h\"}]}",
+      "public_key": "ed25519:HskBzMX1FmW6JSiFkygyQBSKGAGnqdNUsdvuoC6H4FNX",
+      "signature": "ed25519:2vU2ZfAWWw9dy83bSjnjxhAQQaVep3YFAGKLXS3huBHnXWaGzEmGST7kwTaBnm1rvUSZxcS1E4kQ5AA6Qp8LMWqV"
+    }
+  }
+}

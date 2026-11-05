@@ -1,0 +1,173 @@
+{
+  "description": "signature = base64url(Ed25519(UTF-8 of RFC 8785 canonical JSON of `attestation`)). Verify with the pinned key for `kid`.",
+  "key": {
+    "kid": "sent-test-1",
+    "seed_hex": "61e0b1dbd70fa10f50b34184f3e7400a8885845481d0519d0ae9535665c4d3e9",
+    "public_key_base64url": "LHE3Fv7ETKuSmfJWAEBI9iPLlmY5mnePtHvXygDK9GA"
+  },
+  "valid": [
+    {
+      "canonical_json": "{\"attempt_id\":\"pa_01jbz9k3m4n5p6q7r8s9t0v1w2\",\"deposit\":{\"address\":\"0x76b4c56085ed136a8744d52be956396624a730e8\",\"amount_in\":\"2005013\",\"chain\":\"eip155:8453\",\"deadline\":\"2026-11-05T10:15:00.000Z\",\"memo\":null,\"origin_asset_id\":\"nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near\"},\"destination\":{\"asset_id\":\"nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1\",\"chain\":\"near:mainnet\",\"fingerprint\":\"YZMN-R81Z-BR\"},\"expires_at\":\"2026-11-05T10:15:00.000Z\",\"issued_at\":\"2026-11-05T10:00:01.000Z\",\"kind\":\"route_quote\",\"livemode\":true,\"merchant\":{\"kyb_verified\":true,\"name\":\"Acme GmbH\"},\"v\":1}",
+      "signed": {
+        "attestation": {
+          "v": 1,
+          "kind": "route_quote",
+          "attempt_id": "pa_01jbz9k3m4n5p6q7r8s9t0v1w2",
+          "livemode": true,
+          "deposit": {
+            "address": "0x76b4c56085ed136a8744d52be956396624a730e8",
+            "memo": null,
+            "chain": "eip155:8453",
+            "origin_asset_id": "nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near",
+            "amount_in": "2005013",
+            "deadline": "2026-11-05T10:15:00.000Z"
+          },
+          "merchant": {
+            "name": "Acme GmbH",
+            "kyb_verified": true
+          },
+          "destination": {
+            "asset_id": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+            "chain": "near:mainnet",
+            "fingerprint": "YZMN-R81Z-BR"
+          },
+          "issued_at": "2026-11-05T10:00:01.000Z",
+          "expires_at": "2026-11-05T10:15:00.000Z"
+        },
+        "kid": "sent-test-1",
+        "signature": "Bu-aE5cws45YtUWtPNKX7ypdpPqwv5d9zz4aNjmGBHWvI8EtR4MlK6uzC34Wzq8-MwmedFzvbgghSRKOgiHxCA"
+      }
+    },
+    {
+      "canonical_json": "{\"attempt_id\":\"pa_01jbz9k3m4n5p6q7r8s9t0v1w3\",\"destination\":{\"asset_id\":\"nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1\",\"chain\":\"near:mainnet\",\"fingerprint\":\"YZMN-R81Z-BR\"},\"expires_at\":\"2026-11-05T10:02:00.000Z\",\"issued_at\":\"2026-11-05T10:00:01.000Z\",\"kind\":\"intents_transfer\",\"livemode\":false,\"merchant\":{\"kyb_verified\":false,\"name\":\"Acme (unverified)\"},\"requirement\":{\"amount\":\"2000000\",\"binding\":\"np1:AQDxa2L6a5d8egVC7YP85UgtUCYp3cUotS6S3EsGcF7h\",\"deadline\":\"2026-11-05T10:02:00.000Z\",\"fee_amount\":\"6000\",\"fee_to\":\"treasury.nearpay.near\",\"pay_to\":\"merchant.near\",\"token\":\"nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1\"},\"v\":1}",
+      "signed": {
+        "attestation": {
+          "v": 1,
+          "kind": "intents_transfer",
+          "attempt_id": "pa_01jbz9k3m4n5p6q7r8s9t0v1w3",
+          "livemode": false,
+          "requirement": {
+            "pay_to": "merchant.near",
+            "token": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+            "amount": "2000000",
+            "fee_to": "treasury.nearpay.near",
+            "fee_amount": "6000",
+            "binding": "np1:AQDxa2L6a5d8egVC7YP85UgtUCYp3cUotS6S3EsGcF7h",
+            "deadline": "2026-11-05T10:02:00.000Z"
+          },
+          "merchant": {
+            "name": "Acme (unverified)",
+            "kyb_verified": false
+          },
+          "destination": {
+            "asset_id": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+            "chain": "near:mainnet",
+            "fingerprint": "YZMN-R81Z-BR"
+          },
+          "issued_at": "2026-11-05T10:00:01.000Z",
+          "expires_at": "2026-11-05T10:02:00.000Z"
+        },
+        "kid": "sent-test-1",
+        "signature": "Tkr0A_3Pkg16cSAqDicEIKCDrcMpiktWcIG_AWy-5L9OW2QR_S5dc2i3w5UjRmySWVePEuy5CuLs-hAO5TF1Cg"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "reason": "deposit address changed after signing",
+      "signed": {
+        "attestation": {
+          "v": 1,
+          "kind": "route_quote",
+          "attempt_id": "pa_01jbz9k3m4n5p6q7r8s9t0v1w2",
+          "livemode": true,
+          "deposit": {
+            "address": "0x0000000000000000000000000000000000000bad",
+            "memo": null,
+            "chain": "eip155:8453",
+            "origin_asset_id": "nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near",
+            "amount_in": "2005013",
+            "deadline": "2026-11-05T10:15:00.000Z"
+          },
+          "merchant": {
+            "name": "Acme GmbH",
+            "kyb_verified": true
+          },
+          "destination": {
+            "asset_id": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+            "chain": "near:mainnet",
+            "fingerprint": "YZMN-R81Z-BR"
+          },
+          "issued_at": "2026-11-05T10:00:01.000Z",
+          "expires_at": "2026-11-05T10:15:00.000Z"
+        },
+        "kid": "sent-test-1",
+        "signature": "Bu-aE5cws45YtUWtPNKX7ypdpPqwv5d9zz4aNjmGBHWvI8EtR4MlK6uzC34Wzq8-MwmedFzvbgghSRKOgiHxCA"
+      }
+    },
+    {
+      "reason": "unknown kid",
+      "signed": {
+        "attestation": {
+          "v": 1,
+          "kind": "route_quote",
+          "attempt_id": "pa_01jbz9k3m4n5p6q7r8s9t0v1w2",
+          "livemode": true,
+          "deposit": {
+            "address": "0x76b4c56085ed136a8744d52be956396624a730e8",
+            "memo": null,
+            "chain": "eip155:8453",
+            "origin_asset_id": "nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near",
+            "amount_in": "2005013",
+            "deadline": "2026-11-05T10:15:00.000Z"
+          },
+          "merchant": {
+            "name": "Acme GmbH",
+            "kyb_verified": true
+          },
+          "destination": {
+            "asset_id": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+            "chain": "near:mainnet",
+            "fingerprint": "YZMN-R81Z-BR"
+          },
+          "issued_at": "2026-11-05T10:00:01.000Z",
+          "expires_at": "2026-11-05T10:15:00.000Z"
+        },
+        "kid": "sent-unknown",
+        "signature": "Bu-aE5cws45YtUWtPNKX7ypdpPqwv5d9zz4aNjmGBHWvI8EtR4MlK6uzC34Wzq8-MwmedFzvbgghSRKOgiHxCA"
+      }
+    },
+    {
+      "reason": "signature of a different attestation",
+      "signed": {
+        "attestation": {
+          "v": 1,
+          "kind": "route_quote",
+          "attempt_id": "pa_01jbz9k3m4n5p6q7r8s9t0v1w2",
+          "livemode": true,
+          "deposit": {
+            "address": "0x76b4c56085ed136a8744d52be956396624a730e8",
+            "memo": null,
+            "chain": "eip155:8453",
+            "origin_asset_id": "nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near",
+            "amount_in": "2005013",
+            "deadline": "2026-11-05T10:15:00.000Z"
+          },
+          "merchant": {
+            "name": "Acme GmbH",
+            "kyb_verified": true
+          },
+          "destination": {
+            "asset_id": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+            "chain": "near:mainnet",
+            "fingerprint": "YZMN-R81Z-BR"
+          },
+          "issued_at": "2026-11-05T10:00:01.000Z",
+          "expires_at": "2026-11-05T10:15:00.000Z"
+        },
+        "kid": "sent-test-1",
+        "signature": "Tkr0A_3Pkg16cSAqDicEIKCDrcMpiktWcIG_AWy-5L9OW2QR_S5dc2i3w5UjRmySWVePEuy5CuLs-hAO5TF1Cg"
+      }
+    }
+  ]
+}

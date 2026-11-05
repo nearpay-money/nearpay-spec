@@ -1,0 +1,236 @@
+components:
+  schemas:
+    Error:
+      additionalProperties: {}
+      description: Envelope returned with every non-2xx response.
+      properties:
+        error:
+          $ref: "#/components/schemas/ErrorBody"
+      required:
+        - error
+      type: object
+    ErrorBody:
+      additionalProperties: {}
+      description: Details of a failed request.
+      properties:
+        code:
+          description: Machine-readable error code from the error catalogue.
+          type: string
+          x-extensible-enum:
+            - invalid_request
+            - resource_missing
+            - authentication_required
+            - invalid_api_key
+            - permission_denied
+            - csrf_token_invalid
+            - ip_not_allowed
+            - account_suspended
+            - step_up_required
+            - rate_limited
+            - idempotency_key_reused
+            - idempotency_in_progress
+            - api_error
+            - state_conflict
+            - livemode_forbidden
+            - link_expired
+            - link_used
+            - webauthn_failed
+            - invalid_client
+            - turnstile_failed
+            - invalid_setting
+            - scope_unknown
+            - address_invalid
+            - asset_unsupported
+            - memo_destination_unsupported
+            - destination_in_use
+            - recovery_lock
+            - screening_blocked
+            - attestation_invalid
+            - challenge_expired
+            - destination_not_active
+            - account_not_live
+            - amount_below_destination_minimum
+            - amount_above_unverified_cap
+            - currency_unsupported
+            - allowed_origins_required
+            - attempt_in_flight
+            - client_secret_invalid
+            - session_not_open
+            - too_many_attempts
+            - route_too_slow
+            - refund_address_invalid
+            - geo_blocked
+            - intent_invalid
+            - insufficient_balance
+            - rail_unavailable
+            - route_unavailable
+            - pricing_unavailable
+            - deadline_too_short
+            - quote_rejected
+            - quote_integrity_failed
+            - ticket_invalid
+            - attestation_refused
+            - attestation_stale
+            - attestation_unavailable
+            - destination_not_intents_account
+            - amount_below_minimum
+            - screening_unavailable
+            - url_invalid
+            - event_type_unknown
+        doc_url:
+          description: Documentation page for this error code.
+          format: uri
+          type: string
+        message:
+          description: Human-readable message; safe to show to developers, not to payers.
+          type: string
+        param:
+          description: The request parameter the error relates to, when there is one.
+          type: string
+        request_id:
+          description: Request id, also returned in the `X-Request-Id` header.
+          examples:
+            - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        type:
+          description: Error category; decides whether a retry can help.
+          type: string
+          x-extensible-enum:
+            - invalid_request_error
+            - authentication_error
+            - permission_error
+            - payment_error
+            - idempotency_error
+            - state_conflict
+            - rate_limit_error
+            - api_error
+            - rail_unavailable
+      required:
+        - type
+        - code
+        - message
+        - doc_url
+        - request_id
+      type: object
+    MessageQueued:
+      additionalProperties: {}
+      description: Queued message.
+      properties:
+        message_id:
+          description: message id (`msg_` + 26 base32 chars).
+          examples:
+            - msg_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^msg_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+      required:
+        - message_id
+      type: object
+  securitySchemes:
+    internalToken:
+      description: "Internal Ed25519 JWT: request token or service token."
+      in: header
+      name: X-NearPay-Token
+      type: apiKey
+    serviceClient:
+      description: Service client credentials (`client_id` + secret file).
+      scheme: basic
+      type: http
+info:
+  description: NearPay internal service API. Generated from `nearpay-spec`; do not edit by hand.
+  license:
+    identifier: Apache-2.0
+    name: Apache-2.0
+  title: nearpay-notify internal API
+  version: 0.1.0
+openapi: 3.1.0
+paths:
+  /internal/messages:
+    post:
+      operationId: sendMessage
+      requestBody:
+        content:
+          application/json:
+            schema:
+              description: Message to send.
+              oneOf:
+                - additionalProperties: false
+                  properties:
+                    dedupe_key:
+                      description: Stable key; repeated sends are deduplicated.
+                      maxLength: 200
+                      minLength: 1
+                      type: string
+                    locale:
+                      description: Locale (default `en`).
+                      maxLength: 16
+                      type: string
+                    template:
+                      const: auth.magic_link
+                      description: Login / sign-up link.
+                      type: string
+                    to:
+                      description: Recipient.
+                      format: email
+                      pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+                      type: string
+                    variables:
+                      additionalProperties: false
+                      description: Template variables.
+                      properties:
+                        expires_in_minutes:
+                          description: Validity.
+                          maximum: 1440
+                          minimum: 1
+                          type: integer
+                        link_url:
+                          description: Magic link.
+                          format: uri
+                          maxLength: 2048
+                          type: string
+                        purpose:
+                          description: Why the link was sent.
+                          enum:
+                            - signup
+                            - recovery
+                            - invite
+                          type: string
+                      required:
+                        - link_url
+                        - purpose
+                        - expires_in_minutes
+                      type: object
+                  required:
+                    - template
+                    - to
+                    - variables
+                    - dedupe_key
+                  type: object
+              type: object
+        required: true
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageQueued"
+          description: Queue a transactional email.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Queue a transactional email.
+      tags:
+        - notify
+      x-nearpay:
+        auth:
+          - service:notify.send
+        idempotent: false
+        service: notify
+        stage: 1
+servers:
+  - url: http://notify-api:8080

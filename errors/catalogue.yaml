@@ -1,0 +1,542 @@
+version: 0.1.0
+errors:
+  - code: invalid_request
+    status: 400
+    type: invalid_request_error
+    retryable: false
+    generic: true
+    message: "The request is invalid: {detail}"
+    example: "The request is invalid: amount must be an integer."
+    doc_url: https://docs.nearpay.money/errors/invalid_request
+    since: 0.1.0
+  - code: resource_missing
+    status: 404
+    type: invalid_request_error
+    retryable: false
+    generic: true
+    message: "No such {object}: {id}"
+    example: "No such checkout_session: cs_01jbz9k3m4n5p6q7r8s9t0v1w2"
+    doc_url: https://docs.nearpay.money/errors/resource_missing
+    since: 0.1.0
+  - code: authentication_required
+    status: 401
+    type: authentication_error
+    retryable: false
+    generic: true
+    message: This request needs a credential.
+    example: This request needs a credential.
+    doc_url: https://docs.nearpay.money/errors/authentication_required
+    since: 0.1.0
+  - code: invalid_api_key
+    status: 401
+    type: authentication_error
+    retryable: false
+    generic: true
+    message: The API key is invalid, expired or revoked.
+    example: The API key is invalid, expired or revoked.
+    doc_url: https://docs.nearpay.money/errors/invalid_api_key
+    since: 0.1.0
+  - code: permission_denied
+    status: 403
+    type: permission_error
+    retryable: false
+    generic: true
+    message: This credential is not allowed to {action}.
+    example: This credential is not allowed to write checkout_sessions.
+    doc_url: https://docs.nearpay.money/errors/permission_denied
+    since: 0.1.0
+  - code: csrf_token_invalid
+    status: 403
+    type: permission_error
+    retryable: false
+    generic: true
+    message: The CSRF token is missing or does not match the session.
+    example: The CSRF token is missing or does not match the session.
+    doc_url: https://docs.nearpay.money/errors/csrf_token_invalid
+    since: 0.1.0
+  - code: ip_not_allowed
+    status: 403
+    type: permission_error
+    retryable: false
+    generic: true
+    message: Requests with this API key are not allowed from {ip}.
+    example: Requests with this API key are not allowed from 203.0.113.7.
+    doc_url: https://docs.nearpay.money/errors/ip_not_allowed
+    since: 0.1.0
+  - code: account_suspended
+    status: 403
+    type: permission_error
+    retryable: false
+    generic: true
+    message: The account is suspended; live-mode changes are not allowed.
+    example: The account is suspended; live-mode changes are not allowed.
+    doc_url: https://docs.nearpay.money/errors/account_suspended
+    since: 0.1.0
+  - code: step_up_required
+    status: 401
+    type: authentication_error
+    retryable: false
+    generic: true
+    message: This action needs a fresh passkey confirmation (step-up).
+    example: This action needs a fresh passkey confirmation (step-up).
+    doc_url: https://docs.nearpay.money/errors/step_up_required
+    since: 0.1.0
+  - code: rate_limited
+    status: 429
+    type: rate_limit_error
+    retryable: true
+    generic: true
+    message: Too many requests; retry after {retry_after} seconds.
+    example: Too many requests; retry after 2 seconds.
+    doc_url: https://docs.nearpay.money/errors/rate_limited
+    since: 0.1.0
+  - code: idempotency_key_reused
+    status: 409
+    type: idempotency_error
+    retryable: false
+    generic: true
+    message: This Idempotency-Key was used with a different request.
+    example: This Idempotency-Key was used with a different request.
+    doc_url: https://docs.nearpay.money/errors/idempotency_key_reused
+    since: 0.1.0
+  - code: idempotency_in_progress
+    status: 409
+    type: idempotency_error
+    retryable: true
+    generic: true
+    message: A request with this Idempotency-Key is still in progress.
+    example: A request with this Idempotency-Key is still in progress.
+    doc_url: https://docs.nearpay.money/errors/idempotency_in_progress
+    since: 0.1.0
+  - code: api_error
+    status: 500
+    type: api_error
+    retryable: true
+    generic: true
+    message: An internal error occurred; retry with the same Idempotency-Key.
+    example: An internal error occurred; retry with the same Idempotency-Key.
+    doc_url: https://docs.nearpay.money/errors/api_error
+    since: 0.1.0
+  - code: state_conflict
+    status: 409
+    type: state_conflict
+    retryable: false
+    generic: false
+    message: The {object} is {state}; this action is not allowed.
+    example: The checkout_session is complete; this action is not allowed.
+    doc_url: https://docs.nearpay.money/errors/state_conflict
+    since: 0.1.0
+  - code: livemode_forbidden
+    status: 403
+    type: permission_error
+    retryable: false
+    generic: false
+    message: This endpoint is available in test mode only.
+    example: This endpoint is available in test mode only.
+    doc_url: https://docs.nearpay.money/errors/livemode_forbidden
+    since: 0.1.0
+  - code: link_expired
+    status: 410
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: The link has expired; request a new one.
+    example: The link has expired; request a new one.
+    doc_url: https://docs.nearpay.money/errors/link_expired
+    since: 0.1.0
+  - code: link_used
+    status: 410
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: The link was already used; request a new one.
+    example: The link was already used; request a new one.
+    doc_url: https://docs.nearpay.money/errors/link_used
+    since: 0.1.0
+  - code: webauthn_failed
+    status: 400
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: "The passkey operation could not be verified: {reason}"
+    example: "The passkey operation could not be verified: challenge mismatch"
+    doc_url: https://docs.nearpay.money/errors/webauthn_failed
+    since: 0.1.0
+  - code: invalid_client
+    status: 401
+    type: authentication_error
+    retryable: false
+    generic: false
+    message: The service client credentials are invalid.
+    example: The service client credentials are invalid.
+    doc_url: https://docs.nearpay.money/errors/invalid_client
+    since: 0.1.0
+  - code: turnstile_failed
+    status: 403
+    type: permission_error
+    retryable: false
+    generic: false
+    message: The human-verification challenge failed; reload and try again.
+    example: The human-verification challenge failed; reload and try again.
+    doc_url: https://docs.nearpay.money/errors/turnstile_failed
+    since: 0.1.0
+  - code: invalid_setting
+    status: 400
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: "The setting {setting} is not valid: {reason}"
+    example: "The setting underpay_tolerance_bps is not valid: must be at most 100."
+    doc_url: https://docs.nearpay.money/errors/invalid_setting
+    since: 0.1.0
+  - code: scope_unknown
+    status: 400
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: "Unknown scope: {scope}"
+    example: "Unknown scope: payments.write"
+    doc_url: https://docs.nearpay.money/errors/scope_unknown
+    since: 0.1.0
+  - code: address_invalid
+    status: 400
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: "{address} is not a valid address on {chain}."
+    example: 0x12 is not a valid address on eip155:8453.
+    doc_url: https://docs.nearpay.money/errors/address_invalid
+    since: 0.1.0
+  - code: asset_unsupported
+    status: 400
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: The asset {asset_id} is not supported.
+    example: The asset nep141:unknown.near is not supported.
+    doc_url: https://docs.nearpay.money/errors/asset_unsupported
+    since: 0.1.0
+  - code: memo_destination_unsupported
+    status: 400
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: Destinations that need a memo or tag are not supported.
+    example: Destinations that need a memo or tag are not supported.
+    doc_url: https://docs.nearpay.money/errors/memo_destination_unsupported
+    since: 0.1.0
+  - code: destination_in_use
+    status: 409
+    type: state_conflict
+    retryable: false
+    generic: false
+    message: This address and asset are already registered as a settlement destination.
+    example: This address and asset are already registered as a settlement destination.
+    doc_url: https://docs.nearpay.money/errors/destination_in_use
+    since: 0.1.0
+  - code: recovery_lock
+    status: 403
+    type: permission_error
+    retryable: false
+    generic: false
+    message: Settlement destinations cannot change until {until} after account recovery.
+    example: Settlement destinations cannot change until 2026-11-07T10:00:00Z after account recovery.
+    doc_url: https://docs.nearpay.money/errors/recovery_lock
+    since: 0.1.0
+  - code: screening_blocked
+    status: 402
+    type: payment_error
+    retryable: false
+    generic: false
+    message: This address cannot be used.
+    example: This address cannot be used.
+    doc_url: https://docs.nearpay.money/errors/screening_blocked
+    since: 0.1.0
+  - code: attestation_invalid
+    status: 400
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: The ownership signature is not valid for this destination.
+    example: The ownership signature is not valid for this destination.
+    doc_url: https://docs.nearpay.money/errors/attestation_invalid
+    since: 0.1.0
+  - code: challenge_expired
+    status: 410
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: The attestation challenge has expired or was used; create a new destination.
+    example: The attestation challenge has expired or was used; create a new destination.
+    doc_url: https://docs.nearpay.money/errors/challenge_expired
+    since: 0.1.0
+  - code: destination_not_active
+    status: 409
+    type: state_conflict
+    retryable: false
+    generic: false
+    message: The settlement destination {destination} is not active.
+    example: The settlement destination sd_01jbz9k3m4n5p6q7r8s9t0v1w2 is not active.
+    doc_url: https://docs.nearpay.money/errors/destination_not_active
+    since: 0.1.0
+  - code: account_not_live
+    status: 403
+    type: permission_error
+    retryable: false
+    generic: false
+    message: Live mode is not enabled for this account ({missing}).
+    example: Live mode is not enabled for this account (kyb).
+    doc_url: https://docs.nearpay.money/errors/account_not_live
+    since: 0.1.0
+  - code: amount_below_destination_minimum
+    status: 422
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: Amount must be at least {minimum} for destination {destination}.
+    example: Amount must be at least 2.00 USD for destination sd_01jbz9k3m4n5p6q7r8s9t0v1w2 (USDC on Ethereum).
+    doc_url: https://docs.nearpay.money/errors/amount_below_destination_minimum
+    since: 0.1.0
+  - code: amount_above_unverified_cap
+    status: 422
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: Amount exceeds the {cap} per-payment cap of an unverified destination.
+    example: Amount exceeds the 1,000.00 USD per-payment cap of an unverified destination.
+    doc_url: https://docs.nearpay.money/errors/amount_above_unverified_cap
+    since: 0.1.0
+  - code: currency_unsupported
+    status: 400
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: The currency {currency} is not supported.
+    example: The currency eur is not supported.
+    doc_url: https://docs.nearpay.money/errors/currency_unsupported
+    since: 0.1.0
+  - code: allowed_origins_required
+    status: 400
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: Embedded sessions need allowed_origins (https origins).
+    example: Embedded sessions need allowed_origins (https origins).
+    doc_url: https://docs.nearpay.money/errors/allowed_origins_required
+    since: 0.1.0
+  - code: attempt_in_flight
+    status: 409
+    type: state_conflict
+    retryable: false
+    generic: false
+    message: A payment for this session is already being processed.
+    example: A payment for this session is already being processed.
+    doc_url: https://docs.nearpay.money/errors/attempt_in_flight
+    since: 0.1.0
+  - code: client_secret_invalid
+    status: 401
+    type: authentication_error
+    retryable: false
+    generic: false
+    message: The client secret does not match this checkout session.
+    example: The client secret does not match this checkout session.
+    doc_url: https://docs.nearpay.money/errors/client_secret_invalid
+    since: 0.1.0
+  - code: session_not_open
+    status: 409
+    type: state_conflict
+    retryable: false
+    generic: false
+    message: This checkout session is no longer open.
+    example: This checkout session is no longer open.
+    doc_url: https://docs.nearpay.money/errors/session_not_open
+    since: 0.1.0
+  - code: too_many_attempts
+    status: 429
+    type: rate_limit_error
+    retryable: false
+    generic: false
+    message: Too many payment attempts for this checkout session.
+    example: Too many payment attempts for this checkout session.
+    doc_url: https://docs.nearpay.money/errors/too_many_attempts
+    since: 0.1.0
+  - code: route_too_slow
+    status: 422
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: Payments from {chain} take too long to fit the time left in this session.
+    example: Payments from bip122:000000000019d6689c085ae165831e93 take too long to fit the time left in this session.
+    doc_url: https://docs.nearpay.money/errors/route_too_slow
+    since: 0.1.0
+  - code: refund_address_invalid
+    status: 400
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: The refund address is not a valid address on {chain}.
+    example: The refund address is not a valid address on eip155:8453.
+    doc_url: https://docs.nearpay.money/errors/refund_address_invalid
+    since: 0.1.0
+  - code: geo_blocked
+    status: 403
+    type: permission_error
+    retryable: false
+    generic: false
+    message: Payments are not available in your region.
+    example: Payments are not available in your region.
+    doc_url: https://docs.nearpay.money/errors/geo_blocked
+    since: 0.1.0
+  - code: intent_invalid
+    status: 400
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: "The signed intent does not match the payment requirement: {reason}"
+    example: "The signed intent does not match the payment requirement: amount mismatch"
+    doc_url: https://docs.nearpay.money/errors/intent_invalid
+    since: 0.1.0
+  - code: insufficient_balance
+    status: 402
+    type: payment_error
+    retryable: false
+    generic: false
+    message: The NEAR Intents balance is not enough for this payment.
+    example: The NEAR Intents balance is not enough for this payment.
+    doc_url: https://docs.nearpay.money/errors/insufficient_balance
+    since: 0.1.0
+  - code: rail_unavailable
+    status: 503
+    type: rail_unavailable
+    retryable: true
+    generic: false
+    message: Payments are temporarily unavailable ({reason}); try again shortly.
+    example: Payments are temporarily unavailable (route provider); try again shortly.
+    doc_url: https://docs.nearpay.money/errors/rail_unavailable
+    since: 0.1.0
+  - code: route_unavailable
+    status: 422
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: No route from {origin_asset_id} to {destination_asset_id}.
+    example: No route from nep141:a.near to nep141:b.near.
+    doc_url: https://docs.nearpay.money/errors/route_unavailable
+    since: 0.1.0
+  - code: pricing_unavailable
+    status: 503
+    type: rail_unavailable
+    retryable: true
+    generic: false
+    message: A reliable price for {asset_id} is not available right now.
+    example: A reliable price for nep141:wrap.near is not available right now.
+    doc_url: https://docs.nearpay.money/errors/pricing_unavailable
+    since: 0.1.0
+  - code: deadline_too_short
+    status: 422
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: The remaining time is shorter than the minimum deadline for {chain}.
+    example: The remaining time is shorter than the minimum deadline for eip155:1.
+    doc_url: https://docs.nearpay.money/errors/deadline_too_short
+    since: 0.1.0
+  - code: quote_rejected
+    status: 422
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: "The route provider rejected the quote: {provider_message}"
+    example: "The route provider rejected the quote: Amount is too low for bridge."
+    doc_url: https://docs.nearpay.money/errors/quote_rejected
+    since: 0.1.0
+  - code: quote_integrity_failed
+    status: 502
+    type: api_error
+    retryable: true
+    generic: false
+    message: The route provider's quote failed NearPay's integrity checks.
+    example: The route provider's quote failed NearPay's integrity checks.
+    doc_url: https://docs.nearpay.money/errors/quote_integrity_failed
+    since: 0.1.0
+  - code: ticket_invalid
+    status: 401
+    type: authentication_error
+    retryable: false
+    generic: false
+    message: The attestation ticket is invalid or expired.
+    example: The attestation ticket is invalid or expired.
+    doc_url: https://docs.nearpay.money/errors/ticket_invalid
+    since: 0.1.0
+  - code: attestation_refused
+    status: 409
+    type: state_conflict
+    retryable: false
+    generic: false
+    message: These deposit instructions could not be verified; do not send funds.
+    example: These deposit instructions could not be verified; do not send funds.
+    doc_url: https://docs.nearpay.money/errors/attestation_refused
+    since: 0.1.0
+  - code: attestation_stale
+    status: 409
+    type: state_conflict
+    retryable: false
+    generic: false
+    message: These deposit instructions have expired or settled; start a new payment.
+    example: These deposit instructions have expired or settled; start a new payment.
+    doc_url: https://docs.nearpay.money/errors/attestation_stale
+    since: 0.1.0
+  - code: attestation_unavailable
+    status: 503
+    type: api_error
+    retryable: true
+    generic: false
+    message: Deposit instructions cannot be verified right now; try again shortly.
+    example: Deposit instructions cannot be verified right now; try again shortly.
+    doc_url: https://docs.nearpay.money/errors/attestation_unavailable
+    since: 0.1.0
+  - code: destination_not_intents_account
+    status: 409
+    type: state_conflict
+    retryable: false
+    generic: false
+    message: Agent payments need a NEAR Intents account settlement destination for {asset_id}.
+    example: Agent payments need a NEAR Intents account settlement destination for nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1.
+    doc_url: https://docs.nearpay.money/errors/destination_not_intents_account
+    since: 0.1.0
+  - code: amount_below_minimum
+    status: 422
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: Amount must be at least {minimum}.
+    example: Amount must be at least 1000 base units.
+    doc_url: https://docs.nearpay.money/errors/amount_below_minimum
+    since: 0.1.0
+  - code: screening_unavailable
+    status: 503
+    type: api_error
+    retryable: true
+    generic: false
+    message: Address screening is unavailable for this amount; try again shortly.
+    example: Address screening is unavailable for this amount; try again shortly.
+    doc_url: https://docs.nearpay.money/errors/screening_unavailable
+    since: 0.1.0
+  - code: url_invalid
+    status: 400
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: "The URL is not allowed: {reason}"
+    example: "The URL is not allowed: https is required in live mode."
+    doc_url: https://docs.nearpay.money/errors/url_invalid
+    since: 0.1.0
+  - code: event_type_unknown
+    status: 400
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: "Unknown event type: {type}"
+    example: "Unknown event type: payment_intent.done"
+    doc_url: https://docs.nearpay.money/errors/event_type_unknown
+    since: 0.1.0

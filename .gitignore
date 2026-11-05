@@ -12,3 +12,11 @@ coverage/
 .DS_Store
 .idea/
 .vscode/
+packages/*/dist/
+packages/*/LICENSE
+packages/*/test-vectors/
+packages/*/openapi/
+packages/*/schemas/
+packages/*/errors/
+packages/*/asyncapi/
+*.tgz

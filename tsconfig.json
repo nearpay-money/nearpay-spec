@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"],
+    "paths": { "@nearpay/spec": ["./src/public-entry.ts"] }
+  },
+  "include": ["src", "codegen", "test", "scripts", "vitest.config.ts"]
+}

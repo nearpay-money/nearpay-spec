@@ -1,0 +1,180 @@
+{
+  "$defs": {
+    "X402IntentsTransferExtra": {
+      "additionalProperties": {},
+      "description": "NearPay `intents-transfer` requirement details.",
+      "properties": {
+        "assetTransferMethod": {
+          "const": "intents-transfer",
+          "description": "NearPay transfer method.",
+          "type": "string"
+        },
+        "binding": {
+          "description": "Binding memo `np1:` + base58(sha256(…)) tying a signed transfer to one requirement.",
+          "pattern": "^np1:[1-9A-HJ-NP-Za-km-z]{43,44}$",
+          "type": "string"
+        },
+        "fee": {
+          "additionalProperties": {},
+          "description": "NearPay fee transfer the payload must also contain.",
+          "properties": {
+            "amount": {
+              "description": "Fee in base units of the same asset.",
+              "pattern": "^(0|[1-9][0-9]{0,77})$",
+              "type": "string"
+            },
+            "to": {
+              "description": "NearPay treasury Intents account.",
+              "pattern": "^(?=.{2,64}$)(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "to",
+            "amount"
+          ],
+          "type": "object"
+        },
+        "paymentFlow": {
+          "const": "authorization",
+          "description": "Payer signs; facilitator relays.",
+          "type": "string"
+        },
+        "verifyingContract": {
+          "const": "intents.near",
+          "description": "Verifier contract.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "assetTransferMethod",
+        "paymentFlow",
+        "fee",
+        "binding",
+        "verifyingContract"
+      ],
+      "type": "object"
+    },
+    "X402PaymentRequired": {
+      "additionalProperties": {},
+      "description": "Body of `PAYMENT-REQUIRED` (base64 JSON).",
+      "properties": {
+        "accepts": {
+          "description": "Accepted payment requirements.",
+          "items": {
+            "$ref": "#/$defs/X402PaymentRequirements"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "error": {
+          "description": "Why payment is (still) required.",
+          "type": "string"
+        },
+        "extensions": {
+          "additionalProperties": {},
+          "description": "Protocol extensions.",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "resource": {
+          "$ref": "#/$defs/X402ResourceInfo"
+        },
+        "x402Version": {
+          "const": 2,
+          "description": "x402 protocol version.",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x402Version",
+        "resource",
+        "accepts"
+      ],
+      "type": "object"
+    },
+    "X402PaymentRequirements": {
+      "additionalProperties": {},
+      "description": "One accepted way to pay (`accepts[]` entry).",
+      "properties": {
+        "amount": {
+          "description": "Amount the merchant receives, base units.",
+          "pattern": "^(0|[1-9][0-9]{0,77})$",
+          "type": "string"
+        },
+        "asset": {
+          "description": "Asset to pay (NEAR Intents asset id).",
+          "examples": [
+            "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1"
+          ],
+          "maxLength": 256,
+          "pattern": "^(nep141:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+|nep245:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+:[\\x21-\\x7e]{1,128})$",
+          "type": "string"
+        },
+        "extra": {
+          "$ref": "#/$defs/X402IntentsTransferExtra"
+        },
+        "maxTimeoutSeconds": {
+          "description": "Payment must be settled within this time.",
+          "maximum": 300,
+          "minimum": 30,
+          "type": "integer"
+        },
+        "network": {
+          "const": "near:mainnet",
+          "description": "Network.",
+          "type": "string"
+        },
+        "payTo": {
+          "description": "Merchant Intents account.",
+          "pattern": "^(?=.{2,64}$)(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+$",
+          "type": "string"
+        },
+        "scheme": {
+          "const": "exact",
+          "description": "x402 scheme.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scheme",
+        "network",
+        "amount",
+        "asset",
+        "payTo",
+        "maxTimeoutSeconds",
+        "extra"
+      ],
+      "type": "object"
+    },
+    "X402ResourceInfo": {
+      "additionalProperties": {},
+      "description": "The resource a payment unlocks.",
+      "properties": {
+        "description": {
+          "description": "What is being paid for.",
+          "maxLength": 500,
+          "type": "string"
+        },
+        "mimeType": {
+          "description": "MIME type of the resource.",
+          "maxLength": 100,
+          "type": "string"
+        },
+        "url": {
+          "description": "URL of the paid resource.",
+          "format": "uri",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/X402PaymentRequired",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

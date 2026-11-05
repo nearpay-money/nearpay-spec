@@ -1,0 +1,15 @@
+{
+  "description": "ticket = base64url(JCS(payload)) + '.' + base64url(Ed25519(payments ticket key, JCS bytes)). Sentinel verifies, checks exp > now and that attempt_id, livemode and deposit_key match the request.",
+  "key": {
+    "seed_hex": "e1f311819131dbb3dc93b32ccbcf28f68471d53edb7f17f5391b88275cd3ac66",
+    "public_key_base64url": "A5b8LNT71S1M-g0PTqZW5B8imnnhbFy3SpDWJWN29SY"
+  },
+  "payload": {
+    "attempt_id": "pa_01jbz9k3m4n5p6q7r8s9t0v1w2",
+    "livemode": true,
+    "deposit_key": "oneclick|0x76b4c56085ed136a8744d52be956396624a730e8|",
+    "exp": 1793873700
+  },
+  "canonical_json": "{\"attempt_id\":\"pa_01jbz9k3m4n5p6q7r8s9t0v1w2\",\"deposit_key\":\"oneclick|0x76b4c56085ed136a8744d52be956396624a730e8|\",\"exp\":1793873700,\"livemode\":true}",
+  "ticket": "eyJhdHRlbXB0X2lkIjoicGFfMDFqYno5azNtNG41cDZxN3I4czl0MHYxdzIiLCJkZXBvc2l0X2tleSI6Im9uZWNsaWNrfDB4NzZiNGM1NjA4NWVkMTM2YTg3NDRkNTJiZTk1NjM5NjYyNGE3MzBlOHwiLCJleHAiOjE3OTM4NzM3MDAsImxpdmVtb2RlIjp0cnVlfQ.6epHJvMWH8Cd2CCRvA45UKHFRMrflIb8RWGWtifStQ-Popa0SGdeuO8P54q08F5epkaE3aZkPjMZPm6q0EszCA"
+}

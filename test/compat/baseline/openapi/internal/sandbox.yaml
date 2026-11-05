@@ -1,0 +1,1376 @@
+components:
+  schemas:
+    Erc191MultiPayload:
+      additionalProperties: {}
+      description: Payload signed with ERC-191.
+      properties:
+        payload:
+          description: JSON string of `IntentMessage`.
+          minLength: 2
+          type: string
+        signature:
+          description: secp256k1 signature r‖s‖v (v ∈ {0,1}), base58.
+          pattern: ^(ed25519|secp256k1):[1-9A-HJ-NP-Za-km-z]{64,100}$
+          type: string
+        standard:
+          const: erc191
+          description: ERC-191 `personal_sign` (EVM wallets).
+          type: string
+      required:
+        - standard
+        - payload
+        - signature
+      type: object
+    Error:
+      additionalProperties: {}
+      description: Envelope returned with every non-2xx response.
+      properties:
+        error:
+          $ref: "#/components/schemas/ErrorBody"
+      required:
+        - error
+      type: object
+    ErrorBody:
+      additionalProperties: {}
+      description: Details of a failed request.
+      properties:
+        code:
+          description: Machine-readable error code from the error catalogue.
+          type: string
+          x-extensible-enum:
+            - invalid_request
+            - resource_missing
+            - authentication_required
+            - invalid_api_key
+            - permission_denied
+            - csrf_token_invalid
+            - ip_not_allowed
+            - account_suspended
+            - step_up_required
+            - rate_limited
+            - idempotency_key_reused
+            - idempotency_in_progress
+            - api_error
+            - state_conflict
+            - livemode_forbidden
+            - link_expired
+            - link_used
+            - webauthn_failed
+            - invalid_client
+            - turnstile_failed
+            - invalid_setting
+            - scope_unknown
+            - address_invalid
+            - asset_unsupported
+            - memo_destination_unsupported
+            - destination_in_use
+            - recovery_lock
+            - screening_blocked
+            - attestation_invalid
+            - challenge_expired
+            - destination_not_active
+            - account_not_live
+            - amount_below_destination_minimum
+            - amount_above_unverified_cap
+            - currency_unsupported
+            - allowed_origins_required
+            - attempt_in_flight
+            - client_secret_invalid
+            - session_not_open
+            - too_many_attempts
+            - route_too_slow
+            - refund_address_invalid
+            - geo_blocked
+            - intent_invalid
+            - insufficient_balance
+            - rail_unavailable
+            - route_unavailable
+            - pricing_unavailable
+            - deadline_too_short
+            - quote_rejected
+            - quote_integrity_failed
+            - ticket_invalid
+            - attestation_refused
+            - attestation_stale
+            - attestation_unavailable
+            - destination_not_intents_account
+            - amount_below_minimum
+            - screening_unavailable
+            - url_invalid
+            - event_type_unknown
+        doc_url:
+          description: Documentation page for this error code.
+          format: uri
+          type: string
+        message:
+          description: Human-readable message; safe to show to developers, not to payers.
+          type: string
+        param:
+          description: The request parameter the error relates to, when there is one.
+          type: string
+        request_id:
+          description: Request id, also returned in the `X-Request-Id` header.
+          examples:
+            - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        type:
+          description: Error category; decides whether a retry can help.
+          type: string
+          x-extensible-enum:
+            - invalid_request_error
+            - authentication_error
+            - permission_error
+            - payment_error
+            - idempotency_error
+            - state_conflict
+            - rate_limit_error
+            - api_error
+            - rail_unavailable
+      required:
+        - type
+        - code
+        - message
+        - doc_url
+        - request_id
+      type: object
+    MultiPayload:
+      description: A signed Verifier payload (`MultiPayload`).
+      discriminator:
+        mapping:
+          erc191: "#/components/schemas/Erc191MultiPayload"
+          nep413: "#/components/schemas/Nep413MultiPayload"
+          raw_ed25519: "#/components/schemas/RawEd25519MultiPayload"
+        propertyName: standard
+      oneOf:
+        - $ref: "#/components/schemas/Nep413MultiPayload"
+        - $ref: "#/components/schemas/Erc191MultiPayload"
+        - $ref: "#/components/schemas/RawEd25519MultiPayload"
+      type: object
+    Nep413MultiPayload:
+      additionalProperties: {}
+      description: Payload signed with NEP-413.
+      properties:
+        payload:
+          additionalProperties: {}
+          description: NEP-413 payload.
+          properties:
+            callbackUrl:
+              description: NEP-413 callback URL (NearPay never sets it).
+              type:
+                - string
+                - "null"
+            message:
+              description: JSON string of `Nep413IntentMessage`.
+              minLength: 2
+              type: string
+            nonce:
+              description: 32-byte nonce (4-byte Verifier salt ‖ 28 random bytes), standard base64.
+              pattern: ^[A-Za-z0-9+/]{43}=$
+              type: string
+            recipient:
+              const: intents.near
+              description: NEP-413 recipient (the Verifier).
+              type: string
+          required:
+            - recipient
+            - nonce
+            - message
+          type: object
+        public_key:
+          description: ed25519 key of the signer.
+          pattern: ^(ed25519|secp256k1):[1-9A-HJ-NP-Za-km-z]{32,90}$
+          type: string
+        signature:
+          description: ed25519 signature over the NEP-413 borsh hash.
+          pattern: ^(ed25519|secp256k1):[1-9A-HJ-NP-Za-km-z]{64,100}$
+          type: string
+        standard:
+          const: nep413
+          description: NEP-413 (NEAR wallets `signMessage`).
+          type: string
+      required:
+        - standard
+        - payload
+        - public_key
+        - signature
+      type: object
+    OneClickAppFee:
+      additionalProperties: {}
+      description: 1Click app fee.
+      properties:
+        fee:
+          description: Fee in bps of amountIn.
+          maximum: 10000
+          minimum: 0
+          type: integer
+        recipient:
+          description: Intents account receiving the fee.
+          type: string
+      required:
+        - recipient
+        - fee
+      type: object
+    OneClickQuote:
+      additionalProperties: {}
+      description: 1Click quote.
+      properties:
+        amountIn:
+          description: Integer amount in base units, as a string.
+          pattern: ^\d+$
+          type: string
+        amountInFormatted:
+          description: Readable amountIn.
+          type: string
+        amountInUsd:
+          description: USD value of amountIn.
+          type: string
+        amountOut:
+          description: Integer amount in base units, as a string.
+          pattern: ^\d+$
+          type: string
+        amountOutFormatted:
+          description: Readable amountOut.
+          type: string
+        amountOutUsd:
+          description: USD value of amountOut.
+          type: string
+        deadline:
+          description: Deposit deadline (ISO).
+          type: string
+        depositAddress:
+          description: Deposit address (absent on dry runs).
+          type: string
+        depositMemo:
+          description: Deposit memo.
+          type: string
+        minAmountIn:
+          description: Integer amount in base units, as a string.
+          pattern: ^\d+$
+          type: string
+        minAmountOut:
+          description: Integer amount in base units, as a string.
+          pattern: ^\d+$
+          type: string
+        refundFee:
+          description: Refund fee, origin base units.
+          type: string
+        timeEstimate:
+          description: Estimated seconds to execute.
+          type: number
+        timeWhenInactive:
+          description: When the address goes cold (ISO).
+          type: string
+        withdrawFee:
+          description: Withdraw fee, destination base units.
+          type: string
+      required:
+        - amountIn
+        - amountInFormatted
+        - amountInUsd
+        - minAmountIn
+        - amountOut
+        - amountOutFormatted
+        - amountOutUsd
+        - minAmountOut
+        - timeEstimate
+      type: object
+    OneClickQuoteRequest:
+      additionalProperties: {}
+      description: 1Click `POST /v0/quote` request.
+      properties:
+        amount:
+          description: Integer amount in base units, as a string.
+          pattern: ^\d+$
+          type: string
+        appFees:
+          description: App fees.
+          items:
+            $ref: "#/components/schemas/OneClickAppFee"
+          type: array
+        confidentiality:
+          description: Confidentiality mode.
+          enum:
+            - public
+            - basic
+            - advanced
+          type: string
+        connectedWallets:
+          description: Connected wallets.
+          items:
+            type: string
+          type: array
+        customRecipientMsg:
+          description: ft_transfer_call message (experimental).
+          type: string
+        deadline:
+          description: ISO deadline after which refunds begin.
+          type: string
+        depositMode:
+          description: Deposit address mode.
+          enum:
+            - SIMPLE
+            - MEMO
+          type: string
+        depositType:
+          description: Deposit address type.
+          enum:
+            - ORIGIN_CHAIN
+            - INTENTS
+            - CONFIDENTIAL_INTENTS
+          type: string
+        destinationAsset:
+          description: Destination asset id.
+          type: string
+        dry:
+          description: Dry run (no deposit address).
+          type: boolean
+        insured:
+          description: Insured swap.
+          type: boolean
+        originAsset:
+          description: Origin asset id.
+          type: string
+        quoteWaitingTimeMs:
+          description: Quote wait, ms.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        rebates:
+          description: Rebates (unused).
+          items: {}
+          type: array
+        recipient:
+          description: Recipient address.
+          type: string
+        recipientType:
+          description: Recipient type.
+          enum:
+            - DESTINATION_CHAIN
+            - INTENTS
+            - CONFIDENTIAL_INTENTS
+          type: string
+        referral:
+          description: Referral id (`nearpay`).
+          type: string
+        refundTo:
+          description: Refund address.
+          type: string
+        refundType:
+          description: Refund address type.
+          enum:
+            - ORIGIN_CHAIN
+            - INTENTS
+            - CONFIDENTIAL_INTENTS
+          type: string
+        sessionId:
+          description: Client session id.
+          type: string
+        slippageTolerance:
+          description: Slippage, bps.
+          maximum: 10000
+          minimum: 0
+          type: integer
+        swapType:
+          description: How `amount` is interpreted.
+          enum:
+            - EXACT_INPUT
+            - EXACT_OUTPUT
+            - FLEX_INPUT
+            - ANY_INPUT
+          type: string
+        virtualChainRecipient:
+          description: Virtual-chain recipient.
+          type: string
+        virtualChainRefundRecipient:
+          description: Virtual-chain refund recipient.
+          type: string
+      required:
+        - dry
+        - swapType
+        - slippageTolerance
+        - originAsset
+        - depositType
+        - destinationAsset
+        - amount
+        - refundTo
+        - refundType
+        - recipient
+        - recipientType
+        - deadline
+      type: object
+    OneClickQuoteResponse:
+      additionalProperties: {}
+      description: 1Click `POST /v0/quote` response.
+      properties:
+        correlationId:
+          description: Trace id.
+          type: string
+        quote:
+          $ref: "#/components/schemas/OneClickQuote"
+        quoteRequest:
+          $ref: "#/components/schemas/OneClickQuoteRequest"
+        signature:
+          description: 1Click signature over the quote.
+          type: string
+        timestamp:
+          description: ISO timestamp used to derive the deposit address.
+          type: string
+      required:
+        - correlationId
+        - timestamp
+        - signature
+        - quoteRequest
+        - quote
+      type: object
+    OneClickStatusResponse:
+      additionalProperties: {}
+      description: 1Click execution status.
+      properties:
+        correlationId:
+          description: Trace id.
+          type: string
+        quoteResponse:
+          $ref: "#/components/schemas/OneClickQuoteResponse"
+        status:
+          description: Provider status (KNOWN_DEPOSIT_TX, PENDING_DEPOSIT, INCOMPLETE_DEPOSIT, PROCESSING, SUCCESS, REFUNDED, FAILED or unknown).
+          type: string
+        swapDetails:
+          $ref: "#/components/schemas/OneClickSwapDetails"
+        updatedAt:
+          description: Last update (ISO).
+          type: string
+      required:
+        - correlationId
+        - quoteResponse
+        - status
+        - updatedAt
+        - swapDetails
+      type: object
+    OneClickSubmitDepositRequest:
+      additionalProperties: {}
+      description: 1Click `POST /v0/deposit/submit` request.
+      properties:
+        depositAddress:
+          description: Deposit address.
+          type: string
+        memo:
+          description: Memo.
+          type: string
+        nearSenderAccount:
+          description: Sender (NEAR only).
+          type: string
+        txHash:
+          description: Deposit transaction hash.
+          type: string
+      required:
+        - txHash
+        - depositAddress
+      type: object
+    OneClickSwapDetails:
+      additionalProperties: {}
+      description: 1Click swap details.
+      properties:
+        amountIn:
+          description: Settled amountIn.
+          type: string
+        amountInFormatted:
+          description: Readable.
+          type: string
+        amountInUsd:
+          description: USD.
+          type: string
+        amountOut:
+          description: Settled amountOut.
+          type: string
+        amountOutFormatted:
+          description: Readable.
+          type: string
+        amountOutUsd:
+          description: USD.
+          type: string
+        depositedAmount:
+          description: Deposited amount.
+          type: string
+        depositedAmountFormatted:
+          description: Readable.
+          type: string
+        depositedAmountUsd:
+          description: USD.
+          type: string
+        destinationChainTxHashes:
+          description: Destination-chain transactions.
+          items:
+            additionalProperties: {}
+            description: A transaction.
+            properties:
+              explorerUrl:
+                description: Explorer URL.
+                type: string
+              hash:
+                description: Transaction hash.
+                type: string
+            required:
+              - hash
+              - explorerUrl
+            type: object
+          type: array
+        intentHashes:
+          description: Intent hashes.
+          items:
+            type: string
+          type: array
+        nearTxHashes:
+          description: NEAR transactions.
+          items:
+            type: string
+          type: array
+        originChainTxHashes:
+          description: Origin-chain transactions.
+          items:
+            additionalProperties: {}
+            description: A transaction.
+            properties:
+              explorerUrl:
+                description: Explorer URL.
+                type: string
+              hash:
+                description: Transaction hash.
+                type: string
+            required:
+              - hash
+              - explorerUrl
+            type: object
+          type: array
+        referral:
+          description: Referral id.
+          type: string
+        refundReason:
+          description: Refund reason (e.g. `PARTIAL_DEPOSIT`).
+          type: string
+        refundedAmount:
+          description: Refunded amount.
+          type: string
+        refundedAmountFormatted:
+          description: Readable.
+          type: string
+        refundedAmountUsd:
+          description: USD.
+          type: string
+        slippage:
+          description: Actual slippage.
+          type: number
+        withdrawFee:
+          description: Withdraw fee.
+          type: string
+      required:
+        - intentHashes
+        - nearTxHashes
+        - originChainTxHashes
+        - destinationChainTxHashes
+      type: object
+    OneClickToken:
+      additionalProperties: {}
+      description: 1Click token.
+      properties:
+        assetId:
+          description: Asset id.
+          type: string
+        blockchain:
+          description: Blockchain code.
+          type: string
+        coingeckoId:
+          description: CoinGecko id.
+          type: string
+        contractAddress:
+          description: Contract address.
+          type: string
+        decimals:
+          description: Decimals.
+          maximum: 9007199254740991
+          minimum: -9007199254740991
+          type: integer
+        price:
+          description: USD price.
+          type: number
+        priceUpdatedAt:
+          description: Price timestamp.
+          type: string
+        symbol:
+          description: Symbol.
+          type: string
+      required:
+        - assetId
+        - decimals
+        - blockchain
+        - symbol
+        - price
+        - priceUpdatedAt
+      type: object
+    OneClickTokenList:
+      description: Tokens.
+      items:
+        $ref: "#/components/schemas/OneClickToken"
+      type: array
+    RawEd25519MultiPayload:
+      additionalProperties: {}
+      description: Payload signed with raw ed25519.
+      properties:
+        payload:
+          description: JSON string of `IntentMessage`.
+          minLength: 2
+          type: string
+        public_key:
+          description: ed25519 key of the signer.
+          pattern: ^(ed25519|secp256k1):[1-9A-HJ-NP-Za-km-z]{32,90}$
+          type: string
+        signature:
+          description: ed25519 signature over the UTF-8 payload.
+          pattern: ^(ed25519|secp256k1):[1-9A-HJ-NP-Za-km-z]{64,100}$
+          type: string
+        standard:
+          const: raw_ed25519
+          description: Raw ed25519 over the payload bytes (agents).
+          type: string
+      required:
+        - standard
+        - payload
+        - public_key
+        - signature
+      type: object
+    SimBalance:
+      additionalProperties: {}
+      description: Balance.
+      properties:
+        balance:
+          description: New balance.
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+      required:
+        - balance
+      type: object
+    SimExecuteResult:
+      additionalProperties: {}
+      description: Result of a simulated execute_intents.
+      properties:
+        block_height:
+          description: Simulated block.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        failure:
+          description: Failure message.
+          type:
+            - string
+            - "null"
+        intents_executed:
+          description: Intents that would execute.
+          items:
+            additionalProperties: {}
+            description: An executed intent.
+            properties:
+              account_id:
+                description: Signer.
+                pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+                type: string
+              intent_hash:
+                description: Intent hash (base58).
+                type: string
+              nonce:
+                description: Nonce (base64).
+                type: string
+            required:
+              - intent_hash
+              - account_id
+              - nonce
+            type: object
+          type: array
+        status:
+          description: Outcome.
+          enum:
+            - success
+            - failure
+          type: string
+        tx_hash:
+          description: Simulated transaction hash.
+          maxLength: 128
+          minLength: 8
+          type: string
+      required:
+        - tx_hash
+        - block_height
+        - status
+        - failure
+        - intents_executed
+      type: object
+    SimIntentsEvents:
+      additionalProperties: {}
+      description: Page of simulated Verifier events.
+      properties:
+        events:
+          description: Events.
+          items:
+            additionalProperties: {}
+            description: An event.
+            properties:
+              block_height:
+                description: Block.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+              log:
+                description: "`EVENT_JSON:` log line."
+                type: string
+              seq:
+                description: Sequence.
+                maximum: 9007199254740991
+                minimum: 1
+                type: integer
+              tx_hash:
+                description: Transaction.
+                maxLength: 128
+                minLength: 8
+                type: string
+            required:
+              - seq
+              - tx_hash
+              - block_height
+              - log
+            type: object
+          type: array
+        next_cursor:
+          description: Cursor for the next call.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+      required:
+        - events
+        - next_cursor
+      type: object
+    SimTx:
+      additionalProperties: {}
+      description: A simulated chain transaction (sandbox verifiers).
+      properties:
+        finalized:
+          description: Final on the simulated chain.
+          type: boolean
+        transfers:
+          description: Transfers in the transaction.
+          items:
+            additionalProperties: {}
+            description: A transfer.
+            properties:
+              amount:
+                description: Amount.
+                pattern: ^(0|[1-9][0-9]{0,77})$
+                type: string
+              to:
+                description: Recipient.
+                maxLength: 256
+                minLength: 1
+                type: string
+              token:
+                description: Asset.
+                examples:
+                  - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+                maxLength: 256
+                pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+                type: string
+            required:
+              - token
+              - to
+              - amount
+            type: object
+          type: array
+      required:
+        - finalized
+        - transfers
+      type: object
+    SimulateIntentsOutput:
+      additionalProperties: {}
+      description: Result of simulate_intents.
+      properties:
+        intents_executed:
+          description: Intents that would execute.
+          items:
+            additionalProperties: {}
+            description: An executed intent.
+            properties:
+              account_id:
+                description: Signer.
+                pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+                type: string
+              intent_hash:
+                description: Intent hash (base58).
+                type: string
+              nonce:
+                description: Nonce (base64).
+                type: string
+            required:
+              - intent_hash
+              - account_id
+              - nonce
+            type: object
+          type: array
+        logs:
+          description: Contract logs (`EVENT_JSON:…`).
+          items:
+            type: string
+          type: array
+        min_deadline:
+          description: Earliest payload deadline.
+          type: string
+        state:
+          additionalProperties: {}
+          description: Verifier state.
+          properties:
+            current_salt:
+              description: Current salt (hex).
+              type: string
+            fee:
+              description: Verifier fee.
+              type: number
+          required:
+            - fee
+            - current_salt
+          type: object
+      required:
+        - intents_executed
+        - logs
+        - min_deadline
+        - state
+      type: object
+  securitySchemes:
+    internalToken:
+      description: "Internal Ed25519 JWT: request token or service token."
+      in: header
+      name: X-NearPay-Token
+      type: apiKey
+    serviceClient:
+      description: Service client credentials (`client_id` + secret file).
+      scheme: basic
+      type: http
+info:
+  description: NearPay internal service API. Generated from `nearpay-spec`; do not edit by hand.
+  license:
+    identifier: Apache-2.0
+    name: Apache-2.0
+  title: nearpay-sandbox internal API
+  version: 0.1.0
+openapi: 3.1.0
+paths:
+  /sim/advance:
+    post:
+      operationId: sandboxAdvance
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                deposit_address:
+                  description: Deposit address.
+                  maxLength: 256
+                  minLength: 1
+                  type: string
+                memo:
+                  description: Memo.
+                  type: string
+                to:
+                  description: Target step.
+                  enum:
+                    - deposit
+                    - processing
+                    - success
+                    - refund
+                    - fail
+                  type: string
+              required:
+                - deposit_address
+                - to
+              type: object
+        required: true
+      responses:
+        "202":
+          description: Move a simulated execution to a step.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `state_conflict`."
+          x-error-codes:
+            - state_conflict
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Move a simulated execution to a step.
+      tags:
+        - sandbox
+      x-nearpay:
+        auth:
+          - service:sandbox.use
+        idempotent: false
+        service: sandbox
+        stage: 1
+  /sim/chains/{chain}/tx/{hash}:
+    get:
+      operationId: sandboxGetTx
+      parameters:
+        - description: CAIP-2 chain id, e.g. `eip155:8453` or `near:mainnet`.
+          in: path
+          name: chain
+          required: true
+          schema:
+            description: CAIP-2 chain id, e.g. `eip155:8453` or `near:mainnet`.
+            examples:
+              - eip155:8453
+            pattern: ^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$
+            type: string
+        - description: Transaction hash in the chain's text form.
+          in: path
+          name: hash
+          required: true
+          schema:
+            description: Transaction hash in the chain's text form.
+            maxLength: 128
+            minLength: 8
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimTx"
+          description: "Simulated chain: transaction transfers."
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: "Simulated chain: transaction transfers."
+      tags:
+        - sandbox
+      x-nearpay:
+        auth:
+          - service:sandbox.use
+        idempotent: false
+        service: sandbox
+        stage: 1
+  /sim/deposits:
+    post:
+      operationId: sandboxSimulateDeposit
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                amount_in:
+                  description: Deposit amount (default the quoted amountIn).
+                  pattern: ^(0|[1-9][0-9]{0,77})$
+                  type: string
+                deposit_address:
+                  description: Deposit address.
+                  maxLength: 256
+                  minLength: 1
+                  type: string
+                memo:
+                  description: Memo.
+                  type: string
+              required:
+                - deposit_address
+              type: object
+        required: true
+      responses:
+        "202":
+          description: Simulate the payer's deposit (checkout "Simulate payment").
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `state_conflict`."
+          x-error-codes:
+            - state_conflict
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Simulate the payer's deposit (checkout "Simulate payment").
+      tags:
+        - sandbox
+      x-nearpay:
+        auth:
+          - service:sandbox.use
+        idempotent: false
+        service: sandbox
+        stage: 1
+  /sim/intents/events:
+    get:
+      operationId: sandboxIntentsEvents
+      parameters:
+        - description: Return events with seq > cursor.
+          in: query
+          name: cursor
+          schema:
+            default: 0
+            description: Return events with seq > cursor.
+            maximum: 9007199254740991
+            minimum: 0
+            type: integer
+        - description: Max events.
+          in: query
+          name: limit
+          schema:
+            default: 100
+            description: Max events.
+            maximum: 500
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimIntentsEvents"
+          description: Simulated indexer feed (rails sandbox adapter).
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Simulated indexer feed (rails sandbox adapter).
+      tags:
+        - sandbox
+      x-nearpay:
+        auth:
+          - service:sandbox.use
+        idempotent: false
+        service: sandbox
+        stage: 1
+  /sim/intents/execute:
+    post:
+      operationId: sandboxExecuteIntents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                signed:
+                  description: Signed payloads.
+                  items:
+                    $ref: "#/components/schemas/MultiPayload"
+                  maxItems: 64
+                  minItems: 1
+                  type: array
+              required:
+                - signed
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimExecuteResult"
+          description: Simulated Verifier `execute_intents`; emits DIP-4 / NEP-245 events.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `intent_invalid`."
+          x-error-codes:
+            - intent_invalid
+        "402":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `insufficient_balance`."
+          x-error-codes:
+            - insufficient_balance
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Simulated Verifier `execute_intents`; emits DIP-4 / NEP-245 events.
+      tags:
+        - sandbox
+      x-nearpay:
+        auth:
+          - service:sandbox.use
+        idempotent: false
+        service: sandbox
+        stage: 1
+  /sim/intents/fund:
+    post:
+      operationId: sandboxFundIntents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                account_id:
+                  description: Account.
+                  pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+                  type: string
+                amount:
+                  description: Amount to add.
+                  pattern: ^(0|[1-9][0-9]{0,77})$
+                  type: string
+                token:
+                  description: Asset.
+                  examples:
+                    - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+                  maxLength: 256
+                  pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+                  type: string
+              required:
+                - account_id
+                - token
+                - amount
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimBalance"
+          description: Credit a simulated Intents balance.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Credit a simulated Intents balance.
+      tags:
+        - sandbox
+      x-nearpay:
+        auth:
+          - service:sandbox.use
+        idempotent: false
+        service: sandbox
+        stage: 1
+  /sim/intents/simulate:
+    post:
+      operationId: sandboxSimulateIntents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                signed:
+                  description: Signed payloads.
+                  items:
+                    $ref: "#/components/schemas/MultiPayload"
+                  maxItems: 64
+                  minItems: 1
+                  type: array
+              required:
+                - signed
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulateIntentsOutput"
+          description: Simulated Verifier `simulate_intents` (real signature checks).
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `intent_invalid`."
+          x-error-codes:
+            - intent_invalid
+        "402":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `insufficient_balance`."
+          x-error-codes:
+            - insufficient_balance
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Simulated Verifier `simulate_intents` (real signature checks).
+      tags:
+        - sandbox
+      x-nearpay:
+        auth:
+          - service:sandbox.use
+        idempotent: false
+        service: sandbox
+        stage: 1
+  /v0/deposit/submit:
+    post:
+      operationId: sandboxSubmitDeposit
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OneClickSubmitDepositRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OneClickStatusResponse"
+          description: "1Click mirror: mark a deposit detected."
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: "1Click mirror: mark a deposit detected."
+      tags:
+        - sandbox
+      x-nearpay:
+        auth:
+          - service:sandbox.use
+        idempotent: false
+        service: sandbox
+        stage: 1
+  /v0/quote:
+    post:
+      operationId: sandboxQuote
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OneClickQuoteRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OneClickQuoteResponse"
+          description: "1Click mirror: deterministic quote; scenario from the amount suffix or refund address."
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: "1Click mirror: deterministic quote; scenario from the amount suffix or refund address."
+      tags:
+        - sandbox
+      x-nearpay:
+        auth:
+          - service:sandbox.use
+        idempotent: false
+        service: sandbox
+        stage: 1
+  /v0/status:
+    get:
+      operationId: sandboxStatus
+      parameters:
+        - description: Deposit address.
+          in: query
+          name: depositAddress
+          required: true
+          schema:
+            description: Deposit address.
+            type: string
+        - description: Deposit memo.
+          in: query
+          name: depositMemo
+          schema:
+            description: Deposit memo.
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OneClickStatusResponse"
+          description: "1Click mirror: scenario timeline status."
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: "1Click mirror: scenario timeline status."
+      tags:
+        - sandbox
+      x-nearpay:
+        auth:
+          - service:sandbox.use
+        idempotent: false
+        service: sandbox
+        stage: 1
+  /v0/tokens:
+    get:
+      operationId: sandboxTokens
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OneClickTokenList"
+          description: "1Click mirror: fixed token registry with fixed prices."
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: "1Click mirror: fixed token registry with fixed prices."
+      tags:
+        - sandbox
+      x-nearpay:
+        auth:
+          - service:sandbox.use
+        idempotent: false
+        service: sandbox
+        stage: 1
+servers:
+  - url: http://sandbox-api:8080

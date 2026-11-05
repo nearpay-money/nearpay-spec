@@ -1,0 +1,73 @@
+{
+  "description": "TypeID-encoded UUIDv7 ids: lower-case Crockford base32, 26 chars, first char 0-7.",
+  "alphabet": "0123456789abcdefghjkmnpqrstvwxyz",
+  "upstream_typeid": [
+    {
+      "uuid": "00000000-0000-0000-0000-000000000000",
+      "suffix": "00000000000000000000000000"
+    },
+    {
+      "uuid": "00000000-0000-0000-0000-000000000001",
+      "suffix": "00000000000000000000000001"
+    },
+    {
+      "uuid": "00000000-0000-0000-0000-00000000000a",
+      "suffix": "0000000000000000000000000a"
+    },
+    {
+      "uuid": "00000000-0000-0000-0000-000000000010",
+      "suffix": "0000000000000000000000000g"
+    },
+    {
+      "uuid": "00000000-0000-0000-0000-000000000020",
+      "suffix": "00000000000000000000000010"
+    },
+    {
+      "uuid": "ffffffff-ffff-ffff-ffff-ffffffffffff",
+      "suffix": "7zzzzzzzzzzzzzzzzzzzzzzzzz"
+    },
+    {
+      "uuid": "01890a5d-ac96-774b-bcce-b302099a8057",
+      "suffix": "01h455vb4pex5vsknk084sn02q"
+    }
+  ],
+  "nearpay": [
+    {
+      "prefix": "pi",
+      "uuid": "01972a6f-3c80-7b2e-9f4d-2c1e8a6b5d40",
+      "id": "pi_01jwn6yf40fcq9yk9c3t56pqa0"
+    },
+    {
+      "prefix": "acct",
+      "uuid": "01972a6f-3c80-7000-8000-000000000001",
+      "id": "acct_01jwn6yf40e008000000000001"
+    },
+    {
+      "prefix": "cs",
+      "uuid": "0196f000-0000-7fff-bfff-ffffffffffff",
+      "id": "cs_01jvr00000fzzvzzzzzzzzzzzz"
+    }
+  ],
+  "invalid": [
+    {
+      "id": "pi_8zzzzzzzzzzzzzzzzzzzzzzzzz",
+      "reason": "first character > 7 (overflow)"
+    },
+    {
+      "id": "pi_01H455VB4PEX5VSKNK084SN02Q",
+      "reason": "upper case"
+    },
+    {
+      "id": "pi_01h455vb4pex5vsknk084sn02",
+      "reason": "25 characters"
+    },
+    {
+      "id": "pi_01h455vb4pex5vsknk084sn0iq",
+      "reason": "contains i"
+    },
+    {
+      "id": "pi-01h455vb4pex5vsknk084sn02q",
+      "reason": "wrong separator"
+    }
+  ]
+}

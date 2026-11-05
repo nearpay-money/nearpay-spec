@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "../../src",
+    "outDir": "dist",
+    "types": [],
+    "paths": { "@nearpay/spec": ["../spec-public/dist/public-entry.d.ts"] }
+  },
+  "files": ["../../src/internal-entry.ts"]
+}

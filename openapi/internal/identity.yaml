@@ -1,0 +1,1002 @@
+components:
+  schemas:
+    Account:
+      additionalProperties: {}
+      description: A merchant account.
+      properties:
+        api_version:
+          description: API version pinned for this account.
+          enum:
+            - 2026-11-01
+          type: string
+        country:
+          anyOf:
+            - description: ISO 3166-1 alpha-2 country code, upper-case.
+              pattern: ^[A-Z]{2}$
+              type: string
+            - type: "null"
+          description: Country of the merchant.
+        created:
+          description: Unix time in seconds.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        display_name:
+          description: Name shown to payers until KYB verifies a legal name.
+          maxLength: 100
+          minLength: 1
+          type: string
+        fee_bearer:
+          description: "Who bears NearPay's fee: the payer pays it on top (default) or it is deducted from the settlement."
+          enum:
+            - payer
+            - merchant
+          type: string
+        id:
+          description: account id (`acct_` + 26 base32 chars).
+          examples:
+            - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        kyb_status:
+          description: KYB status.
+          type: string
+          x-extensible-enum:
+            - not_started
+            - pending
+            - needs_info
+            - approved
+            - rejected
+        live_enabled:
+          description: "Live mode is enabled: KYB approved, an active live destination, status active."
+          type: boolean
+        object:
+          const: account
+          description: Always `account`.
+          type: string
+        settings:
+          $ref: "#/components/schemas/AccountSettings"
+        status:
+          description: Account status.
+          type: string
+          x-extensible-enum:
+            - active
+            - suspended
+            - closed
+        verified_legal_name:
+          description: Legal name verified by KYB, shown on checkout once set.
+          type:
+            - string
+            - "null"
+      required:
+        - id
+        - object
+        - created
+        - display_name
+        - verified_legal_name
+        - country
+        - status
+        - kyb_status
+        - live_enabled
+        - fee_bearer
+        - api_version
+        - settings
+      type: object
+    AccountSettings:
+      additionalProperties: {}
+      description: Merchant settings that change checkout behaviour.
+      properties:
+        branding:
+          additionalProperties: {}
+          description: Checkout branding.
+          properties:
+            accent_color:
+              anyOf:
+                - pattern: ^#[0-9a-fA-F]{6}$
+                  type: string
+                - type: "null"
+              description: Accent colour `#RRGGBB`.
+            logo_url:
+              anyOf:
+                - description: Absolute URL.
+                  format: uri
+                  maxLength: 2048
+                  type: string
+                - type: "null"
+              description: HTTPS URL of a square logo.
+          required:
+            - accent_color
+            - logo_url
+          type: object
+        email_receipts:
+          description: Email a receipt to the customer when a payment succeeds.
+          type: boolean
+        late_payments:
+          description: Accept settlements that arrive after a session expired (INV-3); default false.
+          type: boolean
+        session_ttl_default:
+          description: Default checkout-session lifetime in seconds.
+          maximum: 86400
+          minimum: 300
+          type: integer
+        underpay_tolerance_bps:
+          description: Accept short settlements within this tolerance (0–100 bps); default 0.
+          maximum: 10000
+          minimum: 0
+          type: integer
+      required:
+        - late_payments
+        - underpay_tolerance_bps
+        - session_ttl_default
+        - email_receipts
+        - branding
+      type: object
+    AttestationChallenge:
+      additionalProperties: {}
+      description: Message proving control of a settlement destination (FR-SET-02).
+      properties:
+        expires_at:
+          description: Challenge expiry (10 minutes).
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        id:
+          description: attestation_challenge id (`chl_` + 26 base32 chars).
+          examples:
+            - chl_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^chl_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        message:
+          description: Exact UTF-8 message the destination key must sign.
+          type: string
+        nonce:
+          anyOf:
+            - pattern: ^[A-Za-z0-9+/]{43}=$
+              type: string
+            - type: "null"
+          description: NEP-413 nonce (32 bytes, base64); null for other standards.
+        recipient:
+          description: NEP-413 recipient (`nearpay.money`); null for other standards.
+          type:
+            - string
+            - "null"
+        signing_standard:
+          description: How to sign the message.
+          type: string
+          x-extensible-enum:
+            - nep413
+            - eip191
+            - solana
+            - bip322
+      required:
+        - id
+        - message
+        - signing_standard
+        - nonce
+        - recipient
+        - expires_at
+      type: object
+    Error:
+      additionalProperties: {}
+      description: Envelope returned with every non-2xx response.
+      properties:
+        error:
+          $ref: "#/components/schemas/ErrorBody"
+      required:
+        - error
+      type: object
+    ErrorBody:
+      additionalProperties: {}
+      description: Details of a failed request.
+      properties:
+        code:
+          description: Machine-readable error code from the error catalogue.
+          type: string
+          x-extensible-enum:
+            - invalid_request
+            - resource_missing
+            - authentication_required
+            - invalid_api_key
+            - permission_denied
+            - csrf_token_invalid
+            - ip_not_allowed
+            - account_suspended
+            - step_up_required
+            - rate_limited
+            - idempotency_key_reused
+            - idempotency_in_progress
+            - api_error
+            - state_conflict
+            - livemode_forbidden
+            - link_expired
+            - link_used
+            - webauthn_failed
+            - invalid_client
+            - turnstile_failed
+            - invalid_setting
+            - scope_unknown
+            - address_invalid
+            - asset_unsupported
+            - memo_destination_unsupported
+            - destination_in_use
+            - recovery_lock
+            - screening_blocked
+            - attestation_invalid
+            - challenge_expired
+            - destination_not_active
+            - account_not_live
+            - amount_below_destination_minimum
+            - amount_above_unverified_cap
+            - currency_unsupported
+            - allowed_origins_required
+            - attempt_in_flight
+            - client_secret_invalid
+            - session_not_open
+            - too_many_attempts
+            - route_too_slow
+            - refund_address_invalid
+            - geo_blocked
+            - intent_invalid
+            - insufficient_balance
+            - rail_unavailable
+            - route_unavailable
+            - pricing_unavailable
+            - deadline_too_short
+            - quote_rejected
+            - quote_integrity_failed
+            - ticket_invalid
+            - attestation_refused
+            - attestation_stale
+            - attestation_unavailable
+            - destination_not_intents_account
+            - amount_below_minimum
+            - screening_unavailable
+            - url_invalid
+            - event_type_unknown
+        doc_url:
+          description: Documentation page for this error code.
+          format: uri
+          type: string
+        message:
+          description: Human-readable message; safe to show to developers, not to payers.
+          type: string
+        param:
+          description: The request parameter the error relates to, when there is one.
+          type: string
+        request_id:
+          description: Request id, also returned in the `X-Request-Id` header.
+          examples:
+            - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        type:
+          description: Error category; decides whether a retry can help.
+          type: string
+          x-extensible-enum:
+            - invalid_request_error
+            - authentication_error
+            - permission_error
+            - payment_error
+            - idempotency_error
+            - state_conflict
+            - rate_limit_error
+            - api_error
+            - rail_unavailable
+      required:
+        - type
+        - code
+        - message
+        - doc_url
+        - request_id
+      type: object
+    FeeSchedule:
+      additionalProperties: {}
+      description: A fee schedule (identity owns, rails applies).
+      properties:
+        id:
+          description: fee_schedule id (`fs_` + 26 base32 chars).
+          examples:
+            - fs_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^fs_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        name:
+          description: Schedule name.
+          type: string
+        provider_split:
+          additionalProperties: {}
+          description: How fees are split with route providers.
+          properties:
+            oneclick:
+              additionalProperties: {}
+              description: 1Click split.
+              properties:
+                floor_bps:
+                  description: Provider minimum.
+                  maximum: 10000
+                  minimum: 0
+                  type: integer
+                share_bps:
+                  description: Provider share of appFees (5000 = 50%).
+                  maximum: 10000
+                  minimum: 0
+                  type: integer
+                stable_floor_bps:
+                  description: Provider minimum on stable/same-asset routes.
+                  maximum: 10000
+                  minimum: 0
+                  type: integer
+              required:
+                - share_bps
+                - floor_bps
+                - stable_floor_bps
+              type: object
+          required:
+            - oneclick
+          type: object
+        rules:
+          additionalProperties: {}
+          description: Fee per route class (rails §8.1).
+          properties:
+            intents_transfer:
+              additionalProperties: {}
+              description: Fee rule for one route class.
+              properties:
+                min_fee_usd_micros:
+                  description: Minimum absolute fee in USD micros.
+                  maximum: 9007199254740991
+                  minimum: 0
+                  type: integer
+                total_bps:
+                  description: All-in fee for this route class.
+                  maximum: 10000
+                  minimum: 0
+                  type: integer
+              required:
+                - total_bps
+                - min_fee_usd_micros
+              type: object
+            same_asset:
+              additionalProperties: {}
+              description: Fee rule for one route class.
+              properties:
+                min_fee_usd_micros:
+                  description: Minimum absolute fee in USD micros.
+                  maximum: 9007199254740991
+                  minimum: 0
+                  type: integer
+                total_bps:
+                  description: All-in fee for this route class.
+                  maximum: 10000
+                  minimum: 0
+                  type: integer
+              required:
+                - total_bps
+                - min_fee_usd_micros
+              type: object
+            stable_pair:
+              additionalProperties: {}
+              description: Fee rule for one route class.
+              properties:
+                min_fee_usd_micros:
+                  description: Minimum absolute fee in USD micros.
+                  maximum: 9007199254740991
+                  minimum: 0
+                  type: integer
+                total_bps:
+                  description: All-in fee for this route class.
+                  maximum: 10000
+                  minimum: 0
+                  type: integer
+              required:
+                - total_bps
+                - min_fee_usd_micros
+              type: object
+            volatile:
+              additionalProperties: {}
+              description: Fee rule for one route class.
+              properties:
+                min_fee_usd_micros:
+                  description: Minimum absolute fee in USD micros.
+                  maximum: 9007199254740991
+                  minimum: 0
+                  type: integer
+                total_bps:
+                  description: All-in fee for this route class.
+                  maximum: 10000
+                  minimum: 0
+                  type: integer
+              required:
+                - total_bps
+                - min_fee_usd_micros
+              type: object
+          required:
+            - same_asset
+            - stable_pair
+            - volatile
+            - intents_transfer
+          type: object
+      required:
+        - id
+        - name
+        - rules
+        - provider_split
+      type: object
+    InternalSettlementDestination:
+      additionalProperties: {}
+      description: Settlement destination with internal fields.
+      properties:
+        account:
+          description: account id (`acct_` + 26 base32 chars).
+          examples:
+            - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        active_at:
+          anyOf:
+            - description: Unix time in seconds.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: When the destination became (or becomes) active.
+        address:
+          description: Receiving address or Intents account.
+          maxLength: 256
+          minLength: 1
+          type: string
+        address_norm:
+          description: Normalised address (lower-case for EVM).
+          maxLength: 256
+          minLength: 1
+          type: string
+        asset_id:
+          description: Asset the merchant receives.
+          examples:
+            - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+          maxLength: 256
+          pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+          type: string
+        attestation_challenge:
+          $ref: "#/components/schemas/AttestationChallenge"
+          description: Present on creation while the destination awaits its ownership signature.
+        attestation_hash:
+          anyOf:
+            - pattern: ^[0-9a-f]{64}$
+              type: string
+            - type: "null"
+          description: sha256 of the stored attestation (hex); null for unverified/test.
+        chain:
+          description: Chain of the address; `near:mainnet` for Intents accounts.
+          examples:
+            - eip155:8453
+          pattern: ^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$
+          type: string
+        created:
+          description: Unix time in seconds.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        disabled_reason:
+          anyOf:
+            - description: Why it was disabled.
+              type: string
+              x-extensible-enum:
+                - merchant
+                - compliance
+                - replaced
+            - type: "null"
+        fingerprint:
+          description: Short fingerprint shown on checkout next to the merchant name, e.g. `7KQ2-M9XA-31`.
+          pattern: ^[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{2}$
+          type: string
+        id:
+          description: settlement_destination id (`sd_` + 26 base32 chars).
+          examples:
+            - sd_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^sd_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        is_default:
+          description: Default destination for its asset or for the account.
+          type: boolean
+        label:
+          description: Merchant label.
+          type: string
+        livemode:
+          description: "`true` for live mode, `false` for test mode."
+          type: boolean
+        min_payment_amount:
+          anyOf:
+            - $ref: "#/components/schemas/UsdAmount"
+            - type: "null"
+          description: Smallest payment that is economic for this destination (FR-SET-04).
+        object:
+          const: settlement_destination
+          description: Always `settlement_destination`.
+          type: string
+        per_payment_cap:
+          anyOf:
+            - $ref: "#/components/schemas/UsdAmount"
+            - type: "null"
+          description: Cap per payment for unverified destinations.
+        per_payment_cap_usd_micros:
+          anyOf:
+            - maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: Cap for unverified destinations, USD micros.
+        status:
+          description: Lifecycle status; only `active` destinations receive new payments.
+          type: string
+          x-extensible-enum:
+            - pending_verification
+            - pending_approval
+            - cooling_off
+            - active
+            - disabled
+        type:
+          description: "Where funds settle: an address on a chain, or a NEAR Intents account."
+          enum:
+            - chain_address
+            - intents_account
+          type: string
+        verification:
+          description: How ownership was established.
+          type: string
+          x-extensible-enum:
+            - signature
+            - unverified
+            - test
+      required:
+        - id
+        - object
+        - created
+        - livemode
+        - asset_id
+        - type
+        - chain
+        - address
+        - label
+        - status
+        - verification
+        - fingerprint
+        - is_default
+        - active_at
+        - min_payment_amount
+        - per_payment_cap
+        - disabled_reason
+        - account
+        - address_norm
+        - attestation_hash
+        - per_payment_cap_usd_micros
+      type: object
+    Jwks:
+      additionalProperties: {}
+      description: JSON Web Key Set of internal JWT signing keys.
+      properties:
+        keys:
+          description: Current and next keys.
+          items:
+            additionalProperties: {}
+            description: A signing key.
+            properties:
+              alg:
+                const: EdDSA
+                description: Algorithm.
+                type: string
+              crv:
+                const: Ed25519
+                description: Curve.
+                type: string
+              kid:
+                description: Key id.
+                type: string
+              kty:
+                const: OKP
+                description: Key type.
+                type: string
+              use:
+                const: sig
+                description: Use.
+                type: string
+              x:
+                description: Public key, base64url.
+                type: string
+            required:
+              - kty
+              - crv
+              - x
+              - kid
+              - alg
+              - use
+            type: object
+          type: array
+      required:
+        - keys
+      type: object
+    NotificationRecipients:
+      additionalProperties: {}
+      description: Users to notify.
+      properties:
+        recipients:
+          description: Recipients.
+          items:
+            additionalProperties: {}
+            description: A recipient.
+            properties:
+              email:
+                description: Email.
+                format: email
+                pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+                type: string
+              role:
+                description: Role.
+                enum:
+                  - owner
+                  - admin
+                  - developer
+                  - finance
+                  - support
+                  - viewer
+                type: string
+              user_id:
+                description: user id (`usr_` + 26 base32 chars).
+                examples:
+                  - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+                pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                type: string
+            required:
+              - user_id
+              - email
+              - role
+            type: object
+          type: array
+      required:
+        - recipients
+      type: object
+    ServiceToken:
+      additionalProperties: {}
+      description: A service token.
+      properties:
+        access_token:
+          description: Service JWT.
+          type: string
+        expires_in:
+          description: Lifetime, seconds.
+          maximum: 9007199254740991
+          minimum: -9007199254740991
+          type: integer
+        token_type:
+          const: Bearer
+          description: Token type.
+          type: string
+      required:
+        - access_token
+        - token_type
+        - expires_in
+      type: object
+    SettlementContext:
+      additionalProperties: {}
+      description: Everything payments needs to create a payment (identity §8.3).
+      properties:
+        account:
+          $ref: "#/components/schemas/Account"
+        context_version:
+          description: max(updated_at) of everything in the context (cache freshness).
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+          type: string
+        defaults:
+          additionalProperties:
+            description: settlement_destination id (`sd_` + 26 base32 chars).
+            examples:
+              - sd_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^sd_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+          description: Default destination per asset; `*` = account default.
+          propertyNames:
+            anyOf:
+              - const: "*"
+                type: string
+              - description: NEAR Intents asset id, e.g. `nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1`.
+                examples:
+                  - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+                maxLength: 256
+                pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+                type: string
+          type: object
+        destinations:
+          description: Active destinations of this mode.
+          items:
+            $ref: "#/components/schemas/InternalSettlementDestination"
+          type: array
+        fee_schedule:
+          $ref: "#/components/schemas/FeeSchedule"
+      required:
+        - account
+        - fee_schedule
+        - destinations
+        - defaults
+        - context_version
+      type: object
+    UsdAmount:
+      additionalProperties: {}
+      description: An amount in US dollars (minor units).
+      properties:
+        amount:
+          description: Fiat amount in minor units (e.g. cents), integer.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        currency:
+          const: usd
+          description: Always `usd`.
+          type: string
+      required:
+        - amount
+        - currency
+      type: object
+  securitySchemes:
+    internalToken:
+      description: "Internal Ed25519 JWT: request token or service token."
+      in: header
+      name: X-NearPay-Token
+      type: apiKey
+    serviceClient:
+      description: Service client credentials (`client_id` + secret file).
+      scheme: basic
+      type: http
+info:
+  description: NearPay internal service API. Generated from `nearpay-spec`; do not edit by hand.
+  license:
+    identifier: Apache-2.0
+    name: Apache-2.0
+  title: nearpay-identity internal API
+  version: 0.1.0
+openapi: 3.1.0
+paths:
+  /internal/accounts/{id}/notification-recipients:
+    get:
+      description: "security: owners+admins · developer: owners+admins+developers · billing: owners+finance."
+      operationId: getNotificationRecipients
+      parameters:
+        - description: account id (`acct_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: account id (`acct_` + 26 base32 chars).
+            examples:
+              - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Which users to notify.
+          in: query
+          name: kind
+          required: true
+          schema:
+            description: Which users to notify.
+            enum:
+              - security
+              - billing
+              - developer
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationRecipients"
+          description: Email recipients for an account notification (PII; never put in events).
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Email recipients for an account notification (PII; never put in events).
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - service:identity.recipients.read
+        idempotent: false
+        service: identity
+        stage: 1
+  /internal/accounts/{id}/settlement-context:
+    get:
+      operationId: getSettlementContext
+      parameters:
+        - description: account id (`acct_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: account id (`acct_` + 26 base32 chars).
+            examples:
+              - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Mode.
+          in: query
+          name: livemode
+          required: true
+          schema:
+            description: Mode.
+            enum:
+              - "true"
+              - "false"
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettlementContext"
+          description: Account, fee schedule and active destinations for one mode.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Account, fee schedule and active destinations for one mode.
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - service:identity.context.read
+        idempotent: false
+        service: identity
+        stage: 1
+  /internal/authz:
+    get:
+      description: Reads Authorization, X-NearPay-Client-Secret, Cookie, X-CSRF-Token, NearPay-Mode and X-Forwarded-Method/Uri/For. 200 sets X-NearPay-Token and X-Request-Id; 401/403/429 bodies are the public error envelope.
+      operationId: authorize
+      responses:
+        "200":
+          description: "Traefik ForwardAuth: authenticate, rate-limit, mint the request token."
+          headers:
+            x-nearpay-token:
+              description: Internal JWT (60 s).
+              required: true
+              schema:
+                description: Internal JWT (60 s).
+                type: string
+            x-request-id:
+              description: Request id.
+              required: true
+              schema:
+                description: Request id.
+                type: string
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - {}
+      summary: "Traefik ForwardAuth: authenticate, rate-limit, mint the request token."
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - gateway
+        idempotent: false
+        service: identity
+        stage: 1
+  /internal/jwks:
+    get:
+      operationId: getJwks
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Jwks"
+          description: Public keys of internal JWTs (cache 5 min; refetch on unknown kid).
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Public keys of internal JWTs (cache 5 min; refetch on unknown kid).
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - internal
+        idempotent: false
+        service: identity
+        stage: 1
+  /internal/service-tokens:
+    post:
+      operationId: mintServiceToken
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties: {}
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceToken"
+          description: Client-credentials exchange for a 5-minute service token.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `invalid_client`."
+          x-error-codes:
+            - invalid_client
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - serviceClient: []
+      summary: Client-credentials exchange for a 5-minute service token.
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - service_client
+        idempotent: false
+        service: identity
+        stage: 1
+  /internal/settlement-destinations/{id}:
+    get:
+      operationId: getInternalSettlementDestination
+      parameters:
+        - description: settlement_destination id (`sd_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: settlement_destination id (`sd_` + 26 base32 chars).
+            examples:
+              - sd_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^sd_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalSettlementDestination"
+          description: A destination in any status.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: A destination in any status.
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - service:identity.context.read
+        idempotent: false
+        service: identity
+        stage: 1
+servers:
+  - url: http://identity-api:8080

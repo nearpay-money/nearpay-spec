@@ -1,0 +1,331 @@
+{
+  "$defs": {
+    "Account": {
+      "additionalProperties": {},
+      "description": "A merchant account.",
+      "properties": {
+        "api_version": {
+          "description": "API version pinned for this account.",
+          "enum": [
+            "2026-11-01"
+          ],
+          "type": "string"
+        },
+        "country": {
+          "anyOf": [
+            {
+              "description": "ISO 3166-1 alpha-2 country code, upper-case.",
+              "pattern": "^[A-Z]{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Country of the merchant."
+        },
+        "created": {
+          "description": "Unix time in seconds.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "display_name": {
+          "description": "Name shown to payers until KYB verifies a legal name.",
+          "maxLength": 100,
+          "minLength": 1,
+          "type": "string"
+        },
+        "fee_bearer": {
+          "description": "Who bears NearPay's fee: the payer pays it on top (default) or it is deducted from the settlement.",
+          "enum": [
+            "payer",
+            "merchant"
+          ],
+          "type": "string"
+        },
+        "id": {
+          "description": "account id (`acct_` + 26 base32 chars).",
+          "examples": [
+            "acct_01jbz9k3m4n5p6q7r8s9t0v1w2"
+          ],
+          "pattern": "^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+          "type": "string"
+        },
+        "kyb_status": {
+          "description": "KYB status.",
+          "type": "string",
+          "x-extensible-enum": [
+            "not_started",
+            "pending",
+            "needs_info",
+            "approved",
+            "rejected"
+          ]
+        },
+        "live_enabled": {
+          "description": "Live mode is enabled: KYB approved, an active live destination, status active.",
+          "type": "boolean"
+        },
+        "object": {
+          "const": "account",
+          "description": "Always `account`.",
+          "type": "string"
+        },
+        "settings": {
+          "$ref": "#/$defs/AccountSettings"
+        },
+        "status": {
+          "description": "Account status.",
+          "type": "string",
+          "x-extensible-enum": [
+            "active",
+            "suspended",
+            "closed"
+          ]
+        },
+        "verified_legal_name": {
+          "description": "Legal name verified by KYB, shown on checkout once set.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "object",
+        "created",
+        "display_name",
+        "verified_legal_name",
+        "country",
+        "status",
+        "kyb_status",
+        "live_enabled",
+        "fee_bearer",
+        "api_version",
+        "settings"
+      ],
+      "type": "object"
+    },
+    "AccountSettings": {
+      "additionalProperties": {},
+      "description": "Merchant settings that change checkout behaviour.",
+      "properties": {
+        "branding": {
+          "additionalProperties": {},
+          "description": "Checkout branding.",
+          "properties": {
+            "accent_color": {
+              "anyOf": [
+                {
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Accent colour `#RRGGBB`."
+            },
+            "logo_url": {
+              "anyOf": [
+                {
+                  "description": "Absolute URL.",
+                  "format": "uri",
+                  "maxLength": 2048,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "HTTPS URL of a square logo."
+            }
+          },
+          "required": [
+            "accent_color",
+            "logo_url"
+          ],
+          "type": "object"
+        },
+        "email_receipts": {
+          "description": "Email a receipt to the customer when a payment succeeds.",
+          "type": "boolean"
+        },
+        "late_payments": {
+          "description": "Accept settlements that arrive after a session expired (INV-3); default false.",
+          "type": "boolean"
+        },
+        "session_ttl_default": {
+          "description": "Default checkout-session lifetime in seconds.",
+          "maximum": 86400,
+          "minimum": 300,
+          "type": "integer"
+        },
+        "underpay_tolerance_bps": {
+          "description": "Accept short settlements within this tolerance (0–100 bps); default 0.",
+          "maximum": 10000,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "late_payments",
+        "underpay_tolerance_bps",
+        "session_ttl_default",
+        "email_receipts",
+        "branding"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": {},
+  "description": "Envelope of `evt.identity.account.updated`.",
+  "properties": {
+    "account_id": {
+      "anyOf": [
+        {
+          "description": "UUID (RFC 9562).",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Merchant account UUID (null for platform events)."
+    },
+    "aggregate": {
+      "additionalProperties": {},
+      "description": "The aggregate that changed.",
+      "properties": {
+        "id": {
+          "description": "Aggregate id (prefixed).",
+          "type": "string"
+        },
+        "type": {
+          "description": "Aggregate type.",
+          "type": "string"
+        },
+        "version": {
+          "description": "Aggregate version after the change.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "version"
+      ],
+      "type": "object"
+    },
+    "data": {
+      "additionalProperties": {},
+      "description": "Payload.",
+      "properties": {
+        "object": {
+          "$ref": "#/$defs/Account"
+        },
+        "previous": {
+          "additionalProperties": {},
+          "description": "Changed fields with previous values.",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "object"
+      ],
+      "type": "object"
+    },
+    "id": {
+      "description": "Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+      "type": "string"
+    },
+    "livemode": {
+      "description": "Mode (null for platform events).",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "occurred_at": {
+      "description": "When the state change committed.",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+      "type": "string"
+    },
+    "request": {
+      "additionalProperties": {},
+      "description": "Request context (copied into public events).",
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "description": "Request id, also returned in the `X-Request-Id` header.",
+              "examples": [
+                "req_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "API request that caused the change."
+        },
+        "idempotency_key": {
+          "description": "Its Idempotency-Key.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "idempotency_key"
+      ],
+      "type": "object"
+    },
+    "subject": {
+      "const": "evt.identity.account.updated",
+      "description": "Subject.",
+      "type": "string"
+    },
+    "trace": {
+      "additionalProperties": {},
+      "description": "Trace context.",
+      "properties": {
+        "traceparent": {
+          "description": "W3C traceparent.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "traceparent"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "id",
+    "occurred_at",
+    "account_id",
+    "livemode",
+    "aggregate",
+    "subject",
+    "data"
+  ],
+  "type": "object"
+}

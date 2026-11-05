@@ -1,0 +1,341 @@
+components:
+  schemas:
+    Erc191MultiPayload:
+      additionalProperties: {}
+      description: Payload signed with ERC-191.
+      properties:
+        payload:
+          description: JSON string of `IntentMessage`.
+          minLength: 2
+          type: string
+        signature:
+          description: secp256k1 signature r‖s‖v (v ∈ {0,1}), base58.
+          pattern: ^(ed25519|secp256k1):[1-9A-HJ-NP-Za-km-z]{64,100}$
+          type: string
+        standard:
+          const: erc191
+          description: ERC-191 `personal_sign` (EVM wallets).
+          type: string
+      required:
+        - standard
+        - payload
+        - signature
+      type: object
+    Error:
+      additionalProperties: {}
+      description: Envelope returned with every non-2xx response.
+      properties:
+        error:
+          $ref: "#/components/schemas/ErrorBody"
+      required:
+        - error
+      type: object
+    ErrorBody:
+      additionalProperties: {}
+      description: Details of a failed request.
+      properties:
+        code:
+          description: Machine-readable error code from the error catalogue.
+          type: string
+          x-extensible-enum:
+            - invalid_request
+            - resource_missing
+            - authentication_required
+            - invalid_api_key
+            - permission_denied
+            - csrf_token_invalid
+            - ip_not_allowed
+            - account_suspended
+            - step_up_required
+            - rate_limited
+            - idempotency_key_reused
+            - idempotency_in_progress
+            - api_error
+            - state_conflict
+            - livemode_forbidden
+            - link_expired
+            - link_used
+            - webauthn_failed
+            - invalid_client
+            - turnstile_failed
+            - invalid_setting
+            - scope_unknown
+            - address_invalid
+            - asset_unsupported
+            - memo_destination_unsupported
+            - destination_in_use
+            - recovery_lock
+            - screening_blocked
+            - attestation_invalid
+            - challenge_expired
+            - destination_not_active
+            - account_not_live
+            - amount_below_destination_minimum
+            - amount_above_unverified_cap
+            - currency_unsupported
+            - allowed_origins_required
+            - attempt_in_flight
+            - client_secret_invalid
+            - session_not_open
+            - too_many_attempts
+            - route_too_slow
+            - refund_address_invalid
+            - geo_blocked
+            - intent_invalid
+            - insufficient_balance
+            - rail_unavailable
+            - route_unavailable
+            - pricing_unavailable
+            - deadline_too_short
+            - quote_rejected
+            - quote_integrity_failed
+            - ticket_invalid
+            - attestation_refused
+            - attestation_stale
+            - attestation_unavailable
+            - destination_not_intents_account
+            - amount_below_minimum
+            - screening_unavailable
+            - url_invalid
+            - event_type_unknown
+        doc_url:
+          description: Documentation page for this error code.
+          format: uri
+          type: string
+        message:
+          description: Human-readable message; safe to show to developers, not to payers.
+          type: string
+        param:
+          description: The request parameter the error relates to, when there is one.
+          type: string
+        request_id:
+          description: Request id, also returned in the `X-Request-Id` header.
+          examples:
+            - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        type:
+          description: Error category; decides whether a retry can help.
+          type: string
+          x-extensible-enum:
+            - invalid_request_error
+            - authentication_error
+            - permission_error
+            - payment_error
+            - idempotency_error
+            - state_conflict
+            - rate_limit_error
+            - api_error
+            - rail_unavailable
+      required:
+        - type
+        - code
+        - message
+        - doc_url
+        - request_id
+      type: object
+    MultiPayload:
+      description: A signed Verifier payload (`MultiPayload`).
+      discriminator:
+        mapping:
+          erc191: "#/components/schemas/Erc191MultiPayload"
+          nep413: "#/components/schemas/Nep413MultiPayload"
+          raw_ed25519: "#/components/schemas/RawEd25519MultiPayload"
+        propertyName: standard
+      oneOf:
+        - $ref: "#/components/schemas/Nep413MultiPayload"
+        - $ref: "#/components/schemas/Erc191MultiPayload"
+        - $ref: "#/components/schemas/RawEd25519MultiPayload"
+      type: object
+    Nep413MultiPayload:
+      additionalProperties: {}
+      description: Payload signed with NEP-413.
+      properties:
+        payload:
+          additionalProperties: {}
+          description: NEP-413 payload.
+          properties:
+            callbackUrl:
+              description: NEP-413 callback URL (NearPay never sets it).
+              type:
+                - string
+                - "null"
+            message:
+              description: JSON string of `Nep413IntentMessage`.
+              minLength: 2
+              type: string
+            nonce:
+              description: 32-byte nonce (4-byte Verifier salt ‖ 28 random bytes), standard base64.
+              pattern: ^[A-Za-z0-9+/]{43}=$
+              type: string
+            recipient:
+              const: intents.near
+              description: NEP-413 recipient (the Verifier).
+              type: string
+          required:
+            - recipient
+            - nonce
+            - message
+          type: object
+        public_key:
+          description: ed25519 key of the signer.
+          pattern: ^(ed25519|secp256k1):[1-9A-HJ-NP-Za-km-z]{32,90}$
+          type: string
+        signature:
+          description: ed25519 signature over the NEP-413 borsh hash.
+          pattern: ^(ed25519|secp256k1):[1-9A-HJ-NP-Za-km-z]{64,100}$
+          type: string
+        standard:
+          const: nep413
+          description: NEP-413 (NEAR wallets `signMessage`).
+          type: string
+      required:
+        - standard
+        - payload
+        - public_key
+        - signature
+      type: object
+    RawEd25519MultiPayload:
+      additionalProperties: {}
+      description: Payload signed with raw ed25519.
+      properties:
+        payload:
+          description: JSON string of `IntentMessage`.
+          minLength: 2
+          type: string
+        public_key:
+          description: ed25519 key of the signer.
+          pattern: ^(ed25519|secp256k1):[1-9A-HJ-NP-Za-km-z]{32,90}$
+          type: string
+        signature:
+          description: ed25519 signature over the UTF-8 payload.
+          pattern: ^(ed25519|secp256k1):[1-9A-HJ-NP-Za-km-z]{64,100}$
+          type: string
+        standard:
+          const: raw_ed25519
+          description: Raw ed25519 over the payload bytes (agents).
+          type: string
+      required:
+        - standard
+        - payload
+        - public_key
+        - signature
+      type: object
+    RelayAccepted:
+      additionalProperties: {}
+      description: Queued for relay.
+      properties:
+        agent_payment_id:
+          description: agent_payment id (`ap_` + 26 base32 chars).
+          examples:
+            - ap_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^ap_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+      required:
+        - agent_payment_id
+      type: object
+  securitySchemes:
+    internalToken:
+      description: "Internal Ed25519 JWT: request token or service token."
+      in: header
+      name: X-NearPay-Token
+      type: apiKey
+    serviceClient:
+      description: Service client credentials (`client_id` + secret file).
+      scheme: basic
+      type: http
+info:
+  description: NearPay internal service API. Generated from `nearpay-spec`; do not edit by hand.
+  license:
+    identifier: Apache-2.0
+    name: Apache-2.0
+  title: nearpay-agentpay internal API
+  version: 0.1.0
+openapi: 3.1.0
+paths:
+  /internal/relay:
+    post:
+      operationId: relaySignedIntent
+      parameters:
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                binding:
+                  description: Binding memo `np1:` + base58(sha256(…)) tying a signed transfer to one requirement.
+                  pattern: ^np1:[1-9A-HJ-NP-Za-km-z]{43,44}$
+                  type: string
+                execution_id:
+                  description: execution id (`ex_` + 26 base32 chars).
+                  examples:
+                    - ex_01jbz9k3m4n5p6q7r8s9t0v1w2
+                  pattern: ^ex_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                  type: string
+                signed:
+                  $ref: "#/components/schemas/MultiPayload"
+              required:
+                - execution_id
+                - binding
+                - signed
+              type: object
+        required: true
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RelayAccepted"
+          description: Queue a payer-signed payload for a checkout `intents_transfer` attempt.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `intent_invalid`."
+          x-error-codes:
+            - intent_invalid
+        "402":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `insufficient_balance`."
+          x-error-codes:
+            - insufficient_balance
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `rail_unavailable`."
+          x-error-codes:
+            - rail_unavailable
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Queue a payer-signed payload for a checkout `intents_transfer` attempt.
+      tags:
+        - agentpay
+      x-nearpay:
+        auth:
+          - service:agentpay.relay
+        idempotent: true
+        service: agentpay
+        stage: 1
+servers:
+  - url: http://agentpay-api:8080

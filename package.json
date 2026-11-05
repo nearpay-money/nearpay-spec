@@ -1,0 +1,50 @@
+{
+  "name": "nearpay-spec",
+  "private": true,
+  "version": "0.1.0",
+  "description": "NearPay contracts: zod schemas authored in TypeScript, emitted as OpenAPI 3.1, AsyncAPI and JSON Schema.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=22.11.0 <23"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "test": "vitest run",
+    "emit": "tsx codegen/emit.ts",
+    "emit:check": "tsx codegen/emit.ts --check",
+    "vectors": "tsx codegen/vectors.ts",
+    "vectors:check": "tsx codegen/vectors.ts --check",
+    "compat": "node test/compat/run.mjs",
+    "build": "pnpm -r --filter \"./packages/*\" run build",
+    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm emit:check && pnpm vectors:check && pnpm compat && pnpm build",
+    "release:local": "node scripts/release-local.mjs"
+  },
+  "dependencies": {
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@asyncapi/parser": "3.6.6",
+    "@biomejs/biome": "2.6.5",
+    "@noble/curves": "2.4.0",
+    "@noble/hashes": "2.4.0",
+    "@seriousme/openapi-schema-validator": "2.11.0",
+    "@types/node": "22.20.5",
+    "@vitest/coverage-v8": "2.1.9",
+    "bs58": "6.0.0",
+    "canonicalize": "5.1.0",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "2.1.9",
+    "yaml": "2.9.1",
+    "zod-openapi": "6.0.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "name": "@nearpay-internal/spec",
+  "version": "0.1.0",
+  "description": "NearPay internal contracts: service-to-service routes, domain events and streams, 1Click wire schemas.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/internal-entry.d.ts",
+      "import": "./dist/internal-entry.js"
+    },
+    "./openapi/*": "./openapi/*",
+    "./asyncapi/*": "./asyncapi/*",
+    "./schemas/*": "./schemas/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "openapi",
+    "asyncapi",
+    "schemas",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "dependencies": {
+    "@nearpay/spec": "workspace:*"
+  },
+  "peerDependencies": {
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "zod": "4.6.7"
+  },
+  "scripts": {
+    "build": "node ../../scripts/build-package.mjs internal"
+  }
+}

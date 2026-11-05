@@ -1,0 +1,23 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install oasdiff (compat gate)
+        run: |
+          curl -fsSL -o oasdiff.tgz https://github.com/oasdiff/oasdiff/releases/download/v1.34.1/oasdiff_1.34.1_linux_amd64.tar.gz
+          tar -xzf oasdiff.tgz oasdiff && sudo mv oasdiff /usr/local/bin/
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm verify

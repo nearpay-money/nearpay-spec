@@ -1,0 +1,26 @@
+{
+  "description": "fingerprint = first 10 symbols of upper-case Crockford base32 (MSB-first bit stream) of sha256(UTF-8 `chain|address_norm|asset_id`), grouped 4-4-2.",
+  "cases": [
+    {
+      "chain": "near:mainnet",
+      "address_norm": "merchant.near",
+      "asset_id": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+      "input": "near:mainnet|merchant.near|nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+      "fingerprint": "YZMN-R81Z-BR"
+    },
+    {
+      "chain": "eip155:8453",
+      "address_norm": "0x52908400098527886e0f7030069857d2e4169ee7",
+      "asset_id": "nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near",
+      "input": "eip155:8453|0x52908400098527886e0f7030069857d2e4169ee7|nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near",
+      "fingerprint": "1WZ5-TFJZ-CM"
+    },
+    {
+      "chain": "near:mainnet",
+      "address_norm": "e2e4c3f1d1e8b37f9d8c1c64b9d1a8e2b0c7f5a1c9d3e8f2a4b6c8d0e1f3a5b7",
+      "asset_id": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+      "input": "near:mainnet|e2e4c3f1d1e8b37f9d8c1c64b9d1a8e2b0c7f5a1c9d3e8f2a4b6c8d0e1f3a5b7|nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+      "fingerprint": "MSCW-2NVE-MZ"
+    }
+  ]
+}

@@ -1,0 +1,142 @@
+{
+  "$defs": {
+    "Erc191MultiPayload": {
+      "additionalProperties": {},
+      "description": "Payload signed with ERC-191.",
+      "properties": {
+        "payload": {
+          "description": "JSON string of `IntentMessage`.",
+          "minLength": 2,
+          "type": "string"
+        },
+        "signature": {
+          "description": "secp256k1 signature r‖s‖v (v ∈ {0,1}), base58.",
+          "pattern": "^(ed25519|secp256k1):[1-9A-HJ-NP-Za-km-z]{64,100}$",
+          "type": "string"
+        },
+        "standard": {
+          "const": "erc191",
+          "description": "ERC-191 `personal_sign` (EVM wallets).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "standard",
+        "payload",
+        "signature"
+      ],
+      "type": "object"
+    },
+    "MultiPayload": {
+      "description": "A signed Verifier payload (`MultiPayload`).",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Nep413MultiPayload"
+        },
+        {
+          "$ref": "#/$defs/Erc191MultiPayload"
+        },
+        {
+          "$ref": "#/$defs/RawEd25519MultiPayload"
+        }
+      ]
+    },
+    "Nep413MultiPayload": {
+      "additionalProperties": {},
+      "description": "Payload signed with NEP-413.",
+      "properties": {
+        "payload": {
+          "additionalProperties": {},
+          "description": "NEP-413 payload.",
+          "properties": {
+            "callbackUrl": {
+              "description": "NEP-413 callback URL (NearPay never sets it).",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "message": {
+              "description": "JSON string of `Nep413IntentMessage`.",
+              "minLength": 2,
+              "type": "string"
+            },
+            "nonce": {
+              "description": "32-byte nonce (4-byte Verifier salt ‖ 28 random bytes), standard base64.",
+              "pattern": "^[A-Za-z0-9+/]{43}=$",
+              "type": "string"
+            },
+            "recipient": {
+              "const": "intents.near",
+              "description": "NEP-413 recipient (the Verifier).",
+              "type": "string"
+            }
+          },
+          "required": [
+            "recipient",
+            "nonce",
+            "message"
+          ],
+          "type": "object"
+        },
+        "public_key": {
+          "description": "ed25519 key of the signer.",
+          "pattern": "^(ed25519|secp256k1):[1-9A-HJ-NP-Za-km-z]{32,90}$",
+          "type": "string"
+        },
+        "signature": {
+          "description": "ed25519 signature over the NEP-413 borsh hash.",
+          "pattern": "^(ed25519|secp256k1):[1-9A-HJ-NP-Za-km-z]{64,100}$",
+          "type": "string"
+        },
+        "standard": {
+          "const": "nep413",
+          "description": "NEP-413 (NEAR wallets `signMessage`).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "standard",
+        "payload",
+        "public_key",
+        "signature"
+      ],
+      "type": "object"
+    },
+    "RawEd25519MultiPayload": {
+      "additionalProperties": {},
+      "description": "Payload signed with raw ed25519.",
+      "properties": {
+        "payload": {
+          "description": "JSON string of `IntentMessage`.",
+          "minLength": 2,
+          "type": "string"
+        },
+        "public_key": {
+          "description": "ed25519 key of the signer.",
+          "pattern": "^(ed25519|secp256k1):[1-9A-HJ-NP-Za-km-z]{32,90}$",
+          "type": "string"
+        },
+        "signature": {
+          "description": "ed25519 signature over the UTF-8 payload.",
+          "pattern": "^(ed25519|secp256k1):[1-9A-HJ-NP-Za-km-z]{64,100}$",
+          "type": "string"
+        },
+        "standard": {
+          "const": "raw_ed25519",
+          "description": "Raw ed25519 over the payload bytes (agents).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "standard",
+        "payload",
+        "public_key",
+        "signature"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/MultiPayload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

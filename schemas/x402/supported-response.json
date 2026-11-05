@@ -1,0 +1,85 @@
+{
+  "$defs": {
+    "X402SupportedResponse": {
+      "additionalProperties": {},
+      "description": "Facilitator `/supported`.",
+      "properties": {
+        "extensions": {
+          "description": "Supported extensions.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "kinds": {
+          "description": "Supported kinds.",
+          "items": {
+            "additionalProperties": {},
+            "description": "A supported scheme/network.",
+            "properties": {
+              "extra": {
+                "additionalProperties": {},
+                "description": "Details.",
+                "properties": {
+                  "assetTransferMethod": {
+                    "const": "intents-transfer",
+                    "description": "Method.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "assetTransferMethod"
+                ],
+                "type": "object"
+              },
+              "network": {
+                "const": "near:mainnet",
+                "description": "Network.",
+                "type": "string"
+              },
+              "scheme": {
+                "const": "exact",
+                "description": "Scheme.",
+                "type": "string"
+              },
+              "x402Version": {
+                "const": 2,
+                "description": "Version.",
+                "type": "number"
+              }
+            },
+            "required": [
+              "x402Version",
+              "scheme",
+              "network",
+              "extra"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "signers": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "description": "Network pattern → relayer accounts that submit transactions.",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "kinds",
+        "extensions",
+        "signers"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/X402SupportedResponse",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}
