@@ -1,11 +1,11 @@
 # AGENTS.md — nearpay-spec
 
-You are working in **nearpay-spec**, one of 26 NearPay repositories (`nearpay-brain/architecture/repositories.md`).
-Scope: Single source of truth for every contract: public REST (OpenAPI 3.1), internal service APIs, domain events (AsyncAPI), webhook payloads, error catalogue, NearPay x402 scheme.
+You are working in **nearpay-spec**, one of 27 NearPay repositories (`nearpay-brain/architecture/repositories.md`).
+Scope: Single source of truth for every contract, authored as zod schemas in TypeScript and emitted as OpenAPI 3.1 / AsyncAPI / JSON Schema: public REST, internal service APIs, domain events, webhook payloads, error catalogue, NearPay x402 scheme, shared test vectors.
 
 ## Before changing anything
 
-1. Read `../nearpay-brain/AGENTS.md`, then the docs listed in this repo's README.
+1. Read `../nearpay-brain/AGENTS.md`, then this repo's LLD (`../nearpay-brain/lld/00-foundations.md`) — it is the implementation spec; do not make design decisions it already makes.
 2. Contracts (requests, responses, events, errors) come from `@nearpay/spec`. If one must change, open a PR in `nearpay-spec` first; never hand-write contract types here.
 3. Check your change against invariants INV-1…INV-9 in `nearpay-brain/product/requirements.md`.
 
