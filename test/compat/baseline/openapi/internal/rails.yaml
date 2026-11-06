@@ -1236,7 +1236,7 @@ info:
     identifier: Apache-2.0
     name: Apache-2.0
   title: nearpay-rails internal API
-  version: 0.1.2
+  version: 0.1.3
 openapi: 3.1.0
 paths:
   /internal/assets/{asset_id}:
@@ -1253,6 +1253,15 @@ paths:
               - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
             maxLength: 256
             pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+            type: string
+        - description: "Mode whose token registry answers (test = sandbox registry). Omitted: live, falling back to test."
+          in: query
+          name: livemode
+          schema:
+            description: "Mode whose token registry answers (test = sandbox registry). Omitted: live, falling back to test."
+            enum:
+              - "true"
+              - "false"
             type: string
       responses:
         "200":
@@ -1765,6 +1774,15 @@ paths:
             description: Connected wallet.
             maxLength: 256
             minLength: 1
+            type: string
+        - description: "Mode whose token registry answers (test = sandbox registry). Omitted: live, falling back to test."
+          in: query
+          name: livemode
+          schema:
+            description: "Mode whose token registry answers (test = sandbox registry). Omitted: live, falling back to test."
+            enum:
+              - "true"
+              - "false"
             type: string
       responses:
         "200":

@@ -3,6 +3,12 @@
 `@nearpay/spec` and `@nearpay-internal/spec` share one version. Within a version line changes are
 additive only (`pnpm compat` gates every release against `test/compat/baseline/`, the last release).
 
+## 0.1.3 — Stage 1, step 1.2
+
+- `getInternalAsset` and `listInternalOptions` (rails) take an optional `livemode` query parameter:
+  rails keeps one token registry per mode (live = 1Click `/v0/tokens`, test = the sandbox registry, so
+  test mode works offline). Omitted, the live registry answers, falling back to test.
+
 ## 0.1.2 — Stage 1, step 1.2
 
 - ID prefix `pol_` (geo policy, compliance): the aggregate id of `evt.compliance.policy.updated`.

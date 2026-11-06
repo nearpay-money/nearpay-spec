@@ -132,6 +132,13 @@ export const CreateExecution = inp({
 
 const ExecParams = inp({ id: id("ex") });
 
+/** Optional mode selector for reads that depend on the mode's token registry (test = sandbox registry). */
+const OptionalMode = z
+  .enum(["true", "false"])
+  .transform((v) => v === "true")
+  .optional()
+  .describe("Mode whose token registry answers (test = sandbox registry). Omitted: live, falling back to test.");
+
 export const createExecution = route({
   id: "createExecution",
   method: "POST",
@@ -221,6 +228,7 @@ export const getInternalAsset = route({
   auth: ["service:rails.read"],
   idempotent: false,
   params: inp({ asset_id: AssetId }),
+  query: inp({ livemode: OptionalMode }),
   response: InternalAsset,
   status: 200,
   errors: ["asset_unsupported"],
@@ -290,6 +298,7 @@ export const listInternalOptions = route({
     amount_out: BaseUnits.describe("Settlement amount."),
     chain: ChainId.optional().describe("Only this origin chain."),
     wallet: ChainAddress.optional().describe("Connected wallet."),
+    livemode: OptionalMode,
   }),
   response: out({ options: z.array(InternalPaymentOption).describe("Options.") }).meta({
     id: "InternalPaymentOptions",

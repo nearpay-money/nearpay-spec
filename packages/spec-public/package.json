@@ -1,6 +1,6 @@
 {
   "name": "@nearpay/spec",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "NearPay public contracts: REST routes and objects, webhook events and signatures, the NearPay x402 scheme, NEAR Intents payloads and the error catalogue (zod 4).",
   "license": "Apache-2.0",
   "type": "module",
