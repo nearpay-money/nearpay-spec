@@ -63,7 +63,7 @@ nearpay-spec/
 
 ## Status
 
-`0.1.3` — step 1.2 change requests (additive; see `CHANGELOG.md`).
+`0.1.4` — step 1.2 change requests (additive; see `CHANGELOG.md`).
 
 `0.1.0` — Stage 1 contracts (step 1.1): 60 public and 36 internal routes, 39 domain event subjects, 12 webhook types, 60 error codes, the x402 `intents-transfer` scheme, and shared test vectors. NEAR Intents signing formats (NEP-413, ERC-191, raw ed25519) were checked against the live `intents.near` Verifier with read-only `simulate_intents` calls.
 

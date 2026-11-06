@@ -6,4 +6,4 @@ export * from "./events/catalogue.js";
 export * from "./internal/index.js";
 
 /** Version of this contract package (kept equal to package.json by `test/package.test.ts`). */
-export const SPEC_INTERNAL_VERSION = "0.1.3";
+export const SPEC_INTERNAL_VERSION = "0.1.4";

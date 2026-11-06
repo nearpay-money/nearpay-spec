@@ -41,6 +41,7 @@ export const ID_PREFIXES = {
   pol: { object: "geo_policy", owner: "compliance" },
   scr: { object: "screening", owner: "compliance" },
   fnd: { object: "audit_finding", owner: "sentinel" },
+  ks: { object: "kill_switch", owner: "sentinel" },
   msg: { object: "message", owner: "notify" },
   req: { object: "request", owner: "gateway" },
   job: { object: "job", owner: "any" },

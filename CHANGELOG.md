@@ -3,6 +3,11 @@
 `@nearpay/spec` and `@nearpay-internal/spec` share one version. Within a version line changes are
 additive only (`pnpm compat` gates every release against `test/compat/baseline/`, the last release).
 
+## 0.1.4 — Stage 1, step 1.2
+
+- ID prefix `ks_` (kill switch, sentinel): the aggregate id of `evt.sentinel.kill_switch.engaged` /
+  `.released` (a singleton aggregate whose version orders engage/release for rails and notify).
+
 ## 0.1.3 — Stage 1, step 1.2
 
 - `getInternalAsset` and `listInternalOptions` (rails) take an optional `livemode` query parameter:
