@@ -52,7 +52,10 @@ export const Review = out({
   object: z.literal("review").describe("Always `review`."),
   account_id: id("acct"),
   subject: out({
-    type: openEnum(["payment_intent", "agent_payment", "settlement_destination"], "Reviewed object type."),
+    type: openEnum(
+      ["payment_intent", "agent_payment", "settlement_destination", "execution"],
+      "Reviewed object type (`execution`: a rails execution; payments maps it to its payment intent).",
+    ),
     id: z.string().describe("Reviewed object id."),
   }).describe("What is under review."),
   reason: openEnum(["post_screen_hit", "held_execution", "audit_mismatch", "screening_hit"], "Why."),

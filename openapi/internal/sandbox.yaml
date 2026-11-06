@@ -638,6 +638,134 @@ components:
         - public_key
         - signature
       type: object
+    SandboxQuoteRequest:
+      additionalProperties: {}
+      description: Sandbox `POST /v0/quote` request (1Click request + scenario amount).
+      properties:
+        amount:
+          description: Integer amount in base units, as a string.
+          pattern: ^\d+$
+          type: string
+        appFees:
+          description: App fees.
+          items:
+            $ref: "#/components/schemas/OneClickAppFee"
+          type: array
+        confidentiality:
+          description: Confidentiality mode.
+          enum:
+            - public
+            - basic
+            - advanced
+          type: string
+        connectedWallets:
+          description: Connected wallets.
+          items:
+            type: string
+          type: array
+        customRecipientMsg:
+          description: ft_transfer_call message (experimental).
+          type: string
+        deadline:
+          description: ISO deadline after which refunds begin.
+          type: string
+        depositMode:
+          description: Deposit address mode.
+          enum:
+            - SIMPLE
+            - MEMO
+          type: string
+        depositType:
+          description: Deposit address type.
+          enum:
+            - ORIGIN_CHAIN
+            - INTENTS
+            - CONFIDENTIAL_INTENTS
+          type: string
+        destinationAsset:
+          description: Destination asset id.
+          type: string
+        dry:
+          description: Dry run (no deposit address).
+          type: boolean
+        insured:
+          description: Insured swap.
+          type: boolean
+        originAsset:
+          description: Origin asset id.
+          type: string
+        quoteWaitingTimeMs:
+          description: Quote wait, ms.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        rebates:
+          description: Rebates (unused).
+          items: {}
+          type: array
+        recipient:
+          description: Recipient address.
+          type: string
+        recipientType:
+          description: Recipient type.
+          enum:
+            - DESTINATION_CHAIN
+            - INTENTS
+            - CONFIDENTIAL_INTENTS
+          type: string
+        referral:
+          description: Referral id (`nearpay`).
+          type: string
+        refundTo:
+          description: Refund address.
+          type: string
+        refundType:
+          description: Refund address type.
+          enum:
+            - ORIGIN_CHAIN
+            - INTENTS
+            - CONFIDENTIAL_INTENTS
+          type: string
+        scenario_amount:
+          description: Pricing amount of the payment (fiat minor units or asset base units); its last two digits pick the scenario. Defaults to `amount`.
+          pattern: ^\d{1,78}$
+          type: string
+        sessionId:
+          description: Client session id.
+          type: string
+        slippageTolerance:
+          description: Slippage, bps.
+          maximum: 10000
+          minimum: 0
+          type: integer
+        swapType:
+          description: How `amount` is interpreted.
+          enum:
+            - EXACT_INPUT
+            - EXACT_OUTPUT
+            - FLEX_INPUT
+            - ANY_INPUT
+          type: string
+        virtualChainRecipient:
+          description: Virtual-chain recipient.
+          type: string
+        virtualChainRefundRecipient:
+          description: Virtual-chain refund recipient.
+          type: string
+      required:
+        - dry
+        - swapType
+        - slippageTolerance
+        - originAsset
+        - depositType
+        - destinationAsset
+        - amount
+        - refundTo
+        - refundType
+        - recipient
+        - recipientType
+        - deadline
+      type: object
     SimBalance:
       additionalProperties: {}
       description: Balance.
@@ -856,7 +984,7 @@ info:
     identifier: Apache-2.0
     name: Apache-2.0
   title: nearpay-sandbox internal API
-  version: 0.1.0
+  version: 0.1.4
 openapi: 3.1.0
 paths:
   /sim/advance:
@@ -1278,7 +1406,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/OneClickQuoteRequest"
+              $ref: "#/components/schemas/SandboxQuoteRequest"
         required: true
       responses:
         "200":
