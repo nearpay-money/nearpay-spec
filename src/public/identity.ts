@@ -92,7 +92,8 @@ export const DashboardSession = out({
   expires_at: UnixTime.describe("Absolute session expiry."),
 }).meta({
   id: "DashboardSession",
-  description: "A dashboard session. The session cookie `__Host-np_session` is set by the response.",
+  description:
+    "A dashboard session. Sign-in responses set the session cookie `__Host-np_session`; `GET /v1/auth/session` returns the current session without setting it.",
 });
 
 export const ApiKey = out({
@@ -163,7 +164,7 @@ export const SettlementDestination = out({
   per_payment_cap: UsdAmount.nullable().describe("Cap per payment for unverified destinations."),
   disabled_reason: openEnum(["merchant", "compliance", "replaced"], "Why it was disabled.").nullable(),
   attestation_challenge: AttestationChallenge.optional().describe(
-    "Present on creation while the destination awaits its ownership signature.",
+    "Present on creation and on `POST /v1/settlement_destinations/{id}/challenge` while the destination awaits its ownership signature.",
   ),
 }).meta({ id: "SettlementDestination", description: "Where a merchant receives settlements (FR-SET-01)." });
 export type SettlementDestination = z.infer<typeof SettlementDestination>;
@@ -316,6 +317,23 @@ export const stepUpVerify = route({
   }).meta({ id: "StepUp", description: "A fresh step-up confirmation." }),
   status: 200,
   errors: ["webauthn_failed"],
+  stage: 1,
+});
+
+export const getDashboardSession = route({
+  id: "getDashboardSession",
+  method: "GET",
+  path: "/v1/auth/session",
+  service: "identity",
+  visibility: "public",
+  summary: "The current dashboard session, including its CSRF token.",
+  description:
+    "Lets a reload or a new tab recover the session (and `csrf_token`) from the session cookie. Sets no cookie (the sliding TTL applies as for any session request); an expired or missing session is `401 authentication_required`.",
+  auth: ["session"],
+  idempotent: false,
+  response: DashboardSession,
+  status: 200,
+  errors: [],
   stage: 1,
 });
 
@@ -599,6 +617,27 @@ export const attestSettlementDestination = route({
   response: SettlementDestination,
   status: 200,
   errors: ["attestation_invalid", "challenge_expired", "state_conflict"],
+  stage: 1,
+});
+
+export const challengeSettlementDestination = route({
+  id: "challengeSettlementDestination",
+  method: "POST",
+  path: "/v1/settlement_destinations/{id}/challenge",
+  service: "identity",
+  visibility: "public",
+  summary: "Issue a fresh attestation challenge for a destination awaiting its ownership signature.",
+  description:
+    "Only for a destination in `pending_verification`; returns it with a new `attestation_challenge` (10 minutes), the same shape as on creation. Earlier unused challenges of the destination stop being accepted.",
+  auth: ["session"],
+  roles: ["owner", "admin"],
+  stepUp: true,
+  idempotent: true,
+  params: DestinationIdParams,
+  body: inp({}),
+  response: SettlementDestination,
+  status: 200,
+  errors: ["state_conflict"],
   stage: 1,
 });
 

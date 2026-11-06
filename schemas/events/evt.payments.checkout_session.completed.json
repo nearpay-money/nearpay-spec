@@ -170,6 +170,12 @@
           ],
           "description": "Payment intent id, or the object with `expand[]=payment_intent`."
         },
+        "sequence": {
+          "description": "Increases with every change; discard webhook objects with a lower sequence. Servers MUST send it (optional in the 0.1.x schema only so readers built on 0.1.4 stay compatible).",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
         "settlement_destination": {
           "description": "settlement_destination id (`sd_` + 26 base32 chars).",
           "examples": [

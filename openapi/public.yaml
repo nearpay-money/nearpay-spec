@@ -296,6 +296,11 @@ components:
               type: string
             - type: "null"
           description: Paid resource (x402).
+        sequence:
+          description: Increases with every change; discard webhook objects with a lower sequence. Servers MUST send it (optional in the 0.1.x schema only so readers built on 0.1.4 stay compatible).
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
         settled_at:
           anyOf:
             - description: Unix time in seconds.
@@ -979,6 +984,11 @@ components:
               type: string
             - $ref: "#/components/schemas/PaymentIntent"
           description: Payment intent id, or the object with `expand[]=payment_intent`.
+        sequence:
+          description: Increases with every change; discard webhook objects with a lower sequence. Servers MUST send it (optional in the 0.1.x schema only so readers built on 0.1.4 stay compatible).
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
         settlement_destination:
           description: settlement_destination id (`sd_` + 26 base32 chars).
           examples:
@@ -1161,7 +1171,7 @@ components:
       type: object
     DashboardSession:
       additionalProperties: {}
-      description: A dashboard session. The session cookie `__Host-np_session` is set by the response.
+      description: A dashboard session. Sign-in responses set the session cookie `__Host-np_session`; `GET /v1/auth/session` returns the current session without setting it.
       properties:
         account:
           additionalProperties: {}
@@ -3462,6 +3472,12 @@ components:
           const: checkout_session
           description: Always `checkout_session`.
           type: string
+        payment_intent:
+          description: Payment intent of this session (embedded checkout reports it in `np:complete`).
+          examples:
+            - pi_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^pi_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
         settlement:
           additionalProperties: {}
           description: How the merchant is paid (never the raw address).
@@ -3514,6 +3530,7 @@ components:
         - object
         - livemode
         - status
+        - payment_intent
         - intent_status
         - amount
         - currency
@@ -3645,7 +3662,7 @@ components:
           type: string
         attestation_challenge:
           $ref: "#/components/schemas/AttestationChallenge"
-          description: Present on creation while the destination awaits its ownership signature.
+          description: Present on creation and on `POST /v1/settlement_destinations/{id}/challenge` while the destination awaits its ownership signature.
         chain:
           description: Chain of the address; `near:mainnet` for Intents accounts.
           examples:
@@ -4122,6 +4139,137 @@ components:
       required:
         - challenge
       type: object
+    WebhookDelivery:
+      additionalProperties: {}
+      description: One event's delivery to one endpoint, with a summary of its attempts.
+      properties:
+        attempts:
+          description: Attempts made so far, including a successful one.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        created:
+          description: Unix time in seconds.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        event:
+          description: event id (`evt_` + 26 base32 chars).
+          examples:
+            - evt_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^evt_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        event_type:
+          description: Event type.
+          type: string
+          x-extensible-enum:
+            - checkout.session.completed
+            - checkout.session.expired
+            - payment_intent.created
+            - payment_intent.processing
+            - payment_intent.succeeded
+            - payment_intent.payment_failed
+            - payment_intent.requires_review
+            - payment_intent.overpaid
+            - payment_intent.canceled
+            - agent_payment.settled
+            - agent_payment.failed
+            - ping
+        id:
+          description: webhook_delivery id (`whd_` + 26 base32 chars).
+          examples:
+            - whd_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^whd_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        last_error:
+          description: Why the last attempt failed (timeout, connection refused, non-2xx, egress policy); null if none.
+          type:
+            - string
+            - "null"
+        last_status_code:
+          anyOf:
+            - maximum: 599
+              minimum: 100
+              type: integer
+            - type: "null"
+          description: HTTP status of the last attempt; null before the first attempt or when it got no response.
+        livemode:
+          description: "`true` for live mode, `false` for test mode."
+          type: boolean
+        next_attempt_at:
+          anyOf:
+            - description: Unix time in seconds.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: When the next attempt is due; null once the delivery is `succeeded` or `abandoned`.
+        object:
+          const: webhook_delivery
+          description: Always `webhook_delivery`.
+          type: string
+        status:
+          description: "`pending`: not attempted yet. `failed`: the last attempt failed and a retry is scheduled. `succeeded`: an attempt got a 2xx. `abandoned`: no more attempts (72 h passed or the endpoint was deleted)."
+          type: string
+          x-extensible-enum:
+            - pending
+            - succeeded
+            - failed
+            - abandoned
+        succeeded_at:
+          anyOf:
+            - description: Unix time in seconds.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: When an attempt succeeded.
+        webhook_endpoint:
+          description: webhook_endpoint id (`we_` + 26 base32 chars).
+          examples:
+            - we_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^we_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+      required:
+        - id
+        - object
+        - created
+        - livemode
+        - webhook_endpoint
+        - event
+        - event_type
+        - status
+        - attempts
+        - last_status_code
+        - last_error
+        - next_attempt_at
+        - succeeded_at
+      type: object
+    WebhookDeliveryList:
+      additionalProperties: {}
+      description: A page of webhook deliveries.
+      properties:
+        data:
+          description: Objects on this page.
+          items:
+            $ref: "#/components/schemas/WebhookDelivery"
+          type: array
+        has_more:
+          description: Whether more objects exist after this page.
+          type: boolean
+        object:
+          const: list
+          description: Always `list`.
+          type: string
+        url:
+          description: Path of this list endpoint.
+          type: string
+      required:
+        - object
+        - data
+        - has_more
+        - url
+      type: object
     WebhookEndpoint:
       additionalProperties: {}
       description: A URL that receives signed events.
@@ -4276,6 +4424,11 @@ components:
         binding:
           description: Binding memo `np1:` + base58(sha256(…)) tying a signed transfer to one requirement.
           pattern: ^np1:[1-9A-HJ-NP-Za-km-z]{43,44}$
+          type: string
+        deadline:
+          description: Absolute expiry of this issued requirement (RFC 3339; the binding's `expires_at`). Sign a Verifier `deadline` at or before it; absent from facilitators older than spec 0.1.5, then derive the window from `maxTimeoutSeconds`.
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
           type: string
         fee:
           additionalProperties: {}
@@ -4474,6 +4627,9 @@ components:
           description: Payer Intents account.
           pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
           type: string
+        replayed:
+          description: True when this payment payload was settled before and this response repeats that result (settle is idempotent on the payload); deliver the resource at most once per settlement.
+          type: boolean
         success:
           description: Settled on NEAR (final).
           type: boolean
@@ -4625,7 +4781,7 @@ info:
     identifier: Apache-2.0
     name: Apache-2.0
   title: NearPay API
-  version: 0.1.4
+  version: 0.1.5
 openapi: 3.1.0
 paths:
   /v1/account:
@@ -5724,6 +5880,41 @@ paths:
       x-nearpay:
         auth:
           - anonymous
+          - session
+        idempotent: false
+        service: identity
+        stage: 1
+  /v1/auth/session:
+    get:
+      description: Lets a reload or a new tab recover the session (and `csrf_token`) from the session cookie. Sets no cookie (the sliding TTL applies as for any session request); an expired or missing session is `401 authentication_required`.
+      operationId: getDashboardSession
+      parameters:
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSession"
+          description: The current dashboard session, including its CSRF token.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - session: []
+      summary: The current dashboard session, including its CSRF token.
+      tags:
+        - identity
+      x-nearpay:
+        auth:
           - session
         idempotent: false
         service: identity
@@ -7907,6 +8098,79 @@ paths:
           - admin
         service: identity
         stage: 1
+  /v1/settlement_destinations/{id}/challenge:
+    post:
+      description: Only for a destination in `pending_verification`; returns it with a new `attestation_challenge` (10 minutes), the same shape as on creation. Earlier unused challenges of the destination stop being accepted.
+      operationId: challengeSettlementDestination
+      parameters:
+        - description: settlement_destination id (`sd_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: settlement_destination id (`sd_` + 26 base32 chars).
+            examples:
+              - sd_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^sd_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties: {}
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettlementDestination"
+          description: Issue a fresh attestation challenge for a destination awaiting its ownership signature.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `state_conflict`."
+          x-error-codes:
+            - state_conflict
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - session: []
+      summary: Issue a fresh attestation challenge for a destination awaiting its ownership signature.
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - session
+        idempotent: true
+        roles:
+          - owner
+          - admin
+        service: identity
+        stage: 1
+        step_up: true
   /v1/settlement_destinations/{id}/disable:
     post:
       operationId: disableSettlementDestination
@@ -8239,7 +8503,7 @@ paths:
                   maxLength: 500
                   type: string
                 enabled_events:
-                  description: Event types to deliver, or `["*"]` for all.
+                  description: Event types to deliver, or `["*"]` for all. A type that is not a webhook type is rejected with `event_type_unknown`.
                   items:
                     anyOf:
                       - const: "*"
@@ -8259,6 +8523,11 @@ paths:
                           - agent_payment.settled
                           - agent_payment.failed
                           - ping
+                      - description: Any other type string; the service answers `event_type_unknown`.
+                        maxLength: 100
+                        minLength: 1
+                        type: string
+                    description: A webhook event type, or `*` for all types.
                   maxItems: 100
                   minItems: 1
                   type: array
@@ -8452,7 +8721,7 @@ paths:
                   description: Disable (`true`) or re-enable (`false`) the endpoint.
                   type: boolean
                 enabled_events:
-                  description: Event types to deliver, or `["*"]` for all.
+                  description: Event types to deliver, or `["*"]` for all. A type that is not a webhook type is rejected with `event_type_unknown`.
                   items:
                     anyOf:
                       - const: "*"
@@ -8472,6 +8741,11 @@ paths:
                           - agent_payment.settled
                           - agent_payment.failed
                           - ping
+                      - description: Any other type string; the service answers `event_type_unknown`.
+                        maxLength: 100
+                        minLength: 1
+                        type: string
+                    description: A webhook event type, or `*` for all types.
                   maxItems: 100
                   minItems: 1
                   type: array
@@ -8516,6 +8790,80 @@ paths:
           - restricted_key:webhook_endpoints.write
           - session
         idempotent: true
+        roles:
+          - owner
+          - admin
+          - developer
+        service: webhooks
+        stage: 1
+  /v1/webhook_endpoints/{id}/deliveries:
+    get:
+      operationId: listWebhookEndpointDeliveries
+      parameters:
+        - description: webhook_endpoint id (`we_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: webhook_endpoint id (`we_` + 26 base32 chars).
+            examples:
+              - we_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^we_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Number of objects to return, 1–100 (default 10).
+          in: query
+          name: limit
+          schema:
+            default: 10
+            description: Number of objects to return, 1–100 (default 10).
+            maximum: 100
+            minimum: 1
+            type: integer
+        - description: "Cursor: id of the last object of the previous page."
+          in: query
+          name: starting_after
+          schema:
+            description: "Cursor: id of the last object of the previous page."
+            maxLength: 64
+            type: string
+        - description: "Cursor: id of the first object of the next page."
+          in: query
+          name: ending_before
+          schema:
+            description: "Cursor: id of the first object of the next page."
+            maxLength: 64
+            type: string
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookDeliveryList"
+          description: List an endpoint's deliveries of the last 30 days, newest first.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - apiKey: []
+        - session: []
+      summary: List an endpoint's deliveries of the last 30 days, newest first.
+      tags:
+        - webhooks
+      x-nearpay:
+        auth:
+          - secret_key
+          - restricted_key:webhook_endpoints.read
+          - session
+        idempotent: false
         roles:
           - owner
           - admin

@@ -1,4 +1,4 @@
-version: 0.1.4
+version: 0.1.5
 errors:
   - code: invalid_request
     status: 400
@@ -266,8 +266,8 @@ errors:
     type: invalid_request_error
     retryable: false
     generic: false
-    message: The attestation challenge has expired or was used; create a new destination.
-    example: The attestation challenge has expired or was used; create a new destination.
+    message: The attestation challenge has expired or was used; request a new challenge for the destination.
+    example: The attestation challenge has expired or was used; request a new challenge for the destination.
     doc_url: https://docs.nearpay.money/errors/challenge_expired
     since: 0.1.0
   - code: destination_not_active

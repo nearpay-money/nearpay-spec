@@ -7,11 +7,27 @@ import { route } from "../common/route.js";
 import { inp, openEnum, out, z } from "../common/schema.js";
 import { Event, WebhookTypeSchema } from "../webhooks/events.js";
 
+/**
+ * Request items accept any type string (spec 0.1.5) so the service, not request validation, rejects
+ * an unknown type with `event_type_unknown`. The `*` and typed alternatives stay first in the union
+ * (they document the known types; removing them would be a breaking change for the compat gate).
+ * Responses list the stored types (`WebhookEndpoint`).
+ */
 const EnabledEvents = z
-  .array(z.union([z.literal("*"), WebhookTypeSchema]))
+  .array(
+    z
+      .union([
+        z.literal("*"),
+        WebhookTypeSchema,
+        z.string().min(1).max(100).describe("Any other type string; the service answers `event_type_unknown`."),
+      ])
+      .describe("A webhook event type, or `*` for all types."),
+  )
   .min(1)
   .max(100)
-  .describe('Event types to deliver, or `["*"]` for all.');
+  .describe(
+    'Event types to deliver, or `["*"]` for all. A type that is not a webhook type is rejected with `event_type_unknown`.',
+  );
 
 const EndpointUrl = z
   .url()
@@ -186,6 +202,56 @@ export const getEvent = route({
   idempotent: false,
   params: inp({ id: id("evt") }),
   response: Event,
+  status: 200,
+  errors: [],
+  stage: 1,
+});
+
+export const WebhookDelivery = out({
+  id: id("whd"),
+  object: z.literal("webhook_delivery").describe("Always `webhook_delivery`."),
+  created: UnixTime,
+  livemode: Livemode,
+  webhook_endpoint: id("we"),
+  event: id("evt"),
+  event_type: WebhookTypeSchema,
+  status: openEnum(
+    ["pending", "succeeded", "failed", "abandoned"],
+    "`pending`: not attempted yet. `failed`: the last attempt failed and a retry is scheduled. `succeeded`: an attempt got a 2xx. `abandoned`: no more attempts (72 h passed or the endpoint was deleted).",
+  ),
+  attempts: z.int().min(0).describe("Attempts made so far, including a successful one."),
+  last_status_code: z
+    .int()
+    .min(100)
+    .max(599)
+    .nullable()
+    .describe("HTTP status of the last attempt; null before the first attempt or when it got no response."),
+  last_error: z
+    .string()
+    .nullable()
+    .describe("Why the last attempt failed (timeout, connection refused, non-2xx, egress policy); null if none."),
+  next_attempt_at: UnixTime.nullable().describe(
+    "When the next attempt is due; null once the delivery is `succeeded` or `abandoned`.",
+  ),
+  succeeded_at: UnixTime.nullable().describe("When an attempt succeeded."),
+}).meta({
+  id: "WebhookDelivery",
+  description: "One event's delivery to one endpoint, with a summary of its attempts.",
+});
+
+export const listWebhookEndpointDeliveries = route({
+  id: "listWebhookEndpointDeliveries",
+  method: "GET",
+  path: "/v1/webhook_endpoints/{id}/deliveries",
+  service: "webhooks",
+  visibility: "public",
+  summary: "List an endpoint's deliveries of the last 30 days, newest first.",
+  auth: READ,
+  roles: DEV_ROLES,
+  idempotent: false,
+  params: EndpointParams,
+  query: inp(listQueryShape),
+  response: listOf(WebhookDelivery, "WebhookDeliveryList", "A page of webhook deliveries."),
   status: 200,
   errors: [],
   stage: 1,

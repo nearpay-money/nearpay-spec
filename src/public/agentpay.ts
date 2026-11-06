@@ -30,6 +30,13 @@ export const AgentPayment = out({
   block_height: z.int().min(0).nullable().describe("Block of the transaction."),
   error_reason: z.string().nullable().describe("Why it failed."),
   settled_at: UnixTime.nullable().describe("When it settled (final)."),
+  sequence: z
+    .int()
+    .min(0)
+    .optional()
+    .describe(
+      "Increases with every change; discard webhook objects with a lower sequence. Servers MUST send it (optional in the 0.1.x schema only so readers built on 0.1.4 stay compatible).",
+    ),
 }).meta({ id: "AgentPayment", description: "A payer-signed NEAR Intents payment relayed by NearPay." });
 export type AgentPayment = z.infer<typeof AgentPayment>;
 

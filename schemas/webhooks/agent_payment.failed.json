@@ -118,6 +118,12 @@
           ],
           "description": "Paid resource (x402)."
         },
+        "sequence": {
+          "description": "Increases with every change; discard webhook objects with a lower sequence. Servers MUST send it (optional in the 0.1.x schema only so readers built on 0.1.4 stay compatible).",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
         "settled_at": {
           "anyOf": [
             {

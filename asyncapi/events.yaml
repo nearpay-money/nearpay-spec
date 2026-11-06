@@ -5109,6 +5109,11 @@ components:
               type: string
             - type: "null"
           description: Paid resource (x402).
+        sequence:
+          description: Increases with every change; discard webhook objects with a lower sequence. Servers MUST send it (optional in the 0.1.x schema only so readers built on 0.1.4 stay compatible).
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
         settled_at:
           anyOf:
             - description: Unix time in seconds.
@@ -5443,6 +5448,11 @@ components:
               type: string
             - $ref: "#/components/schemas/PaymentIntent"
           description: Payment intent id, or the object with `expand[]=payment_intent`.
+        sequence:
+          description: Increases with every change; discard webhook objects with a lower sequence. Servers MUST send it (optional in the 0.1.x schema only so readers built on 0.1.4 stay compatible).
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
         settlement_destination:
           description: settlement_destination id (`sd_` + 26 base32 chars).
           examples:
@@ -6095,7 +6105,7 @@ components:
         attestation_challenge:
           allOf:
             - $ref: "#/components/schemas/AttestationChallenge"
-          description: Present on creation while the destination awaits its ownership signature.
+          description: Present on creation and on `POST /v1/settlement_destinations/{id}/challenge` while the destination awaits its ownership signature.
         attestation_hash:
           anyOf:
             - pattern: ^[0-9a-f]{64}$
@@ -6723,7 +6733,7 @@ info:
   license:
     name: Apache-2.0
   title: NearPay domain events
-  version: 0.1.4
+  version: 0.1.5
 operations:
   evt_agentpay_agent_payment_failed_send:
     action: send
