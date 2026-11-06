@@ -78,6 +78,7 @@ export const PublicCheckoutSession = out({
   object: z.literal("checkout_session").describe("Always `checkout_session`."),
   livemode: Livemode,
   status: CheckoutSessionStatus,
+  payment_intent: id("pi", "Payment intent of this session (embedded checkout reports it in `np:complete`)."),
   intent_status: IntentStatus,
   amount: PricingAmount,
   currency: PricingCurrency,

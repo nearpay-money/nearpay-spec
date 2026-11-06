@@ -1,6 +1,6 @@
 {
   "name": "@nearpay-internal/spec",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "NearPay internal contracts: service-to-service routes, domain events and streams, 1Click wire schemas.",
   "license": "Apache-2.0",
   "type": "module",

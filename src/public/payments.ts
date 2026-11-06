@@ -191,6 +191,13 @@ export const CheckoutSession = out({
   locale: z.string().nullable().describe("Checkout locale."),
   completed_at: UnixTime.nullable().describe("When the session completed."),
   late: z.boolean().describe("Completed by a settlement after expiry."),
+  sequence: z
+    .int()
+    .min(0)
+    .optional()
+    .describe(
+      "Increases with every change; discard webhook objects with a lower sequence. Servers MUST send it (optional in the 0.1.x schema only so readers built on 0.1.4 stay compatible).",
+    ),
   metadata: Metadata,
 }).meta({ id: "CheckoutSession", description: "A checkout page or embed for one payment intent." });
 export type CheckoutSession = z.infer<typeof CheckoutSession>;

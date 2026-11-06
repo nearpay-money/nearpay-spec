@@ -4,7 +4,7 @@
  * PaymentRequirements, PaymentPayload, VerifyRequest/Response, SettleRequest/Response, SupportedResponse).
  * Headers `PAYMENT-REQUIRED`, `PAYMENT-SIGNATURE`, `PAYMENT-RESPONSE` carry base64(JSON) of these.
  */
-import { AssetId, BaseUnits, Binding, NearAccountId, TxHash } from "../common/primitives.js";
+import { AssetId, BaseUnits, Binding, NearAccountId, Timestamp, TxHash } from "../common/primitives.js";
 import { openEnum, out, z } from "../common/schema.js";
 import { INTENTS_CONTRACT, MultiPayload } from "../intents/payloads.js";
 
@@ -34,6 +34,9 @@ export const IntentsTransferExtra = out({
   }).describe("NearPay fee transfer the payload must also contain."),
   binding: Binding,
   verifyingContract: z.literal(INTENTS_CONTRACT).describe("Verifier contract."),
+  deadline: Timestamp.optional().describe(
+    "Absolute expiry of this issued requirement (RFC 3339; the binding's `expires_at`). Sign a Verifier `deadline` at or before it; absent from facilitators older than spec 0.1.5, then derive the window from `maxTimeoutSeconds`.",
+  ),
 }).meta({ id: "X402IntentsTransferExtra", description: "NearPay `intents-transfer` requirement details." });
 
 export const PaymentRequirements = out({
@@ -112,6 +115,12 @@ export const SettleResponse = out({
   amount: BaseUnits.optional().describe("Amount settled to `payTo`."),
   errorReason: X402SettleError.optional(),
   errorMessage: z.string().optional().describe("Human-readable detail."),
+  replayed: z
+    .boolean()
+    .optional()
+    .describe(
+      "True when this payment payload was settled before and this response repeats that result (settle is idempotent on the payload); deliver the resource at most once per settlement.",
+    ),
 }).meta({ id: "X402SettleResponse", description: "Facilitator `/settle` result; body of `PAYMENT-RESPONSE`." });
 
 export const SupportedResponse = out({

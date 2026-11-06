@@ -47,6 +47,10 @@
           "pattern": "^(?=.{2,64}$)(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+$",
           "type": "string"
         },
+        "replayed": {
+          "description": "True when this payment payload was settled before and this response repeats that result (settle is idempotent on the payload); deliver the resource at most once per settlement.",
+          "type": "boolean"
+        },
         "success": {
           "description": "Settled on NEAR (final).",
           "type": "boolean"

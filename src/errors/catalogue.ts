@@ -266,8 +266,8 @@ export const ERRORS = {
     status: 410,
     type: "invalid_request_error",
     retryable: false,
-    message: "The attestation challenge has expired or was used; create a new destination.",
-    example: "The attestation challenge has expired or was used; create a new destination.",
+    message: "The attestation challenge has expired or was used; request a new challenge for the destination.",
+    example: "The attestation challenge has expired or was used; request a new challenge for the destination.",
   }),
   destination_not_active: e({
     status: 409,

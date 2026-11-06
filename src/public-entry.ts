@@ -10,6 +10,7 @@ export * from "./common/pagination.js";
 export * from "./common/primitives.js";
 export * from "./common/route.js";
 export * from "./common/schema.js";
+export * from "./common/tolerant.js";
 export * from "./common/webauthn.js";
 export * from "./errors/catalogue.js";
 export * from "./intents/payloads.js";
@@ -19,4 +20,4 @@ export * from "./webhooks/signature.js";
 export * from "./x402/scheme.js";
 
 /** Version of this contract package (kept equal to package.json by `test/package.test.ts`). */
-export const SPEC_VERSION = "0.1.4";
+export const SPEC_VERSION = "0.1.5";

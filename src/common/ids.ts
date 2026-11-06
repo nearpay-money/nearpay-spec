@@ -37,6 +37,7 @@ export const ID_PREFIXES = {
   ap: { object: "agent_payment", owner: "agentpay" },
   evt: { object: "event", owner: "webhooks" },
   we: { object: "webhook_endpoint", owner: "webhooks" },
+  whd: { object: "webhook_delivery", owner: "webhooks" },
   case: { object: "compliance_case", owner: "compliance" },
   pol: { object: "geo_policy", owner: "compliance" },
   scr: { object: "screening", owner: "compliance" },

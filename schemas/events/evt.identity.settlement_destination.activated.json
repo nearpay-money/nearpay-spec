@@ -111,7 +111,7 @@
         },
         "attestation_challenge": {
           "$ref": "#/$defs/AttestationChallenge",
-          "description": "Present on creation while the destination awaits its ownership signature."
+          "description": "Present on creation and on `POST /v1/settlement_destinations/{id}/challenge` while the destination awaits its ownership signature."
         },
         "attestation_hash": {
           "anyOf": [
