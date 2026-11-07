@@ -73,6 +73,14 @@ export const DestinationSnapshot = out({
   type: SettlementDestinationType,
   chain: ChainId.describe("Settlement chain."),
   address: ChainAddress.describe("Settlement address or Intents account."),
+  fingerprint: z
+    .string()
+    .regex(/^[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{2}$/)
+    .nullable()
+    .optional()
+    .describe(
+      "Fingerprint of the destination as shown at checkout (CR-15-04, spec 0.1.6); optional so older servers stay valid.",
+    ),
 }).meta({ id: "DestinationSnapshot", description: "Settlement destination as snapshotted at creation (INV-6)." });
 
 export const AttemptStatus = openEnum(

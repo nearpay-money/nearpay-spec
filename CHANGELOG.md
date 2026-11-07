@@ -3,6 +3,63 @@
 `@nearpay/spec` and `@nearpay-internal/spec` share one version. Within a version line changes are
 additive only (`pnpm compat` gates every release against `test/compat/baseline/`, the last release).
 
+## Unreleased
+
+### rails-fx
+
+Stage 2 step 2.1 contracts for rails pricing/FX, the Explorer feed, the observation archive,
+reconciliation evidence, console ops reads, and open change requests (`nearpay-brain` `lld/rails.md`
+v1.3, `lld/sandbox.md` v1.3, ADR-0020 decision 5). All additive; new error codes carry `since: "0.1.6"`
+(`ErrorDefinition.since` widened from the literal `"0.1.0"` to `` `0.1.${number}` ``).
+
+- **1Click live shape (mainnet finding 2026-11-07).** Every optional field of the `OneClick*` schemas is
+  now `nullish` (live 1Click sends `null` for unset fields), `OneClickAppFee.limitOrderId` is
+  accepted, and `OneClickStatusResponse.quoteResponse` is the new `OneClickStatusQuoteResponse`
+  (`OneClickQuoteResponse` with `correlationId` optional — live `GET /v0/status` omits it). The
+  recorded live status body (`test/fixtures/oneclick-status-pending-live.json`) parses unmodified.
+  Readers: **nearpay-rails**, **nearpay-sentinel** (drop body normalisation; TS types of those
+  fields become `T | null | undefined`). Producer: **nearpay-sandbox** (may serve the live shape).
+- **Explorer wire schemas** (`@nearpay-internal/spec`): `ExplorerTransactionsQuery`,
+  `ExplorerTransaction`, `ExplorerTransactionList`, `ExplorerError`, `EXPLORER_STATUSES` for
+  `GET explorer.near-intents.org/api/v0/transactions` (docs read 2026-11-07). Sandbox mirror
+  `sandboxExplorerTransactions` — `GET /api/v0/transactions` (stage 2) so the rails Explorer feed runs
+  in test mode. Producer: **nearpay-sandbox**; reader: **nearpay-rails**.
+- **Exact rates** (`@nearpay-internal/spec`, `src/internal/pricing.ts`): `Ratio` `{num, den}` (integer
+  strings), `RateDecimal` (display only), `RateSource` (`oneclick|coingecko|ecb|sandbox|fixed`, open),
+  `RateRole`, `PriceRate` (base, quote, kind, role, source, value, decimal, `as_of`, `fetched_at`,
+  `valid_until`), `FxRate` (currency, exponent, available, stale, `reference_date`, rate).
+- `PriceSnapshot` gains optional `currency`, `par_currency`, `rates[]` (rails 0.1.6+ always sends
+  `currency` and `rates`). `InternalAsset` gains optional `peg_currency`, `par_ok`, `prices[]`, `token`.
+  `InternalPaymentOption` gains optional `token`. `createExecution` may return `currency_unsupported`
+  and `fx_rate_unavailable` (non-USD pricing).
+- New rails routes (stage 2): `listFxRates` `GET /internal/fx-rates` (service/ops `rails.read`),
+  `estimateSettlement` `GET /internal/settlement-estimate` (service/ops `rails.read`),
+  `listExecutionObservations` `GET /internal/executions/{id}/observations` (service/ops `rails.read`),
+  `listOpsExecutions` `GET /internal/ops/executions` (ops `rails.read`), `reverifyExecution`
+  `POST /internal/executions/{id}/reverify` (ops `rails.verify`, new ops scope), `getEvidenceSummary`
+  `GET /internal/evidence/summary` (service/ops `rails.read`). Schemas `FxRates`,
+  `SettlementEstimate`, `ObservationSource`, `ProviderObservation`, `ProviderObservationPage`,
+  `ExecutionPage`, `EvidenceSummary`. Implementer: **nearpay-rails**. Readers: **nearpay-payments**
+  (fx-rates, estimate, evidence summary), **nearpay-console** (ops reads, reverify),
+  **nearpay-sentinel** (evidence summary).
+- `listEvidence` accepts optional `states` (`succeeded|refunded|failed`, comma list) and `kind`, and
+  `ops:rails.read`; the 0.1.5 query is unchanged in meaning (default: `succeeded`, both kinds).
+- New error `fx_rate_unavailable` (503, `rail_unavailable`, retryable).
+- New ops scope `rails.verify` (`OPS_SCOPES`).
+- **CR-15-06** `TokenContract` `{standard: erc20|native|nep141 (open), address|null}`;
+  optional `PaymentOption.token` (public) and `InternalPaymentOption.token`. Producers: **nearpay-rails**
+  → **nearpay-payments**; reader: **nearpay-checkout**.
+- **CR-15-07** optional `Attestation.asset` `{asset_id, symbol, decimals}` of the asset the payer sends.
+  Producer: **nearpay-sentinel**; reader: **nearpay-checkout**, `@nearpay/agent-signer`.
+- **CR-15-04** optional `DestinationSnapshot.fingerprint`; types `WebhookObjectOf<T>`, `TypedEvent` and
+  schema `EventDataObject` (typed `data.object` per event type). Producer: **nearpay-payments**;
+  readers: **nearpay-dashboard**, **nearpay-node**.
+- **CR-15-15** `getPayerCheckoutSession` — `GET /internal/checkout_sessions/{id}/payer` (payments,
+  `service:payments.read`, `X-NearPay-Client-Secret` header) → `PayerSessionContext`
+  `{account_id, livemode, session: PublicCheckoutSession}`. Implementer: **nearpay-payments**;
+  reader: **nearpay-agentpay** (replaces its call to the public session route).
+- **CR-15-10** needs no change: `ping` has been a `WebhookTypeSchema` value since 0.1.0 (test added).
+
 ## 0.1.5 — Stage 1, step 1.4 (change requests from steps 1.2/1.3)
 
 All changes are additive (`pnpm compat`: no breaking change since 0.1.4; oasdiff reports info-level changes only).

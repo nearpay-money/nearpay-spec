@@ -89,6 +89,28 @@ export const Event = z
   .meta({ id: "Event", description: "A public event; also the body of every webhook delivery." });
 export type Event = z.infer<typeof Event>;
 
+// stage 2 — rails-fx (CR-15-04): typed `data.object` per event type
+/** The `data.object` type of an event type, e.g. `WebhookObjectOf<"payment_intent.succeeded">` = `PaymentIntent`. */
+export type WebhookObjectOf<T extends WebhookType> = z.infer<(typeof WEBHOOK_TYPES)[T]["object"]>;
+
+/**
+ * `Event` with `data.object` typed per `type` (a discriminated union TypeScript narrows on
+ * `event.type`). Same wire shape as `Event`; `Event`'s inferred type keeps `data.object` untyped.
+ */
+export type TypedEvent = {
+  [T in WebhookType]: Omit<Event, "type" | "data"> & {
+    type: T;
+    data: { object: WebhookObjectOf<T>; previous_attributes?: Record<string, unknown> | undefined };
+  };
+}[WebhookType];
+
+/** Any object an event can carry (union of the per-type object schemas). */
+export const EventDataObject = z
+  .union([CheckoutSession, PaymentIntent, AgentPayment, Ping])
+  .describe("Object snapshot carried by an event (`data.object`).");
+export type EventDataObject = z.infer<typeof EventDataObject>;
+// end stage 2 — rails-fx
+
 /** Envelope schema without per-type validation of `data.object` (consumers tolerant of new types). */
 export const EventEnvelopeLoose = out({
   id: id("evt"),

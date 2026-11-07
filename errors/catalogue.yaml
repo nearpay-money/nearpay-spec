@@ -540,3 +540,12 @@ errors:
     example: "Unknown event type: payment_intent.done"
     doc_url: https://docs.nearpay.money/errors/event_type_unknown
     since: 0.1.0
+  - code: fx_rate_unavailable
+    status: 503
+    type: rail_unavailable
+    retryable: true
+    generic: false
+    message: A current exchange rate for {currency} is not available right now.
+    example: A current exchange rate for eur is not available right now.
+    doc_url: https://docs.nearpay.money/errors/fx_rate_unavailable
+    since: 0.1.6

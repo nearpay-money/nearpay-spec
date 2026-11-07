@@ -5,8 +5,11 @@ import * as rails from "./rails.js";
 import * as sandbox from "./sandbox.js";
 import * as services from "./services.js";
 
+// stage 2 — rails-fx
+export * from "./explorer.js";
 export * from "./identity.js";
 export * from "./oneclick.js";
+export * from "./pricing.js";
 export * from "./rails.js";
 export * from "./sandbox.js";
 export * from "./services.js";

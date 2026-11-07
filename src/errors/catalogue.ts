@@ -32,8 +32,8 @@ export interface ErrorDefinition {
   readonly retryable: boolean;
   /** Generic codes apply to every route and are not listed per route. */
   readonly generic?: true;
-  /** Stage that introduced the code (development plan). */
-  readonly since: "0.1.0";
+  /** Spec version that introduced the code. */
+  readonly since: `0.1.${number}`;
 }
 
 const e = (d: Omit<ErrorDefinition, "since">): ErrorDefinition => ({ ...d, since: "0.1.0" });
@@ -495,6 +495,18 @@ export const ERRORS = {
     message: "Unknown event type: {type}",
     example: "Unknown event type: payment_intent.done",
   }),
+
+  // stage 2 — rails-fx
+  fx_rate_unavailable: {
+    ...e({
+      status: 503,
+      type: "rail_unavailable",
+      retryable: true,
+      message: "A current exchange rate for {currency} is not available right now.",
+      example: "A current exchange rate for eur is not available right now.",
+    }),
+    since: "0.1.6",
+  },
 } as const satisfies Record<string, ErrorDefinition>;
 
 export type ErrorCode = keyof typeof ERRORS;

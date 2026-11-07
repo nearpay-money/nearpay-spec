@@ -81,6 +81,15 @@ export const Attestation = out({
       .regex(/^[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{2}$/)
       .describe("Destination fingerprint (also shown in the merchant dashboard)."),
   }).describe("Matched settlement destination."),
+  asset: out({
+    asset_id: AssetId.describe("Asset the payer sends (`deposit.origin_asset_id` or `requirement.token`)."),
+    symbol: z.string().min(1).max(32).describe("Token symbol from sentinel's own registry read."),
+    decimals: z.int().min(0).max(255).describe("Token decimals from sentinel's own registry read."),
+  })
+    .optional()
+    .describe(
+      "Display data of the asset the payer sends, attested so checkout renders `amount_in` with signed decimals (CR-15-07, spec 0.1.6). Optional: older sentinels omit it.",
+    ),
   issued_at: Timestamp.describe("Issue time."),
   expires_at: Timestamp.describe("Expiry; never after the deposit/payload deadline."),
 }).meta({ id: "Attestation", description: "What sentinel vouches for." });
