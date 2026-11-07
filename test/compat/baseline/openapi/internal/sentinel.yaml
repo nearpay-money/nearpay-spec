@@ -203,6 +203,11 @@ components:
           format: date-time
           pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
           type: string
+        version:
+          description: "Version of the switch row: equals the envelope `aggregate.version` of the latest `evt.sentinel.kill_switch.*`, so a reader applies later events only (spec 0.2.1; sentinel 0.2.1+ sends it)."
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
       required:
         - engaged
         - reason
@@ -341,6 +346,11 @@ components:
       additionalProperties: {}
       description: A sentinel audit finding as operators see it.
       properties:
+        account_display_name:
+          description: Display name of `account_id` (sentinel keeps it from `evt.identity.account.*`); null when unknown (spec 0.2.1).
+          type:
+            - string
+            - "null"
         account_id:
           description: account id (`acct_` + 26 base32 chars).
           examples:
@@ -512,10 +522,37 @@ info:
     identifier: Apache-2.0
     name: Apache-2.0
   title: nearpay-sentinel internal API
-  version: 0.2.0
+  version: 0.2.1
 openapi: 3.1.0
 paths:
   /internal/kill-switch:
+    get:
+      description: "For consumers of `evt.sentinel.kill_switch.*` whose local state is unknown (fresh database, or the last event aged out of the stream before their durable consumer existed): payments, rails and agentpay read it at boot and store it with `version`, then apply only events with a higher `aggregate.version`. Until either the read or an event succeeds the state stays unknown and live refunds/relays fail closed. Never cached by sentinel; ops use `getOpsKillSwitch`."
+      operationId: getKillSwitch
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KillSwitchState"
+          description: Current kill-switch state (services read it at boot and when their stored state is unknown).
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Current kill-switch state (services read it at boot and when their stored state is unknown).
+      tags:
+        - sentinel
+      x-nearpay:
+        auth:
+          - service:sentinel.read
+        idempotent: false
+        service: sentinel
+        stage: 2
     post:
       description: "In-container ops CLI path. From Stage 2 a release (`engaged: false`) here is single-person, so it is refused with `409 two_person_required` when `NP_ENV=server`; the console's two-person release (`requestOpsKillSwitchRelease` + `approveOpsKillSwitchRelease`) is the only release there. Local and test stacks keep the one-operator release (testbed T7)."
       operationId: setKillSwitch
