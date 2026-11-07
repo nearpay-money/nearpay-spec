@@ -3,6 +3,66 @@
 `@nearpay/spec` and `@nearpay-internal/spec` share one version. Within a version line changes are
 additive only (`pnpm compat` gates every release against `test/compat/baseline/`, the last release).
 
+## Unreleased
+
+### payments
+
+Stage 2, step 2.1 (`nearpay-brain/lld/payments.md` §17). All additive: new routes, objects, events,
+webhook types and error codes; new fields on existing objects are optional; no request field became
+required. Money stays base-unit strings with an explicit asset (INV-5).
+
+- **Refunds** (`re_…`, public module `refunds`): `createRefund` (`POST /v1/refunds`; optional
+  `payment_attempt` refunds an overpayment), `getRefund`, `listRefunds` (`payment_intent`, `status`,
+  `created`), `prepareRefund`, `submitRefundTx` (`{tx_hash}` or `{signed_intent}`), `cancelRefund`,
+  `updateRefundRecipient` (owner + step-up, INV-7), test helper `simulateRefundDeposit`. Objects
+  `Refund`, `RefundLeg`, `RefundRecipient`, `RefundNextAction` = `RefundSignAndSend` |
+  `RefundSignIntent` (exact payload the dashboard / SDK signer signs; NEP-413 arguments and the
+  ERC-191 / raw-ed25519 string), `RefundSubmission`, `TokenRef`. Producer: **nearpay-payments**.
+  Readers: **nearpay-dashboard**, **nearpay-node**, **nearpay-console**.
+- Refund events `evt.payments.refund.{created,requires_action,pending,succeeded,failed,canceled}`
+  (object `Refund`; consumers webhooks, + notify on `succeeded`) and webhook types `refund.*` (incl.
+  `refund.pending`). Readers: **nearpay-webhooks**, **nearpay-notify**.
+- Rails refund legs: `createRefundExecution` (`POST /internal/refund_executions`, body
+  `CreateRefundExecution`: `route_quote` with `EXACT_INPUT`/`EXACT_OUTPUT`, or `intents_transfer`);
+  `Execution.refund` (`ExecutionRefund`: swap type, amounts, source `token`, `RefundTransfer` for
+  Intents sources) and `Execution.reference` (`ExecutionReference`); optional
+  `CreateExecution.reference`. Implementer: **nearpay-rails**; readers: payments, agentpay,
+  compliance (copies `reference.payment_intent` into reviews).
+- agentpay `relaySignedIntent`: optional `kind` (`checkout` | `refund`) and `refund`; refund payloads
+  are one merchant-signed transfer matching `Execution.refund.transfer`. Implementer:
+  **nearpay-agentpay**.
+- Sandbox: `SandboxQuoteRequest.scenario_group` / `scenario_kind` (scenario `06` duplicates stay
+  within one payment or one refund) and `sandboxSimulateIntentsTransfer`
+  (`POST /sim/intents/transfers`). Implementer: **nearpay-sandbox**.
+- **Payment links** (`plink_…`): `createPaymentLink`, `getPaymentLink`, `listPaymentLinks`
+  (`active`), `updatePaymentLink` (PATCH; pricing immutable); payer routes `getPublicPaymentLink`
+  and `createPaymentLinkSession` (anonymous, `GET|POST /v1/payment_links/{id}/public/**`). Readers:
+  **nearpay-checkout** (`/l/:id`), dashboard, node.
+- **Customers** (`cus_…`): `createCustomer`, `getCustomer`, `listCustomers` (`email`),
+  `updateCustomer` (PATCH), `deleteCustomer`. `customer` on `CheckoutSessionCreate`, and optional
+  `customer` / `payment_link` on `CheckoutSession` and `PaymentIntent`.
+- **Payment intents:** `createPaymentIntent` (`POST /v1/payment_intents` → `CreatedPaymentIntent`
+  with the headless session's `client_secret`); `reviewPaymentIntent`
+  (`POST /v1/payment_intents/{id}/review`, `accept` only for `short_settlement` — INV-2); optional
+  `amount_refund_pending`, `refunds`, `review_decision` on `PaymentIntent`; `listPaymentIntents`
+  filters `amount[gte|gt|lte|lt]`, `currency`, `asset_id`, `settlement_asset_id`, `source`,
+  `customer`, `payment_link`, `checkout_session`, `metadata[key]` (ADR-0018; helper
+  `withMetadataFilter` / `metadataFilters`, emitted as a `deepObject` parameter).
+- Statement: optional `refund_leg`, `received`, `fee_adjustment` on `BalanceTransaction`;
+  `listBalanceTransactions` filter `refund`.
+- **Reviews** as webhooks: `PublicReview` and types `review.opened` / `review.closed` (from
+  `evt.compliance.review.*`, now also consumed by webhooks); bus `Review.payment_intent` (optional) and
+  `toPublicReview()` rendering. Producer: **nearpay-compliance** (fill `payment_intent`); renderer:
+  **nearpay-webhooks**.
+- Internal payments: `getInternalRefund`, `getRefundReceiptContext` (notify `refund.receipt`),
+  reconciliation runs (`rcn_…`, new ID prefix) `listReconciliationRuns`, `getReconciliationRun`,
+  `createReconciliationRun`, `resolveReconciliationRun` (objects `ReconciliationRun`,
+  `ReconciliationTotals`, `ReconciliationDiff`, `ReconciliationResolution`); ops scope
+  `payments.reconcile`. Reader: **nearpay-console**.
+- Error codes: `intent_not_succeeded`, `attempt_not_settled`, `amount_exceeds_refundable`,
+  `leg_expired`, `signed_intent_mismatch`, `review_requires_evidence`, `link_inactive`,
+  `customer_deleted`, `reconciliation_day_open`.
+
 ## 0.1.5 — Stage 1, step 1.4 (change requests from steps 1.2/1.3)
 
 All changes are additive (`pnpm compat`: no breaking change since 0.1.4; oasdiff reports info-level changes only).

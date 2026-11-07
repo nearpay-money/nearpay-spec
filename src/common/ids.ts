@@ -46,6 +46,8 @@ export const ID_PREFIXES = {
   msg: { object: "message", owner: "notify" },
   req: { object: "request", owner: "gateway" },
   job: { object: "job", owner: "any" },
+  // stage 2 — payments
+  rcn: { object: "reconciliation_run", owner: "payments" },
 } as const;
 
 export type IdPrefix = keyof typeof ID_PREFIXES;

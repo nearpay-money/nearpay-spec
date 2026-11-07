@@ -102,6 +102,8 @@ export const OPS_SCOPES = [
   "sentinel.killswitch",
   "rails.read",
   "payments.read",
+  // stage 2 — payments
+  "payments.reconcile",
 ] as const;
 export type OpsScope = (typeof OPS_SCOPES)[number];
 

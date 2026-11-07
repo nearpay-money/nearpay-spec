@@ -1,9 +1,10 @@
-/** Internal rails API (lld/rails.md §6, §8.1). */
+/** Internal rails API (lld/rails.md §6, §8.1; refund legs: lld/payments.md §8.4, §17). */
 import {
   AssetId,
   AttemptMethod,
   AttemptStatus,
   BaseUnits,
+  Binding,
   BlockchainCode,
   Bps,
   ChainAddress,
@@ -15,6 +16,7 @@ import {
   IntentsRequirement,
   id,
   inp,
+  NearAccountId,
   openEnum,
   out,
   route,
@@ -31,6 +33,51 @@ export const RouteClass = openEnum(
 );
 export const Provider = openEnum(["oneclick", "sandbox", "direct_intents"], "Route provider.");
 export const ExecutionKind = openEnum(["payment", "refund"], "What the execution moves value for.");
+
+// stage 2 — payments (refund legs; payments owns these shapes, rails implements them)
+/** Which payments object an execution serves (copied by compliance into reviews; never public). */
+export const ExecutionReference = out({
+  payment_intent: id("pi"),
+  payment_attempt: id("pa").nullable().describe("Payment attempt (`kind: payment`)."),
+  refund: id("re").nullable().describe("Refund (`kind: refund`)."),
+  refund_leg: z.int().min(1).nullable().describe("Refund leg number (`kind: refund`)."),
+}).meta({ id: "ExecutionReference", description: "The payments object an execution belongs to." });
+
+/** The single Verifier transfer a refund leg from an Intents account needs (signed by the merchant). */
+export const RefundTransfer = out({
+  signer_id: NearAccountId.describe("Merchant Intents account (the settlement destination) that signs."),
+  receiver_id: NearAccountId.describe(
+    "Payer Intents account (`intents_transfer` leg) or the 1Click INTENTS deposit address (`route_quote` leg).",
+  ),
+  token: AssetId.describe("Asset transferred (the settlement asset)."),
+  amount: BaseUnits.describe("Amount, base units."),
+  memo: Binding.describe("Binding memo the transfer must carry (agentpay matches it; the indexer attributes by it)."),
+  deadline: Timestamp.describe("Latest acceptable payload deadline."),
+}).meta({
+  id: "RefundTransfer",
+  description: "What a merchant signs for a refund leg from an Intents account: exactly one transfer, memo = binding.",
+});
+
+/** Refund-leg details of a `kind: refund` execution. */
+export const ExecutionRefund = out({
+  swap_type: closedEnum(["EXACT_INPUT", "EXACT_OUTPUT"], "Route quote type.")
+    .nullable()
+    .describe("Route legs only; null for `intents_transfer`."),
+  amount: BaseUnits.describe("What the merchant sends, base units of the source (settlement) asset."),
+  amount_out_expected: BaseUnits.nullable().describe(
+    "What the payer should receive, base units of the recipient asset (quote `amountOut`).",
+  ),
+  min_amount_out: BaseUnits.nullable().describe("Quote `minAmountOut` (route legs)."),
+  token: out({
+    standard: openEnum(["native", "erc20", "nep141", "spl", "other"], "Token standard on the source chain."),
+    address: z.string().nullable().describe("Contract / mint / NEP-141 account; null for native assets."),
+  })
+    .nullable()
+    .describe("How to transfer the source asset on its chain (`sign_and_send` legs); null for Intents sources."),
+  transfer: RefundTransfer.nullable().describe(
+    "Set when the source is an Intents account: the transfer to sign (to the payer, or to the 1Click deposit address).",
+  ),
+}).meta({ id: "ExecutionRefund", description: "Refund-leg details of an execution (`kind: refund`)." });
 
 export const PriceSnapshot = out({
   primary_usd: z.string().nullable().describe("Primary USD price of the settlement asset (decimal string)."),
@@ -94,6 +141,15 @@ export const Execution = out({
   terminal_at: Timestamp.nullable().describe("When it reached a terminal state."),
   created_at: Timestamp.describe("Created."),
   updated_at: Timestamp.describe("Updated."),
+  // stage 2 — payments (optional in 0.1.x; rails MUST send them from Stage 2)
+  reference: ExecutionReference.nullable()
+    .optional()
+    .describe("Payments object served (from the create request); null for executions created before Stage 2."),
+  refund: ExecutionRefund.nullable()
+    .optional()
+    .describe(
+      "Refund legs: `origin` is the merchant side (asset, chain, `refund_to` = the merchant destination) and `settlement` the payer side (`recipient` = the payer's refund address, `tag` 0).",
+    ),
 }).meta({ id: "Execution", description: "A provider run moving value for a payment (rails owns)." });
 export type Execution = z.infer<typeof Execution>;
 
@@ -128,6 +184,13 @@ export const CreateExecution = inp({
   ),
   deadline_cap: Timestamp.nullable().describe("Session expiry, or null when late payments are allowed."),
   slippage_bps: Bps.optional().describe("Override slippage (default per route class)."),
+  // stage 2 — payments
+  reference: inp({
+    payment_intent: id("pi"),
+    payment_attempt: id("pa"),
+  })
+    .optional()
+    .describe("Payments object served; echoed as `Execution.reference` (payments sends it from Stage 2)."),
 }).meta({ id: "CreateExecution", description: "Create an execution for a payment attempt (rails §8.1)." });
 
 const ExecParams = inp({ id: id("ex") });
@@ -388,4 +451,82 @@ export const listEvidence = route({
   status: 200,
   errors: [],
   stage: 1,
+});
+
+// =============================================================================================
+// stage 2 — payments: refund legs (lld/payments.md §8.4, §17; rails §8.1 `kind: refund`)
+// =============================================================================================
+
+export const CreateRefundExecution = inp({
+  idempotency_key: z
+    .string()
+    .min(1)
+    .max(255)
+    .describe("`refund:<re_id>:leg:<n>` — stable across retries of the same leg."),
+  account_id: id("acct"),
+  livemode: z.boolean().describe("Mode; selects the provider (INV-8)."),
+  method: AttemptMethod.describe(
+    "`route_quote`: 1Click route back to the payer's origin asset. `intents_transfer`: Verifier transfer to the payer's Intents account (source and recipient asset must be equal; provider `direct_intents`).",
+  ),
+  reference: inp({
+    payment_intent: id("pi"),
+    payment_attempt: id("pa", "Attempt whose settlement is refunded."),
+    refund: id("re"),
+    refund_leg: z.int().min(1).describe("Leg number."),
+  }).describe("Payments objects served."),
+  source: inp({
+    asset_id: AssetId.describe("Settlement asset the merchant holds."),
+    type: SettlementDestinationType,
+    chain: ChainId.describe("Settlement chain."),
+    address: ChainAddress.describe(
+      "Merchant destination address or Intents account: the sender, and the 1Click `refundTo` of route legs.",
+    ),
+  }).describe("Merchant side: the intent's destination snapshot."),
+  recipient: inp({
+    asset_id: AssetId.describe("Asset the payer receives (the attempt's origin asset)."),
+    chain: ChainId.describe("Chain the payer receives on."),
+    address: ChainAddress.describe("Payer refund address (attempt `refund_to`) or Intents account."),
+    type: closedEnum(["origin_chain", "intents"], "Recipient type."),
+  }).describe("Payer side (INV-7)."),
+  amount: BaseUnits.describe("Refund amount, base units of the source asset."),
+  swap_type: closedEnum(
+    ["EXACT_INPUT", "EXACT_OUTPUT"],
+    "Route legs: `EXACT_INPUT` quotes `amount` in (payer absorbs route costs); `EXACT_OUTPUT` quotes the equivalent of `amount` out, converted by rails pricing (merchant absorbs). Ignored for `intents_transfer`.",
+  ),
+  screen: z
+    .boolean()
+    .optional()
+    .describe("Screen the recipient even if cached (an owner override of the recipient, INV-7). Default false."),
+}).meta({
+  id: "CreateRefundExecution",
+  description:
+    "Create a refund leg: a route or Intents transfer from the merchant destination to the payer (no app fee).",
+});
+
+export const createRefundExecution = route({
+  id: "createRefundExecution",
+  method: "POST",
+  path: "/internal/refund_executions",
+  service: "rails",
+  visibility: "internal",
+  summary: "Prepare a refund leg (idempotent on idempotency_key) → execution with `kind: refund`.",
+  description:
+    "Screens the recipient (context `refund`), quotes without app fees and returns the execution view with `refund` set: route legs carry `deposit` (+ `refund.token`, or `refund.transfer` when the source is an Intents account: 1Click INTENTS deposit); `intents_transfer` legs carry `refund.transfer` with a fresh binding. Tracking, verification (payer-side evidence, INV-2) and events are those of payment executions (`evt.rails.execution.*`); `GET /internal/executions/{id}` and `POST /internal/executions/{id}/deposit_tx` apply unchanged. Sandbox: `scenario_amount` = `amount`, `scenario_group` = the refund id.",
+  auth: ["service:rails.executions.write"],
+  idempotent: true,
+  body: CreateRefundExecution,
+  response: Execution,
+  status: 201,
+  errors: [
+    "asset_unsupported",
+    "route_unavailable",
+    "pricing_unavailable",
+    "screening_blocked",
+    "screening_unavailable",
+    "deadline_too_short",
+    "quote_rejected",
+    "quote_integrity_failed",
+    "rail_unavailable",
+  ],
+  stage: 2,
 });

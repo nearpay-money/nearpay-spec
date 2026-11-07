@@ -495,6 +495,73 @@ export const ERRORS = {
     message: "Unknown event type: {type}",
     example: "Unknown event type: payment_intent.done",
   }),
+
+  // stage 2 — payments
+  intent_not_succeeded: e({
+    status: 409,
+    type: "state_conflict",
+    retryable: false,
+    message: "Payment intent {payment_intent} has no accepted settlement to refund (status {status}).",
+    example: "Payment intent pi_01jbz9k3m4n5p6q7r8s9t0v1w2 has no accepted settlement to refund (status processing).",
+  }),
+  attempt_not_settled: e({
+    status: 409,
+    type: "state_conflict",
+    retryable: false,
+    message: "Payment attempt {payment_attempt} has no verified settlement to refund.",
+    example: "Payment attempt pa_01jbz9k3m4n5p6q7r8s9t0v1w2 has no verified settlement to refund.",
+  }),
+  amount_exceeds_refundable: e({
+    status: 422,
+    type: "invalid_request_error",
+    retryable: false,
+    message: "Amount {amount} exceeds the refundable amount {refundable} (base units of {asset_id}).",
+    example:
+      "Amount 3000000 exceeds the refundable amount 2000042 (base units of nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1).",
+  }),
+  leg_expired: e({
+    status: 409,
+    type: "state_conflict",
+    retryable: false,
+    message: "The refund's current leg expired at {deadline}; prepare a new leg and sign that one.",
+    example: "The refund's current leg expired at 2026-11-07T10:30:00.000Z; prepare a new leg and sign that one.",
+  }),
+  signed_intent_mismatch: e({
+    status: 422,
+    type: "invalid_request_error",
+    retryable: false,
+    message: "The signed payload does not match the refund's next action: {detail}",
+    example: "The signed payload does not match the refund's next action: nonce differs.",
+  }),
+  review_requires_evidence: e({
+    status: 409,
+    type: "state_conflict",
+    retryable: false,
+    message: "Payment intent {payment_intent} is held for verification; it can be accepted only once evidence arrives.",
+    example:
+      "Payment intent pi_01jbz9k3m4n5p6q7r8s9t0v1w2 is held for verification; it can be accepted only once evidence arrives.",
+  }),
+  link_inactive: e({
+    status: 410,
+    type: "invalid_request_error",
+    retryable: false,
+    message: "This payment link is no longer accepting payments.",
+    example: "This payment link is no longer accepting payments.",
+  }),
+  customer_deleted: e({
+    status: 409,
+    type: "state_conflict",
+    retryable: false,
+    message: "Customer {customer} is deleted.",
+    example: "Customer cus_01jbz9k3m4n5p6q7r8s9t0v1w2 is deleted.",
+  }),
+  reconciliation_day_open: e({
+    status: 422,
+    type: "invalid_request_error",
+    retryable: false,
+    message: "Day {day} has not ended (UTC); reconcile only completed days.",
+    example: "Day 2026-11-07 has not ended (UTC); reconcile only completed days.",
+  }),
 } as const satisfies Record<string, ErrorDefinition>;
 
 export type ErrorCode = keyof typeof ERRORS;

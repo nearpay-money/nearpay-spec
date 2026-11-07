@@ -104,6 +104,22 @@
           ],
           "description": "ISO 4217 code for fiat pricing, or `asset` when priced in an asset (then `asset_id` is set)."
         },
+        "customer": {
+          "anyOf": [
+            {
+              "description": "customer id (`cus_` + 26 base32 chars).",
+              "examples": [
+                "cus_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^cus_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Customer attached to the session (Stage 2)."
+        },
         "description": {
           "description": "Description shown to the payer.",
           "type": [
@@ -177,6 +193,22 @@
             }
           ],
           "description": "Payment intent id, or the object with `expand[]=payment_intent`."
+        },
+        "payment_link": {
+          "anyOf": [
+            {
+              "description": "payment_link id (`plink_` + 26 base32 chars).",
+              "examples": [
+                "plink_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^plink_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Payment link that opened the session (Stage 2)."
         },
         "sequence": {
           "description": "Increases with every change; discard webhook objects with a lower sequence. Servers MUST send it (optional in the 0.1.x schema only so readers built on 0.1.4 stay compatible).",
@@ -715,6 +747,11 @@
           ],
           "description": "Fiat: integer minor units. Asset: base units as a decimal string."
         },
+        "amount_refund_pending": {
+          "description": "Amount of refunds in `requires_action` or `pending`, base units of the settlement asset (Stage 2).",
+          "pattern": "^(0|[1-9][0-9]{0,77})$",
+          "type": "string"
+        },
         "amount_refunded": {
           "description": "Refunded amount, base units of the settlement asset.",
           "pattern": "^(0|[1-9][0-9]{0,77})$",
@@ -806,6 +843,22 @@
           ],
           "description": "ISO 4217 code for fiat pricing, or `asset` when priced in an asset (then `asset_id` is set)."
         },
+        "customer": {
+          "anyOf": [
+            {
+              "description": "customer id (`cus_` + 26 base32 chars).",
+              "examples": [
+                "cus_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^cus_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Customer the intent belongs to (Stage 2)."
+        },
         "description": {
           "description": "Description shown to the payer.",
           "type": [
@@ -890,6 +943,83 @@
             "type": "object"
           },
           "type": "array"
+        },
+        "payment_link": {
+          "anyOf": [
+            {
+              "description": "payment_link id (`plink_` + 26 base32 chars).",
+              "examples": [
+                "plink_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^plink_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Payment link that created the intent (`source: payment_link`)."
+        },
+        "refunds": {
+          "description": "Refunds of this intent, newest first (Stage 2).",
+          "items": {
+            "description": "refund id (`re_` + 26 base32 chars).",
+            "examples": [
+              "re_01jbz9k3m4n5p6q7r8s9t0v1w2"
+            ],
+            "pattern": "^re_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "review_decision": {
+          "anyOf": [
+            {
+              "additionalProperties": {},
+              "properties": {
+                "decided_at": {
+                  "description": "When the decision was recorded.",
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "decision": {
+                  "description": "Merchant decision.",
+                  "enum": [
+                    "accept",
+                    "reject"
+                  ],
+                  "type": "string"
+                },
+                "refund": {
+                  "anyOf": [
+                    {
+                      "description": "refund id (`re_` + 26 base32 chars).",
+                      "examples": [
+                        "re_01jbz9k3m4n5p6q7r8s9t0v1w2"
+                      ],
+                      "pattern": "^re_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Refund created by a `reject` of a settled amount (draft, merchant signs)."
+                }
+              },
+              "required": [
+                "decision",
+                "decided_at",
+                "refund"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Merchant decision on a `requires_review` intent (Stage 2)."
         },
         "review_reason": {
           "anyOf": [

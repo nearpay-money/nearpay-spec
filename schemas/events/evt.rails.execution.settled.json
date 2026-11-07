@@ -302,6 +302,28 @@
             "null"
           ]
         },
+        "reference": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExecutionReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Payments object served (from the create request); null for executions created before Stage 2."
+        },
+        "refund": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExecutionRefund"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Refund legs: `origin` is the merchant side (asset, chain, `refund_to` = the merchant destination) and `settlement` the payer side (`recipient` = the payer's refund address, `tag` 0)."
+        },
         "refund_reason": {
           "description": "Provider refund reason.",
           "type": [
@@ -534,6 +556,181 @@
       ],
       "type": "object"
     },
+    "ExecutionReference": {
+      "additionalProperties": {},
+      "description": "The payments object an execution belongs to.",
+      "properties": {
+        "payment_attempt": {
+          "anyOf": [
+            {
+              "description": "payment_attempt id (`pa_` + 26 base32 chars).",
+              "examples": [
+                "pa_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^pa_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Payment attempt (`kind: payment`)."
+        },
+        "payment_intent": {
+          "description": "payment_intent id (`pi_` + 26 base32 chars).",
+          "examples": [
+            "pi_01jbz9k3m4n5p6q7r8s9t0v1w2"
+          ],
+          "pattern": "^pi_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+          "type": "string"
+        },
+        "refund": {
+          "anyOf": [
+            {
+              "description": "refund id (`re_` + 26 base32 chars).",
+              "examples": [
+                "re_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^re_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Refund (`kind: refund`)."
+        },
+        "refund_leg": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Refund leg number (`kind: refund`)."
+        }
+      },
+      "required": [
+        "payment_intent",
+        "payment_attempt",
+        "refund",
+        "refund_leg"
+      ],
+      "type": "object"
+    },
+    "ExecutionRefund": {
+      "additionalProperties": {},
+      "description": "Refund-leg details of an execution (`kind: refund`).",
+      "properties": {
+        "amount": {
+          "description": "What the merchant sends, base units of the source (settlement) asset.",
+          "pattern": "^(0|[1-9][0-9]{0,77})$",
+          "type": "string"
+        },
+        "amount_out_expected": {
+          "anyOf": [
+            {
+              "description": "Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).",
+              "pattern": "^(0|[1-9][0-9]{0,77})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "What the payer should receive, base units of the recipient asset (quote `amountOut`)."
+        },
+        "min_amount_out": {
+          "anyOf": [
+            {
+              "description": "Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).",
+              "pattern": "^(0|[1-9][0-9]{0,77})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Quote `minAmountOut` (route legs)."
+        },
+        "swap_type": {
+          "anyOf": [
+            {
+              "description": "Route quote type.",
+              "enum": [
+                "EXACT_INPUT",
+                "EXACT_OUTPUT"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Route legs only; null for `intents_transfer`."
+        },
+        "token": {
+          "anyOf": [
+            {
+              "additionalProperties": {},
+              "properties": {
+                "address": {
+                  "description": "Contract / mint / NEP-141 account; null for native assets.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "standard": {
+                  "description": "Token standard on the source chain.",
+                  "type": "string",
+                  "x-extensible-enum": [
+                    "native",
+                    "erc20",
+                    "nep141",
+                    "spl",
+                    "other"
+                  ]
+                }
+              },
+              "required": [
+                "standard",
+                "address"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "How to transfer the source asset on its chain (`sign_and_send` legs); null for Intents sources."
+        },
+        "transfer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefundTransfer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Set when the source is an Intents account: the transfer to sign (to the payer, or to the 1Click deposit address)."
+        }
+      },
+      "required": [
+        "swap_type",
+        "amount",
+        "amount_out_expected",
+        "min_amount_out",
+        "token",
+        "transfer"
+      ],
+      "type": "object"
+    },
     "IntentsRequirement": {
       "additionalProperties": {},
       "description": "What a payer must sign: transfer(pay_to, amount) and transfer(fee_to, fee_amount), both with memo = binding.",
@@ -632,6 +829,56 @@
         "fx",
         "par",
         "as_of"
+      ],
+      "type": "object"
+    },
+    "RefundTransfer": {
+      "additionalProperties": {},
+      "description": "What a merchant signs for a refund leg from an Intents account: exactly one transfer, memo = binding.",
+      "properties": {
+        "amount": {
+          "description": "Amount, base units.",
+          "pattern": "^(0|[1-9][0-9]{0,77})$",
+          "type": "string"
+        },
+        "deadline": {
+          "description": "Latest acceptable payload deadline.",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+          "type": "string"
+        },
+        "memo": {
+          "description": "Binding memo the transfer must carry (agentpay matches it; the indexer attributes by it).",
+          "pattern": "^np1:[1-9A-HJ-NP-Za-km-z]{43,44}$",
+          "type": "string"
+        },
+        "receiver_id": {
+          "description": "Payer Intents account (`intents_transfer` leg) or the 1Click INTENTS deposit address (`route_quote` leg).",
+          "pattern": "^(?=.{2,64}$)(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+$",
+          "type": "string"
+        },
+        "signer_id": {
+          "description": "Merchant Intents account (the settlement destination) that signs.",
+          "pattern": "^(?=.{2,64}$)(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+$",
+          "type": "string"
+        },
+        "token": {
+          "description": "Asset transferred (the settlement asset).",
+          "examples": [
+            "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1"
+          ],
+          "maxLength": 256,
+          "pattern": "^(nep141:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+|nep245:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+:[\\x21-\\x7e]{1,128})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "signer_id",
+        "receiver_id",
+        "token",
+        "amount",
+        "memo",
+        "deadline"
       ],
       "type": "object"
     }

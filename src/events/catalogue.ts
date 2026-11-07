@@ -17,6 +17,8 @@ import {
   openEnum,
   out,
   PaymentIntent,
+  type PublicReview,
+  Refund,
   RequestId,
   type ServiceName,
   Timestamp,
@@ -62,6 +64,13 @@ export const Review = out({
   status: openEnum(["open", "closed"], "Review status."),
   opened_at: Timestamp.describe("Opened."),
   closed_at: Timestamp.nullable().describe("Closed."),
+  // stage 2 — payments
+  payment_intent: id("pi")
+    .nullable()
+    .optional()
+    .describe(
+      "Payment intent of an `execution` subject (from `Execution.reference`); webhooks shows such a review as one of this intent.",
+    ),
 }).meta({ id: "Review", description: "A compliance review of a payment (payment stands; INV-1)." });
 
 export const PolicyUpdatedEvent = out({
@@ -259,6 +268,49 @@ export const SUBJECTS = {
     consumers: ["billing"],
     stage: 1,
   }),
+  // stage 2 — payments (payments §7: refunds)
+  "evt.payments.refund.created": s({
+    object: Refund,
+    aggregate: "refund",
+    producer: "payments",
+    consumers: ["webhooks"],
+    stage: 2,
+  }),
+  "evt.payments.refund.requires_action": s({
+    object: Refund,
+    aggregate: "refund",
+    producer: "payments",
+    consumers: ["webhooks"],
+    stage: 2,
+  }),
+  "evt.payments.refund.pending": s({
+    object: Refund,
+    aggregate: "refund",
+    producer: "payments",
+    consumers: ["webhooks"],
+    stage: 2,
+  }),
+  "evt.payments.refund.succeeded": s({
+    object: Refund,
+    aggregate: "refund",
+    producer: "payments",
+    consumers: ["webhooks", "notify"],
+    stage: 2,
+  }),
+  "evt.payments.refund.failed": s({
+    object: Refund,
+    aggregate: "refund",
+    producer: "payments",
+    consumers: ["webhooks"],
+    stage: 2,
+  }),
+  "evt.payments.refund.canceled": s({
+    object: Refund,
+    aggregate: "refund",
+    producer: "payments",
+    consumers: ["webhooks"],
+    stage: 2,
+  }),
 
   // rails (rails §7)
   "evt.rails.execution.updated": s({
@@ -360,14 +412,14 @@ export const SUBJECTS = {
     object: Review,
     aggregate: "case",
     producer: "compliance",
-    consumers: ["payments", "notify"],
+    consumers: ["payments", "notify", "webhooks"],
     stage: 1,
   }),
   "evt.compliance.review.closed": s({
     object: Review,
     aggregate: "case",
     producer: "compliance",
-    consumers: ["payments", "notify"],
+    consumers: ["payments", "notify", "webhooks"],
     stage: 1,
   }),
   "evt.compliance.policy.updated": s({
@@ -554,6 +606,45 @@ export const AggregateType = closedEnum(
     "kill_switch",
     "audit_finding",
     "webhook_endpoint",
+    // stage 2 — payments
+    "refund",
   ],
   "Aggregate type.",
 );
+
+// stage 2 — payments
+// ---------------------------------------------------------------------------------------------
+// Public rendering of compliance reviews (webhooks §4: `review.opened` / `review.closed`)
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * Renders a bus `Review` as the public `PublicReview` delivered to merchants. A review of a rails
+ * execution becomes a review of its payment intent; without one (`payment_intent` absent) the review
+ * is not public and the function returns null (webhooks does not deliver it).
+ */
+export function toPublicReview(review: z.output<typeof Review>, livemode: boolean): PublicReview | null {
+  const unix = (t: string) => Math.floor(Date.parse(t) / 1000);
+  let subject: PublicReview["subject"];
+  if (review.subject.type === "execution") {
+    if (!review.payment_intent) return null;
+    subject = { type: "payment_intent", id: review.payment_intent };
+  } else if (
+    review.subject.type === "payment_intent" ||
+    review.subject.type === "agent_payment" ||
+    review.subject.type === "settlement_destination"
+  ) {
+    subject = { type: review.subject.type, id: review.subject.id };
+  } else {
+    return null;
+  }
+  return {
+    id: review.id,
+    object: "review",
+    created: unix(review.opened_at),
+    livemode,
+    subject,
+    reason: review.reason,
+    status: review.status,
+    closed_at: review.closed_at ? unix(review.closed_at) : null,
+  };
+}

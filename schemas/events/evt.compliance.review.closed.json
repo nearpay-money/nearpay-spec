@@ -45,6 +45,22 @@
           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
           "type": "string"
         },
+        "payment_intent": {
+          "anyOf": [
+            {
+              "description": "payment_intent id (`pi_` + 26 base32 chars).",
+              "examples": [
+                "pi_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^pi_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Payment intent of an `execution` subject (from `Execution.reference`); webhooks shows such a review as one of this intent."
+        },
         "reason": {
           "description": "Why.",
           "type": "string",

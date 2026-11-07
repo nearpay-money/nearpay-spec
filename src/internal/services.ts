@@ -112,10 +112,23 @@ export const relaySignedIntent = route({
   path: "/internal/relay",
   service: "agentpay",
   visibility: "internal",
-  summary: "Queue a payer-signed payload for a checkout `intents_transfer` attempt.",
+  summary:
+    "Queue an owner-signed payload: a checkout `intents_transfer` attempt, or a refund leg from an Intents account.",
+  description:
+    "Checkout (`kind` absent or `checkout`): the execution is a `payment` `intents_transfer` in `awaiting_deposit` and the payload holds exactly the two requirement transfers. Refund (`kind: refund`, Stage 2): the execution is a `refund` execution whose `refund.transfer` is set, still awaiting its deposit; the payload is signed by `refund.transfer.signer_id` (the merchant) and holds exactly that one transfer (receiver, token, amount, memo = binding) with a deadline ≤ `refund.transfer.deadline`. Account and mode come from the execution; the payload is relayed exactly as signed (INV-1).",
   auth: ["service:agentpay.relay"],
   idempotent: true,
-  body: inp({ execution_id: id("ex"), binding: Binding, signed: MultiPayload }),
+  body: inp({
+    execution_id: id("ex"),
+    binding: Binding,
+    signed: MultiPayload,
+    // stage 2 — payments
+    kind: closedEnum(
+      ["checkout", "refund"],
+      "What the payload pays (default `checkout`); must match the execution kind.",
+    ).optional(),
+    refund: id("re").optional().describe("Refund the leg belongs to (`kind: refund`; recorded on the agent payment)."),
+  }),
   response: out({ agent_payment_id: id("ap") }).meta({ id: "RelayAccepted", description: "Queued for relay." }),
   status: 202,
   errors: ["intent_invalid", "insufficient_balance", "rail_unavailable"],
