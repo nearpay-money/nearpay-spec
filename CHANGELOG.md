@@ -6,12 +6,25 @@ additive only (`pnpm compat` gates every release against `test/compat/baseline/`
 ## 0.2.0 — 2026-11-07
 
 Stage 2 contract freeze (step 2.1, `nearpay-brain/roadmap/development-plan.md` §4; owner decisions
-2026-11-07, ADR-0020). Additive over 0.1.5 by construction: no route, field or enum value was removed
-or renamed, no request field became required and no existing response type was tightened (the oasdiff
-gate against the 0.1.5 baseline runs in CI before the baseline moves). The new minor marks the
-Stage 2 freeze; every Stage 2 error code carries `since: "0.2.0"`. Totals: 102 public, 48 internal
-and 47 console routes (+39 / +12 / +47), 54 domain event subjects (+15), 21 webhook types (+9),
-77 error codes (+17), 38 ID prefixes (+5: `inv`, `aud`, `opa`, `bl`, `rcn`).
+2026-11-07, ADR-0020). No route, field or enum value was removed or renamed and no request field became
+required. The oasdiff gate against the 0.1.5 baseline (CI run on PR #3) flagged two groups of changes;
+each flagged change was reviewed and is intentional, so the baseline moves to 0.2.0 with this release:
+
+- **New event types in event unions** (`GET /v1/events`, `GET /v1/events/{id}`,
+  `POST /v1/webhook_endpoints/{id}/test`: `response-*-one-of-added`, 3 findings). New event types are
+  backward-compatible by api-conventions §1 ("clients MUST tolerate unknown fields and enum values";
+  new event types ship without a new version); oasdiff reports every `oneOf` addition.
+- **Live-1Click shape on the internal 1Click mirror** (`openapi/internal/sandbox.yaml`: `POST /v0/quote`,
+  `POST /v0/deposit/submit`, `GET /v0/status`, `GET /v0/tokens`; 103 findings). Optional `OneClick*`
+  fields became nullish and the nested status `quoteResponse.correlationId` optional, because live
+  1Click sends `null` and omits it (open-questions "Mainnet findings carried into Stage 2"). This is a
+  consumer-side change for code that assumed non-null values; the only consumers are rails, sentinel
+  and the sandbox, which drop their Stage 1 body normalisation in step 2.2. The
+  `request-property-enum-value-removed` and `min/max-unset` findings are representation artefacts of
+  `enum` → `anyOf[enum, null]`: no value or bound was removed. The new minor marks the
+  Stage 2 freeze; every Stage 2 error code carries `since: "0.2.0"`. Totals: 102 public, 48 internal
+  and 47 console routes (+39 / +12 / +47), 54 domain event subjects (+15), 21 webhook types (+9),
+  77 error codes (+17), 38 ID prefixes (+5: `inv`, `aud`, `opa`, `bl`, `rcn`).
 
 ### contracts integration
 
