@@ -98,6 +98,23 @@ components:
             - screening_unavailable
             - url_invalid
             - event_type_unknown
+            - last_owner
+            - member_exists
+            - invitation_invalid
+            - approver_conflict
+            - two_person_required
+            - authenticator_not_allowed
+            - kyb_profile_incomplete
+            - intent_not_succeeded
+            - attempt_not_settled
+            - amount_exceeds_refundable
+            - leg_expired
+            - signed_intent_mismatch
+            - review_requires_evidence
+            - link_inactive
+            - customer_deleted
+            - reconciliation_day_open
+            - fx_rate_unavailable
         doc_url:
           description: Documentation page for this error code.
           format: uri
@@ -134,6 +151,173 @@ components:
         - doc_url
         - request_id
       type: object
+    ExplorerTransaction:
+      additionalProperties: {}
+      description: "One Explorer transaction row (no `updatedAt`: change detection compares `status`)."
+      properties:
+        amountIn:
+          description: Amount in, origin base units (`0` while in flight).
+          pattern: ^\d+$
+          type: string
+        amountInFormatted:
+          description: Readable amount in.
+          type: string
+        amountInUsd:
+          description: USD value of amount in.
+          type: string
+        amountOut:
+          description: Amount out, destination base units (`0` while in flight).
+          pattern: ^\d+$
+          type: string
+        amountOutFormatted:
+          description: Readable amount out.
+          type: string
+        amountOutUsd:
+          description: USD value of amount out.
+          type: string
+        appFees:
+          anyOf:
+            - items:
+                additionalProperties: {}
+                description: An app fee.
+                properties:
+                  fee:
+                    description: Fee, bps.
+                    type: number
+                  recipient:
+                    description: Fee recipient.
+                    type: string
+                required:
+                  - recipient
+                  - fee
+                type: object
+              type: array
+            - type: "null"
+          description: App fees.
+        createdAt:
+          description: Creation time (ISO).
+          type: string
+        createdAtTimestamp:
+          description: Creation time (unix seconds).
+          type: number
+        depositAddress:
+          description: Deposit address (matches `executions.deposit_address`).
+          type: string
+        depositAddressAndMemo:
+          description: Deprecated combined key.
+          type:
+            - string
+            - "null"
+        depositMemo:
+          description: Deposit memo.
+          type:
+            - string
+            - "null"
+        depositType:
+          anyOf:
+            - description: "`ORIGIN_CHAIN`, `INTENTS`, `CONFIDENTIAL_INTENTS` or a newer value."
+              type: string
+            - type: "null"
+        destinationAsset:
+          description: Destination asset id.
+          type: string
+        destinationChainTxHashes:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: "null"
+          description: Destination-chain transactions.
+        intentHashes:
+          description: Intent hashes (comma-separated).
+          type:
+            - string
+            - "null"
+        nearTxHashes:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: "null"
+          description: NEAR transactions.
+        originAsset:
+          description: Origin asset id.
+          type: string
+        originChainTxHashes:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: "null"
+          description: Origin-chain transactions.
+        recipient:
+          description: Recipient.
+          type: string
+        recipientType:
+          anyOf:
+            - description: "`ORIGIN_CHAIN`, `INTENTS`, `CONFIDENTIAL_INTENTS` or a newer value."
+              type: string
+            - type: "null"
+        referral:
+          description: Referral id.
+          type:
+            - string
+            - "null"
+        refundFee:
+          description: Refund fee, origin base units.
+          type:
+            - string
+            - "null"
+        refundFeeFormatted:
+          description: Readable refund fee.
+          type:
+            - string
+            - "null"
+        refundReason:
+          description: Refund reason (e.g. `PARTIAL_DEPOSIT`, `NO_LIQUIDITY`).
+          type:
+            - string
+            - "null"
+        refundTo:
+          description: Refund address.
+          type:
+            - string
+            - "null"
+        refundType:
+          anyOf:
+            - description: "`ORIGIN_CHAIN`, `INTENTS`, `CONFIDENTIAL_INTENTS` or a newer value."
+              type: string
+            - type: "null"
+        senders:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: "null"
+          description: Senders.
+        status:
+          description: Status (PENDING_DEPOSIT, INCOMPLETE_DEPOSIT, PROCESSING, SUCCESS, REFUNDED, FAILED or unknown).
+          type: string
+      required:
+        - originAsset
+        - destinationAsset
+        - depositAddress
+        - recipient
+        - status
+        - createdAt
+        - createdAtTimestamp
+        - amountIn
+        - amountInFormatted
+        - amountInUsd
+        - amountOut
+        - amountOutFormatted
+        - amountOutUsd
+      type: object
+    ExplorerTransactionList:
+      description: Explorer transactions, newest first (bare array).
+      items:
+        $ref: "#/components/schemas/ExplorerTransaction"
+      type: array
     MultiPayload:
       description: A signed Verifier payload (`MultiPayload`).
       discriminator:
@@ -204,6 +388,11 @@ components:
           maximum: 10000
           minimum: 0
           type: integer
+        limitOrderId:
+          description: Limit-order id; live 1Click echoes `null` (unused).
+          type:
+            - string
+            - "null"
         recipient:
           description: Intents account receiving the fee.
           type: string
@@ -237,13 +426,19 @@ components:
           type: string
         deadline:
           description: Deposit deadline (ISO).
-          type: string
+          type:
+            - string
+            - "null"
         depositAddress:
           description: Deposit address (absent on dry runs).
-          type: string
+          type:
+            - string
+            - "null"
         depositMemo:
           description: Deposit memo.
-          type: string
+          type:
+            - string
+            - "null"
         minAmountIn:
           description: Integer amount in base units, as a string.
           pattern: ^\d+$
@@ -254,16 +449,22 @@ components:
           type: string
         refundFee:
           description: Refund fee, origin base units.
-          type: string
+          type:
+            - string
+            - "null"
         timeEstimate:
           description: Estimated seconds to execute.
           type: number
         timeWhenInactive:
           description: When the address goes cold (ISO).
-          type: string
+          type:
+            - string
+            - "null"
         withdrawFee:
           description: Withdraw fee, destination base units.
-          type: string
+          type:
+            - string
+            - "null"
       required:
         - amountIn
         - amountInFormatted
@@ -284,34 +485,44 @@ components:
           pattern: ^\d+$
           type: string
         appFees:
+          anyOf:
+            - items:
+                $ref: "#/components/schemas/OneClickAppFee"
+              type: array
+            - type: "null"
           description: App fees.
-          items:
-            $ref: "#/components/schemas/OneClickAppFee"
-          type: array
         confidentiality:
+          anyOf:
+            - enum:
+                - public
+                - basic
+                - advanced
+              type: string
+            - type: "null"
           description: Confidentiality mode.
-          enum:
-            - public
-            - basic
-            - advanced
-          type: string
         connectedWallets:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: "null"
           description: Connected wallets.
-          items:
-            type: string
-          type: array
         customRecipientMsg:
           description: ft_transfer_call message (experimental).
-          type: string
+          type:
+            - string
+            - "null"
         deadline:
           description: ISO deadline after which refunds begin.
           type: string
         depositMode:
+          anyOf:
+            - enum:
+                - SIMPLE
+                - MEMO
+              type: string
+            - type: "null"
           description: Deposit address mode.
-          enum:
-            - SIMPLE
-            - MEMO
-          type: string
         depositType:
           description: Deposit address type.
           enum:
@@ -327,19 +538,25 @@ components:
           type: boolean
         insured:
           description: Insured swap.
-          type: boolean
+          type:
+            - boolean
+            - "null"
         originAsset:
           description: Origin asset id.
           type: string
         quoteWaitingTimeMs:
+          anyOf:
+            - maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
           description: Quote wait, ms.
-          maximum: 9007199254740991
-          minimum: 0
-          type: integer
         rebates:
+          anyOf:
+            - items: {}
+              type: array
+            - type: "null"
           description: Rebates (unused).
-          items: {}
-          type: array
         recipient:
           description: Recipient address.
           type: string
@@ -352,7 +569,9 @@ components:
           type: string
         referral:
           description: Referral id (`nearpay`).
-          type: string
+          type:
+            - string
+            - "null"
         refundTo:
           description: Refund address.
           type: string
@@ -365,7 +584,9 @@ components:
           type: string
         sessionId:
           description: Client session id.
-          type: string
+          type:
+            - string
+            - "null"
         slippageTolerance:
           description: Slippage, bps.
           maximum: 10000
@@ -381,10 +602,14 @@ components:
           type: string
         virtualChainRecipient:
           description: Virtual-chain recipient.
-          type: string
+          type:
+            - string
+            - "null"
         virtualChainRefundRecipient:
           description: Virtual-chain refund recipient.
-          type: string
+          type:
+            - string
+            - "null"
       required:
         - dry
         - swapType
@@ -423,6 +648,31 @@ components:
         - quoteRequest
         - quote
       type: object
+    OneClickStatusQuoteResponse:
+      additionalProperties: {}
+      description: 1Click quote response as nested in a status response (`correlationId` optional).
+      properties:
+        correlationId:
+          description: Trace id of the quote; omitted by live `GET /v0/status`.
+          type:
+            - string
+            - "null"
+        quote:
+          $ref: "#/components/schemas/OneClickQuote"
+        quoteRequest:
+          $ref: "#/components/schemas/OneClickQuoteRequest"
+        signature:
+          description: 1Click signature over the quote.
+          type: string
+        timestamp:
+          description: ISO timestamp used to derive the deposit address.
+          type: string
+      required:
+        - timestamp
+        - signature
+        - quoteRequest
+        - quote
+      type: object
     OneClickStatusResponse:
       additionalProperties: {}
       description: 1Click execution status.
@@ -431,7 +681,7 @@ components:
           description: Trace id.
           type: string
         quoteResponse:
-          $ref: "#/components/schemas/OneClickQuoteResponse"
+          $ref: "#/components/schemas/OneClickStatusQuoteResponse"
         status:
           description: Provider status (KNOWN_DEPOSIT_TX, PENDING_DEPOSIT, INCOMPLETE_DEPOSIT, PROCESSING, SUCCESS, REFUNDED, FAILED or unknown).
           type: string
@@ -456,10 +706,14 @@ components:
           type: string
         memo:
           description: Memo.
-          type: string
+          type:
+            - string
+            - "null"
         nearSenderAccount:
           description: Sender (NEAR only).
-          type: string
+          type:
+            - string
+            - "null"
         txHash:
           description: Deposit transaction hash.
           type: string
@@ -473,31 +727,49 @@ components:
       properties:
         amountIn:
           description: Settled amountIn.
-          type: string
+          type:
+            - string
+            - "null"
         amountInFormatted:
           description: Readable.
-          type: string
+          type:
+            - string
+            - "null"
         amountInUsd:
           description: USD.
-          type: string
+          type:
+            - string
+            - "null"
         amountOut:
           description: Settled amountOut.
-          type: string
+          type:
+            - string
+            - "null"
         amountOutFormatted:
           description: Readable.
-          type: string
+          type:
+            - string
+            - "null"
         amountOutUsd:
           description: USD.
-          type: string
+          type:
+            - string
+            - "null"
         depositedAmount:
           description: Deposited amount.
-          type: string
+          type:
+            - string
+            - "null"
         depositedAmountFormatted:
           description: Readable.
-          type: string
+          type:
+            - string
+            - "null"
         depositedAmountUsd:
           description: USD.
-          type: string
+          type:
+            - string
+            - "null"
         destinationChainTxHashes:
           description: Destination-chain transactions.
           items:
@@ -544,25 +816,39 @@ components:
           type: array
         referral:
           description: Referral id.
-          type: string
+          type:
+            - string
+            - "null"
         refundReason:
           description: Refund reason (e.g. `PARTIAL_DEPOSIT`).
-          type: string
+          type:
+            - string
+            - "null"
         refundedAmount:
           description: Refunded amount.
-          type: string
+          type:
+            - string
+            - "null"
         refundedAmountFormatted:
           description: Readable.
-          type: string
+          type:
+            - string
+            - "null"
         refundedAmountUsd:
           description: USD.
-          type: string
+          type:
+            - string
+            - "null"
         slippage:
           description: Actual slippage.
-          type: number
+          type:
+            - number
+            - "null"
         withdrawFee:
           description: Withdraw fee.
-          type: string
+          type:
+            - string
+            - "null"
       required:
         - intentHashes
         - nearTxHashes
@@ -581,10 +867,14 @@ components:
           type: string
         coingeckoId:
           description: CoinGecko id.
-          type: string
+          type:
+            - string
+            - "null"
         contractAddress:
           description: Contract address.
-          type: string
+          type:
+            - string
+            - "null"
         decimals:
           description: Decimals.
           maximum: 9007199254740991
@@ -647,34 +937,44 @@ components:
           pattern: ^\d+$
           type: string
         appFees:
+          anyOf:
+            - items:
+                $ref: "#/components/schemas/OneClickAppFee"
+              type: array
+            - type: "null"
           description: App fees.
-          items:
-            $ref: "#/components/schemas/OneClickAppFee"
-          type: array
         confidentiality:
+          anyOf:
+            - enum:
+                - public
+                - basic
+                - advanced
+              type: string
+            - type: "null"
           description: Confidentiality mode.
-          enum:
-            - public
-            - basic
-            - advanced
-          type: string
         connectedWallets:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: "null"
           description: Connected wallets.
-          items:
-            type: string
-          type: array
         customRecipientMsg:
           description: ft_transfer_call message (experimental).
-          type: string
+          type:
+            - string
+            - "null"
         deadline:
           description: ISO deadline after which refunds begin.
           type: string
         depositMode:
+          anyOf:
+            - enum:
+                - SIMPLE
+                - MEMO
+              type: string
+            - type: "null"
           description: Deposit address mode.
-          enum:
-            - SIMPLE
-            - MEMO
-          type: string
         depositType:
           description: Deposit address type.
           enum:
@@ -690,19 +990,25 @@ components:
           type: boolean
         insured:
           description: Insured swap.
-          type: boolean
+          type:
+            - boolean
+            - "null"
         originAsset:
           description: Origin asset id.
           type: string
         quoteWaitingTimeMs:
+          anyOf:
+            - maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
           description: Quote wait, ms.
-          maximum: 9007199254740991
-          minimum: 0
-          type: integer
         rebates:
+          anyOf:
+            - items: {}
+              type: array
+            - type: "null"
           description: Rebates (unused).
-          items: {}
-          type: array
         recipient:
           description: Recipient address.
           type: string
@@ -715,7 +1021,9 @@ components:
           type: string
         referral:
           description: Referral id (`nearpay`).
-          type: string
+          type:
+            - string
+            - "null"
         refundTo:
           description: Refund address.
           type: string
@@ -730,9 +1038,22 @@ components:
           description: Pricing amount of the payment (fiat minor units or asset base units); its last two digits pick the scenario. Defaults to `amount`.
           pattern: ^\d{1,78}$
           type: string
+        scenario_group:
+          description: Quotes of one payment (`pi_…`) or one refund (`re_…`). Scenario `06` (duplicate settlement) pays the other open quotes of the same group only; without it the sandbox groups as in Stage 1.
+          maxLength: 64
+          minLength: 1
+          type: string
+        scenario_kind:
+          description: "`refund`: a refund leg (rails sets `scenario_amount` to the refund amount). Default `payment`."
+          enum:
+            - payment
+            - refund
+          type: string
         sessionId:
           description: Client session id.
-          type: string
+          type:
+            - string
+            - "null"
         slippageTolerance:
           description: Slippage, bps.
           maximum: 10000
@@ -748,10 +1069,14 @@ components:
           type: string
         virtualChainRecipient:
           description: Virtual-chain recipient.
-          type: string
+          type:
+            - string
+            - "null"
         virtualChainRefundRecipient:
           description: Virtual-chain refund recipient.
-          type: string
+          type:
+            - string
+            - "null"
       required:
         - dry
         - swapType
@@ -875,6 +1200,24 @@ components:
         - events
         - next_cursor
       type: object
+    SimTransferResult:
+      additionalProperties: {}
+      description: A simulated transfer.
+      properties:
+        block_height:
+          description: Simulated block.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        tx_hash:
+          description: Simulated transaction hash.
+          maxLength: 128
+          minLength: 8
+          type: string
+      required:
+        - tx_hash
+        - block_height
+      type: object
     SimTx:
       additionalProperties: {}
       description: A simulated chain transaction (sandbox verifiers).
@@ -984,9 +1327,114 @@ info:
     identifier: Apache-2.0
     name: Apache-2.0
   title: nearpay-sandbox internal API
-  version: 0.1.5
+  version: 0.2.0
 openapi: 3.1.0
 paths:
+  /api/v0/transactions:
+    get:
+      description: Same query and row schema as `GET explorer.near-intents.org/api/v0/transactions`; no rate limit. Rows are the sandbox's quotes with their current scenario status; `amountIn`/`amountOut` read `0` until the scenario settles, like the live Explorer.
+      operationId: sandboxExplorerTransactions
+      parameters:
+        - description: Rows (1–1000, default 50).
+          in: query
+          name: numberOfTransactions
+          schema:
+            description: Rows (1–1000, default 50).
+            maximum: 1000
+            minimum: 1
+            type: integer
+        - description: "Page cursor: `depositAddress` of the last row."
+          in: query
+          name: lastDepositAddress
+          schema:
+            description: "Page cursor: `depositAddress` of the last row."
+            type: string
+        - description: "Page cursor: `depositMemo` of the last row."
+          in: query
+          name: lastDepositMemo
+          schema:
+            description: "Page cursor: `depositMemo` of the last row."
+            type: string
+        - description: "`next` = older rows (default), `prev` = newer rows."
+          in: query
+          name: direction
+          schema:
+            description: "`next` = older rows (default), `prev` = newer rows."
+            enum:
+              - next
+              - prev
+            type: string
+        - description: Referral filter (`nearpay`).
+          in: query
+          name: referral
+          schema:
+            description: Referral filter (`nearpay`).
+            type: string
+        - description: Comma-separated statuses (PENDING_DEPOSIT, INCOMPLETE_DEPOSIT, PROCESSING, SUCCESS, REFUNDED, FAILED); default omits the `*_DEPOSIT` ones.
+          in: query
+          name: statuses
+          schema:
+            description: Comma-separated statuses (PENDING_DEPOSIT, INCOMPLETE_DEPOSIT, PROCESSING, SUCCESS, REFUNDED, FAILED); default omits the `*_DEPOSIT` ones.
+            pattern: ^[A-Z_]+(,[A-Z_]+)*$
+            type: string
+        - description: Exclusive start bound (ISO 8601).
+          in: query
+          name: startTimestamp
+          schema:
+            description: Exclusive start bound (ISO 8601).
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            type: string
+        - description: Exclusive end bound (ISO 8601).
+          in: query
+          name: endTimestamp
+          schema:
+            description: Exclusive end bound (ISO 8601).
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            type: string
+        - description: Deposit memo filter.
+          in: query
+          name: depositMemo
+          schema:
+            description: Deposit memo filter.
+            type: string
+        - description: Deposit address, recipient, sender or tx hash.
+          in: query
+          name: search
+          schema:
+            description: Deposit address, recipient, sender or tx hash.
+            type: string
+        - description: Include test-account transactions.
+          in: query
+          name: showTestTxs
+          schema:
+            description: Include test-account transactions.
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExplorerTransactionList"
+          description: "Explorer mirror: sandbox quotes as Explorer rows, newest first (rails Explorer feed in test mode)."
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: "Explorer mirror: sandbox quotes as Explorer rows, newest first (rails Explorer feed in test mode)."
+      tags:
+        - sandbox
+      x-nearpay:
+        auth:
+          - service:sandbox.use
+        idempotent: false
+        service: sandbox
+        stage: 2
   /sim/advance:
     post:
       operationId: sandboxAdvance
@@ -1366,6 +1814,70 @@ paths:
         idempotent: false
         service: sandbox
         stage: 1
+  /sim/intents/transfers:
+    post:
+      description: Test mode only by construction. Credits `from` with any shortfall first (like `/sim/intents/fund`), then moves `amount` to `to` and emits the DIP-4 `transfer` event with `memo` (and the NEP-245 `mt_transfer`) on the indexer feed, as a signed execute would. Used by payments `simulateRefundDeposit` for `intents_transfer` refund legs and INTENTS-deposit route legs.
+      operationId: sandboxSimulateIntentsTransfer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                amount:
+                  description: Amount.
+                  pattern: ^(0|[1-9][0-9]{0,77})$
+                  type: string
+                from:
+                  description: Sender Intents account (the merchant).
+                  pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+                  type: string
+                memo:
+                  description: Memo (the leg binding).
+                  maxLength: 512
+                  type: string
+                to:
+                  description: Receiver Intents account (payer or deposit address).
+                  pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+                  type: string
+                token:
+                  description: Asset.
+                  examples:
+                    - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+                  maxLength: 256
+                  pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+                  type: string
+              required:
+                - from
+                - to
+                - token
+                - amount
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimTransferResult"
+          description: Simulate an executed Verifier transfer without a signature (refund test helper).
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Simulate an executed Verifier transfer without a signature (refund test helper).
+      tags:
+        - sandbox
+      x-nearpay:
+        auth:
+          - service:sandbox.use
+        idempotent: false
+        service: sandbox
+        stage: 2
   /v0/deposit/submit:
     post:
       operationId: sandboxSubmitDeposit

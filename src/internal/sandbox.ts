@@ -17,6 +17,7 @@ import {
   TxHash,
   z,
 } from "@nearpay/spec";
+import { ExplorerTransactionList, ExplorerTransactionsQuery } from "./explorer.js";
 import {
   OneClickQuoteRequest,
   OneClickQuoteResponse,
@@ -41,6 +42,19 @@ export const SandboxQuoteRequest = OneClickQuoteRequest.extend({
     .describe(
       "Pricing amount of the payment (fiat minor units or asset base units); its last two digits pick the scenario. Defaults to `amount`.",
     ),
+  // stage 2 — payments
+  scenario_group: z
+    .string()
+    .min(1)
+    .max(64)
+    .optional()
+    .describe(
+      "Quotes of one payment (`pi_…`) or one refund (`re_…`). Scenario `06` (duplicate settlement) pays the other open quotes of the same group only; without it the sandbox groups as in Stage 1.",
+    ),
+  scenario_kind: z
+    .enum(["payment", "refund"])
+    .optional()
+    .describe("`refund`: a refund leg (rails sets `scenario_amount` to the refund amount). Default `payment`."),
 }).meta({
   id: "SandboxQuoteRequest",
   description: "Sandbox `POST /v0/quote` request (1Click request + scenario amount).",
@@ -291,3 +305,51 @@ export const sandboxIntentsEvents = route({
   errors: [],
   stage: 1,
 });
+
+// stage 2 — payments
+export const sandboxSimulateIntentsTransfer = route({
+  id: "sandboxSimulateIntentsTransfer",
+  method: "POST",
+  path: "/sim/intents/transfers",
+  service: "sandbox",
+  visibility: "internal",
+  summary: "Simulate an executed Verifier transfer without a signature (refund test helper).",
+  description:
+    "Test mode only by construction. Credits `from` with any shortfall first (like `/sim/intents/fund`), then moves `amount` to `to` and emits the DIP-4 `transfer` event with `memo` (and the NEP-245 `mt_transfer`) on the indexer feed, as a signed execute would. Used by payments `simulateRefundDeposit` for `intents_transfer` refund legs and INTENTS-deposit route legs.",
+  auth: SANDBOX_AUTH,
+  idempotent: false,
+  body: inp({
+    from: NearAccountId.describe("Sender Intents account (the merchant)."),
+    to: NearAccountId.describe("Receiver Intents account (payer or deposit address)."),
+    token: AssetId.describe("Asset."),
+    amount: BaseUnits.describe("Amount."),
+    memo: z.string().max(512).optional().describe("Memo (the leg binding)."),
+  }),
+  response: out({
+    tx_hash: TxHash.describe("Simulated transaction hash."),
+    block_height: z.int().min(0).describe("Simulated block."),
+  }).meta({ id: "SimTransferResult", description: "A simulated transfer." }),
+  status: 200,
+  errors: [],
+  stage: 2,
+});
+
+// stage 2 — rails-fx
+export const sandboxExplorerTransactions = route({
+  id: "sandboxExplorerTransactions",
+  method: "GET",
+  path: "/api/v0/transactions",
+  service: "sandbox",
+  visibility: "internal",
+  summary: "Explorer mirror: sandbox quotes as Explorer rows, newest first (rails Explorer feed in test mode).",
+  description:
+    "Same query and row schema as `GET explorer.near-intents.org/api/v0/transactions`; no rate limit. Rows are the sandbox's quotes with their current scenario status; `amountIn`/`amountOut` read `0` until the scenario settles, like the live Explorer.",
+  auth: SANDBOX_AUTH,
+  idempotent: false,
+  query: ExplorerTransactionsQuery,
+  response: ExplorerTransactionList,
+  status: 200,
+  errors: [],
+  stage: 2,
+});
+// end stage 2 — rails-fx

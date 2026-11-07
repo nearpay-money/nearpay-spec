@@ -92,6 +92,8 @@ export const SERVICE_SCOPES = [
   "notify.send",
   "sandbox.use",
   "billing.read",
+  // stage 2 — contracts integration
+  "compliance.cases.write",
 ] as const;
 export type ServiceScope = (typeof SERVICE_SCOPES)[number];
 
@@ -102,8 +104,42 @@ export const OPS_SCOPES = [
   "sentinel.killswitch",
   "rails.read",
   "payments.read",
+  // stage 2 — identity-console (console routes, lld/dashboard-and-console.md §2)
+  "console.session",
+  "identity.merchants.read",
+  "identity.audit.read",
+  "compliance.read",
+  "compliance.accounts.write",
+  "compliance.blocklist.write",
+  "compliance.screen",
+  "sentinel.read",
+  "sentinel.findings.write",
+  // stage 2 — payments
+  "payments.reconcile",
+  // stage 2 — rails-fx / contracts integration (console reverify, rails §6)
+  "rails.verify",
 ] as const;
 export type OpsScope = (typeof OPS_SCOPES)[number];
+
+// stage 2 — identity-console: ops roles (lld/identity.md §4 `ops_operators.role`, §6.3)
+/** Console operator roles (`ops_operators.role`). Ops routes list the roles they admit in `opsRoles`. */
+export const OPS_ROLES = ["ops", "ops_admin"] as const;
+export type OpsRole = (typeof OPS_ROLES)[number];
+export const OpsRoleSchema = closedEnum(OPS_ROLES, "Role of a console operator.");
+
+/**
+ * Scopes identity mints into `scp` for an ops principal of each role (foundations §9). Both roles
+ * hold the same scopes; what only an `ops_admin` may do (second approvals, blocklist removals) is
+ * decided per route by `opsRoles`, which `@nearpay-internal/service` checks against the
+ * `ops_role` claim.
+ */
+export const OPS_ROLE_SCOPES: Record<OpsRole, readonly OpsScope[]> = {
+  ops: OPS_SCOPES,
+  ops_admin: OPS_SCOPES,
+};
+
+/** Console session lifetimes (identity §4): idle timeout and absolute lifetime, seconds. */
+export const OPS_SESSION_TTL_SECONDS = { idle: 1800, absolute: 43_200 } as const;
 
 /** Internal services that hold service credentials. */
 export const SERVICES = [
@@ -125,7 +161,7 @@ export type ServiceName = (typeof SERVICES)[number];
  * identity provisions `service_clients.scopes` from it.
  */
 export const SERVICE_CLIENT_SCOPES: Record<ServiceName, readonly ServiceScope[]> = {
-  identity: ["compliance.screen", "rails.read", "notify.send"],
+  identity: ["compliance.screen", "rails.read", "notify.send", "compliance.read" /* stage 2 — identity-console */],
   payments: [
     "identity.context.read",
     "rails.executions.write",
@@ -133,6 +169,7 @@ export const SERVICE_CLIENT_SCOPES: Record<ServiceName, readonly ServiceScope[]>
     "agentpay.relay",
     "compliance.read",
     "sandbox.use",
+    "compliance.cases.write" /* stage 2 — reconciliation_diff cases */,
   ],
   rails: ["compliance.screen", "sandbox.use"],
   agentpay: [
@@ -204,6 +241,8 @@ export const InternalTokenClaims = z
     rid: z.string().optional().describe("Request id (`req_…`) the token was minted for."),
     role: closedEnum(ROLES, "Role of the session user.").optional(),
     step_up_until: z.int().optional().describe("Unix time until which a step-up assertion is fresh (sessions)."),
+    // stage 2 — identity-console
+    ops_role: closedEnum(OPS_ROLES, "Role of the console operator (`ptype=ops`).").optional(),
     iat: z.int().describe("Issued at (unix seconds)."),
     exp: z.int().describe("Expiry (unix seconds)."),
   })

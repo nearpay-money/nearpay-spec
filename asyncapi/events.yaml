@@ -12,6 +12,12 @@ channels:
     messages:
       evt_agentpay_agent_payment_settled:
         $ref: "#/components/messages/evt_agentpay_agent_payment_settled"
+  evt_compliance_account_action_requested:
+    address: evt.compliance.account.action_requested
+    description: "Stream `EVT_COMPLIANCE`. Producer: compliance. Consumers: notify."
+    messages:
+      evt_compliance_account_action_requested:
+        $ref: "#/components/messages/evt_compliance_account_action_requested"
   evt_compliance_account_reinstated:
     address: evt.compliance.account.reinstated
     description: "Stream `EVT_COMPLIANCE`. Producer: compliance. Consumers: identity, notify."
@@ -48,6 +54,18 @@ channels:
     messages:
       evt_compliance_kyb_rejected:
         $ref: "#/components/messages/evt_compliance_kyb_rejected"
+  evt_compliance_kyb_submitted:
+    address: evt.compliance.kyb.submitted
+    description: "Stream `EVT_COMPLIANCE`. Producer: compliance. Consumers: identity, notify."
+    messages:
+      evt_compliance_kyb_submitted:
+        $ref: "#/components/messages/evt_compliance_kyb_submitted"
+  evt_compliance_ops_action_recorded:
+    address: evt.compliance.ops_action.recorded
+    description: "Stream `EVT_COMPLIANCE`. Producer: compliance. Consumers: identity."
+    messages:
+      evt_compliance_ops_action_recorded:
+        $ref: "#/components/messages/evt_compliance_ops_action_recorded"
   evt_compliance_policy_updated:
     address: evt.compliance.policy.updated
     description: "Stream `EVT_COMPLIANCE`. Producer: compliance. Consumers: payments."
@@ -56,13 +74,13 @@ channels:
         $ref: "#/components/messages/evt_compliance_policy_updated"
   evt_compliance_review_closed:
     address: evt.compliance.review.closed
-    description: "Stream `EVT_COMPLIANCE`. Producer: compliance. Consumers: payments, notify."
+    description: "Stream `EVT_COMPLIANCE`. Producer: compliance. Consumers: payments, notify, webhooks."
     messages:
       evt_compliance_review_closed:
         $ref: "#/components/messages/evt_compliance_review_closed"
   evt_compliance_review_opened:
     address: evt.compliance.review.opened
-    description: "Stream `EVT_COMPLIANCE`. Producer: compliance. Consumers: payments, notify."
+    description: "Stream `EVT_COMPLIANCE`. Producer: compliance. Consumers: payments, notify, webhooks."
     messages:
       evt_compliance_review_opened:
         $ref: "#/components/messages/evt_compliance_review_opened"
@@ -74,7 +92,7 @@ channels:
         $ref: "#/components/messages/evt_identity_account_created"
   evt_identity_account_updated:
     address: evt.identity.account.updated
-    description: "Stream `EVT_IDENTITY`. Producer: identity. Consumers: payments."
+    description: "Stream `EVT_IDENTITY`. Producer: identity. Consumers: payments, webhooks."
     messages:
       evt_identity_account_updated:
         $ref: "#/components/messages/evt_identity_account_updated"
@@ -90,6 +108,24 @@ channels:
     messages:
       evt_identity_api_key_revoked:
         $ref: "#/components/messages/evt_identity_api_key_revoked"
+  evt_identity_member_added:
+    address: evt.identity.member.added
+    description: "Stream `EVT_IDENTITY`. Producer: identity. Consumers: notify."
+    messages:
+      evt_identity_member_added:
+        $ref: "#/components/messages/evt_identity_member_added"
+  evt_identity_member_removed:
+    address: evt.identity.member.removed
+    description: "Stream `EVT_IDENTITY`. Producer: identity. Consumers: notify."
+    messages:
+      evt_identity_member_removed:
+        $ref: "#/components/messages/evt_identity_member_removed"
+  evt_identity_member_role_changed:
+    address: evt.identity.member.role_changed
+    description: "Stream `EVT_IDENTITY`. Producer: identity. Consumers: notify."
+    messages:
+      evt_identity_member_role_changed:
+        $ref: "#/components/messages/evt_identity_member_role_changed"
   evt_identity_settlement_destination_activated:
     address: evt.identity.settlement_destination.activated
     description: "Stream `EVT_IDENTITY`. Producer: identity. Consumers: payments, notify, rails, compliance."
@@ -120,6 +156,12 @@ channels:
     messages:
       evt_identity_settlement_destination_disabled:
         $ref: "#/components/messages/evt_identity_settlement_destination_disabled"
+  evt_identity_settlement_destination_pending_approval:
+    address: evt.identity.settlement_destination.pending_approval
+    description: "Stream `EVT_IDENTITY`. Producer: identity. Consumers: notify."
+    messages:
+      evt_identity_settlement_destination_pending_approval:
+        $ref: "#/components/messages/evt_identity_settlement_destination_pending_approval"
   evt_payments_checkout_session_completed:
     address: evt.payments.checkout_session.completed
     description: "Stream `EVT_PAYMENTS`. Producer: payments. Consumers: webhooks."
@@ -132,6 +174,12 @@ channels:
     messages:
       evt_payments_checkout_session_expired:
         $ref: "#/components/messages/evt_payments_checkout_session_expired"
+  evt_payments_ops_action_recorded:
+    address: evt.payments.ops_action.recorded
+    description: "Stream `EVT_PAYMENTS`. Producer: payments. Consumers: identity."
+    messages:
+      evt_payments_ops_action_recorded:
+        $ref: "#/components/messages/evt_payments_ops_action_recorded"
   evt_payments_payment_intent_canceled:
     address: evt.payments.payment_intent.canceled
     description: "Stream `EVT_PAYMENTS`. Producer: payments. Consumers: webhooks."
@@ -180,6 +228,42 @@ channels:
     messages:
       evt_payments_payment_intent_succeeded:
         $ref: "#/components/messages/evt_payments_payment_intent_succeeded"
+  evt_payments_refund_canceled:
+    address: evt.payments.refund.canceled
+    description: "Stream `EVT_PAYMENTS`. Producer: payments. Consumers: webhooks."
+    messages:
+      evt_payments_refund_canceled:
+        $ref: "#/components/messages/evt_payments_refund_canceled"
+  evt_payments_refund_created:
+    address: evt.payments.refund.created
+    description: "Stream `EVT_PAYMENTS`. Producer: payments. Consumers: webhooks."
+    messages:
+      evt_payments_refund_created:
+        $ref: "#/components/messages/evt_payments_refund_created"
+  evt_payments_refund_failed:
+    address: evt.payments.refund.failed
+    description: "Stream `EVT_PAYMENTS`. Producer: payments. Consumers: webhooks."
+    messages:
+      evt_payments_refund_failed:
+        $ref: "#/components/messages/evt_payments_refund_failed"
+  evt_payments_refund_pending:
+    address: evt.payments.refund.pending
+    description: "Stream `EVT_PAYMENTS`. Producer: payments. Consumers: webhooks."
+    messages:
+      evt_payments_refund_pending:
+        $ref: "#/components/messages/evt_payments_refund_pending"
+  evt_payments_refund_requires_action:
+    address: evt.payments.refund.requires_action
+    description: "Stream `EVT_PAYMENTS`. Producer: payments. Consumers: webhooks."
+    messages:
+      evt_payments_refund_requires_action:
+        $ref: "#/components/messages/evt_payments_refund_requires_action"
+  evt_payments_refund_succeeded:
+    address: evt.payments.refund.succeeded
+    description: "Stream `EVT_PAYMENTS`. Producer: payments. Consumers: webhooks, notify."
+    messages:
+      evt_payments_refund_succeeded:
+        $ref: "#/components/messages/evt_payments_refund_succeeded"
   evt_rails_execution_failed:
     address: evt.rails.execution.failed
     description: "Stream `EVT_RAILS`. Producer: rails. Consumers: payments."
@@ -210,6 +294,12 @@ channels:
     messages:
       evt_rails_execution_updated:
         $ref: "#/components/messages/evt_rails_execution_updated"
+  evt_rails_ops_action_recorded:
+    address: evt.rails.ops_action.recorded
+    description: "Stream `EVT_RAILS`. Producer: rails. Consumers: identity."
+    messages:
+      evt_rails_ops_action_recorded:
+        $ref: "#/components/messages/evt_rails_ops_action_recorded"
   evt_sentinel_audit_finding_created:
     address: evt.sentinel.audit_finding.created
     description: "Stream `EVT_SENTINEL`. Producer: sentinel. Consumers: compliance, notify."
@@ -218,16 +308,28 @@ channels:
         $ref: "#/components/messages/evt_sentinel_audit_finding_created"
   evt_sentinel_kill_switch_engaged:
     address: evt.sentinel.kill_switch.engaged
-    description: "Stream `EVT_SENTINEL`. Producer: sentinel. Consumers: rails, agentpay, notify."
+    description: "Stream `EVT_SENTINEL`. Producer: sentinel. Consumers: rails, agentpay, notify, payments."
     messages:
       evt_sentinel_kill_switch_engaged:
         $ref: "#/components/messages/evt_sentinel_kill_switch_engaged"
+  evt_sentinel_kill_switch_release_requested:
+    address: evt.sentinel.kill_switch.release_requested
+    description: "Stream `EVT_SENTINEL`. Producer: sentinel. Consumers: notify."
+    messages:
+      evt_sentinel_kill_switch_release_requested:
+        $ref: "#/components/messages/evt_sentinel_kill_switch_release_requested"
   evt_sentinel_kill_switch_released:
     address: evt.sentinel.kill_switch.released
-    description: "Stream `EVT_SENTINEL`. Producer: sentinel. Consumers: rails, agentpay, notify."
+    description: "Stream `EVT_SENTINEL`. Producer: sentinel. Consumers: rails, agentpay, notify, payments."
     messages:
       evt_sentinel_kill_switch_released:
         $ref: "#/components/messages/evt_sentinel_kill_switch_released"
+  evt_sentinel_ops_action_recorded:
+    address: evt.sentinel.ops_action.recorded
+    description: "Stream `EVT_SENTINEL`. Producer: sentinel. Consumers: identity."
+    messages:
+      evt_sentinel_ops_action_recorded:
+        $ref: "#/components/messages/evt_sentinel_ops_action_recorded"
   evt_webhooks_endpoint_disabled:
     address: evt.webhooks.endpoint.disabled
     description: "Stream `EVT_WEBHOOKS`. Producer: webhooks. Consumers: notify."
@@ -474,6 +576,125 @@ components:
           - data
         type: object
       title: evt.agentpay.agent_payment.settled
+    evt_compliance_account_action_requested:
+      contentType: application/json
+      headers:
+        properties:
+          Nats-Msg-Id:
+            description: Event id (de-duplication window 120 s).
+            type: string
+        required:
+          - Nats-Msg-Id
+        type: object
+      name: evt.compliance.account.action_requested
+      payload:
+        additionalProperties: {}
+        description: Envelope of `evt.compliance.account.action_requested`.
+        properties:
+          account_id:
+            anyOf:
+              - description: UUID (RFC 9562).
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                type: string
+              - type: "null"
+            description: Merchant account UUID (null for platform events).
+          aggregate:
+            additionalProperties: {}
+            description: The aggregate that changed.
+            properties:
+              id:
+                description: Aggregate id (prefixed).
+                type: string
+              type:
+                description: Aggregate type.
+                type: string
+              version:
+                description: Aggregate version after the change.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+            required:
+              - type
+              - id
+              - version
+            type: object
+          data:
+            additionalProperties: {}
+            description: Payload.
+            properties:
+              object:
+                $ref: "#/components/schemas/OpsApproval"
+              previous:
+                additionalProperties: {}
+                description: Changed fields with previous values.
+                propertyNames:
+                  type: string
+                type: object
+            required:
+              - object
+            type: object
+          id:
+            description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+            format: uuid
+            pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            type: string
+          livemode:
+            description: Mode (null for platform events).
+            type:
+              - boolean
+              - "null"
+          occurred_at:
+            description: When the state change committed.
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            type: string
+          request:
+            additionalProperties: {}
+            description: Request context (copied into public events).
+            properties:
+              id:
+                anyOf:
+                  - description: Request id, also returned in the `X-Request-Id` header.
+                    examples:
+                      - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                    pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                    type: string
+                  - type: "null"
+                description: API request that caused the change.
+              idempotency_key:
+                description: Its Idempotency-Key.
+                type:
+                  - string
+                  - "null"
+            required:
+              - id
+              - idempotency_key
+            type: object
+          subject:
+            const: evt.compliance.account.action_requested
+            description: Subject.
+            type: string
+          trace:
+            additionalProperties: {}
+            description: Trace context.
+            properties:
+              traceparent:
+                description: W3C traceparent.
+                type: string
+            required:
+              - traceparent
+            type: object
+        required:
+          - id
+          - occurred_at
+          - account_id
+          - livemode
+          - aggregate
+          - subject
+          - data
+        type: object
+      title: evt.compliance.account.action_requested
     evt_compliance_account_reinstated:
       contentType: application/json
       headers:
@@ -1188,6 +1409,244 @@ components:
           - data
         type: object
       title: evt.compliance.kyb.rejected
+    evt_compliance_kyb_submitted:
+      contentType: application/json
+      headers:
+        properties:
+          Nats-Msg-Id:
+            description: Event id (de-duplication window 120 s).
+            type: string
+        required:
+          - Nats-Msg-Id
+        type: object
+      name: evt.compliance.kyb.submitted
+      payload:
+        additionalProperties: {}
+        description: Envelope of `evt.compliance.kyb.submitted`.
+        properties:
+          account_id:
+            anyOf:
+              - description: UUID (RFC 9562).
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                type: string
+              - type: "null"
+            description: Merchant account UUID (null for platform events).
+          aggregate:
+            additionalProperties: {}
+            description: The aggregate that changed.
+            properties:
+              id:
+                description: Aggregate id (prefixed).
+                type: string
+              type:
+                description: Aggregate type.
+                type: string
+              version:
+                description: Aggregate version after the change.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+            required:
+              - type
+              - id
+              - version
+            type: object
+          data:
+            additionalProperties: {}
+            description: Payload.
+            properties:
+              object:
+                $ref: "#/components/schemas/KybSubmittedEvent"
+              previous:
+                additionalProperties: {}
+                description: Changed fields with previous values.
+                propertyNames:
+                  type: string
+                type: object
+            required:
+              - object
+            type: object
+          id:
+            description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+            format: uuid
+            pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            type: string
+          livemode:
+            description: Mode (null for platform events).
+            type:
+              - boolean
+              - "null"
+          occurred_at:
+            description: When the state change committed.
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            type: string
+          request:
+            additionalProperties: {}
+            description: Request context (copied into public events).
+            properties:
+              id:
+                anyOf:
+                  - description: Request id, also returned in the `X-Request-Id` header.
+                    examples:
+                      - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                    pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                    type: string
+                  - type: "null"
+                description: API request that caused the change.
+              idempotency_key:
+                description: Its Idempotency-Key.
+                type:
+                  - string
+                  - "null"
+            required:
+              - id
+              - idempotency_key
+            type: object
+          subject:
+            const: evt.compliance.kyb.submitted
+            description: Subject.
+            type: string
+          trace:
+            additionalProperties: {}
+            description: Trace context.
+            properties:
+              traceparent:
+                description: W3C traceparent.
+                type: string
+            required:
+              - traceparent
+            type: object
+        required:
+          - id
+          - occurred_at
+          - account_id
+          - livemode
+          - aggregate
+          - subject
+          - data
+        type: object
+      title: evt.compliance.kyb.submitted
+    evt_compliance_ops_action_recorded:
+      contentType: application/json
+      headers:
+        properties:
+          Nats-Msg-Id:
+            description: Event id (de-duplication window 120 s).
+            type: string
+        required:
+          - Nats-Msg-Id
+        type: object
+      name: evt.compliance.ops_action.recorded
+      payload:
+        additionalProperties: {}
+        description: Envelope of `evt.compliance.ops_action.recorded`.
+        properties:
+          account_id:
+            anyOf:
+              - description: UUID (RFC 9562).
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                type: string
+              - type: "null"
+            description: Merchant account UUID (null for platform events).
+          aggregate:
+            additionalProperties: {}
+            description: The aggregate that changed.
+            properties:
+              id:
+                description: Aggregate id (prefixed).
+                type: string
+              type:
+                description: Aggregate type.
+                type: string
+              version:
+                description: Aggregate version after the change.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+            required:
+              - type
+              - id
+              - version
+            type: object
+          data:
+            additionalProperties: {}
+            description: Payload.
+            properties:
+              object:
+                $ref: "#/components/schemas/OpsActionEvent"
+              previous:
+                additionalProperties: {}
+                description: Changed fields with previous values.
+                propertyNames:
+                  type: string
+                type: object
+            required:
+              - object
+            type: object
+          id:
+            description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+            format: uuid
+            pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            type: string
+          livemode:
+            description: Mode (null for platform events).
+            type:
+              - boolean
+              - "null"
+          occurred_at:
+            description: When the state change committed.
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            type: string
+          request:
+            additionalProperties: {}
+            description: Request context (copied into public events).
+            properties:
+              id:
+                anyOf:
+                  - description: Request id, also returned in the `X-Request-Id` header.
+                    examples:
+                      - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                    pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                    type: string
+                  - type: "null"
+                description: API request that caused the change.
+              idempotency_key:
+                description: Its Idempotency-Key.
+                type:
+                  - string
+                  - "null"
+            required:
+              - id
+              - idempotency_key
+            type: object
+          subject:
+            const: evt.compliance.ops_action.recorded
+            description: Subject.
+            type: string
+          trace:
+            additionalProperties: {}
+            description: Trace context.
+            properties:
+              traceparent:
+                description: W3C traceparent.
+                type: string
+            required:
+              - traceparent
+            type: object
+        required:
+          - id
+          - occurred_at
+          - account_id
+          - livemode
+          - aggregate
+          - subject
+          - data
+        type: object
+      title: evt.compliance.ops_action.recorded
     evt_compliance_policy_updated:
       contentType: application/json
       headers:
@@ -2021,6 +2480,363 @@ components:
           - data
         type: object
       title: evt.identity.api_key.revoked
+    evt_identity_member_added:
+      contentType: application/json
+      headers:
+        properties:
+          Nats-Msg-Id:
+            description: Event id (de-duplication window 120 s).
+            type: string
+        required:
+          - Nats-Msg-Id
+        type: object
+      name: evt.identity.member.added
+      payload:
+        additionalProperties: {}
+        description: Envelope of `evt.identity.member.added`.
+        properties:
+          account_id:
+            anyOf:
+              - description: UUID (RFC 9562).
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                type: string
+              - type: "null"
+            description: Merchant account UUID (null for platform events).
+          aggregate:
+            additionalProperties: {}
+            description: The aggregate that changed.
+            properties:
+              id:
+                description: Aggregate id (prefixed).
+                type: string
+              type:
+                description: Aggregate type.
+                type: string
+              version:
+                description: Aggregate version after the change.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+            required:
+              - type
+              - id
+              - version
+            type: object
+          data:
+            additionalProperties: {}
+            description: Payload.
+            properties:
+              object:
+                $ref: "#/components/schemas/MemberEvent"
+              previous:
+                additionalProperties: {}
+                description: Changed fields with previous values.
+                propertyNames:
+                  type: string
+                type: object
+            required:
+              - object
+            type: object
+          id:
+            description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+            format: uuid
+            pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            type: string
+          livemode:
+            description: Mode (null for platform events).
+            type:
+              - boolean
+              - "null"
+          occurred_at:
+            description: When the state change committed.
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            type: string
+          request:
+            additionalProperties: {}
+            description: Request context (copied into public events).
+            properties:
+              id:
+                anyOf:
+                  - description: Request id, also returned in the `X-Request-Id` header.
+                    examples:
+                      - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                    pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                    type: string
+                  - type: "null"
+                description: API request that caused the change.
+              idempotency_key:
+                description: Its Idempotency-Key.
+                type:
+                  - string
+                  - "null"
+            required:
+              - id
+              - idempotency_key
+            type: object
+          subject:
+            const: evt.identity.member.added
+            description: Subject.
+            type: string
+          trace:
+            additionalProperties: {}
+            description: Trace context.
+            properties:
+              traceparent:
+                description: W3C traceparent.
+                type: string
+            required:
+              - traceparent
+            type: object
+        required:
+          - id
+          - occurred_at
+          - account_id
+          - livemode
+          - aggregate
+          - subject
+          - data
+        type: object
+      title: evt.identity.member.added
+    evt_identity_member_removed:
+      contentType: application/json
+      headers:
+        properties:
+          Nats-Msg-Id:
+            description: Event id (de-duplication window 120 s).
+            type: string
+        required:
+          - Nats-Msg-Id
+        type: object
+      name: evt.identity.member.removed
+      payload:
+        additionalProperties: {}
+        description: Envelope of `evt.identity.member.removed`.
+        properties:
+          account_id:
+            anyOf:
+              - description: UUID (RFC 9562).
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                type: string
+              - type: "null"
+            description: Merchant account UUID (null for platform events).
+          aggregate:
+            additionalProperties: {}
+            description: The aggregate that changed.
+            properties:
+              id:
+                description: Aggregate id (prefixed).
+                type: string
+              type:
+                description: Aggregate type.
+                type: string
+              version:
+                description: Aggregate version after the change.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+            required:
+              - type
+              - id
+              - version
+            type: object
+          data:
+            additionalProperties: {}
+            description: Payload.
+            properties:
+              object:
+                $ref: "#/components/schemas/MemberEvent"
+              previous:
+                additionalProperties: {}
+                description: Changed fields with previous values.
+                propertyNames:
+                  type: string
+                type: object
+            required:
+              - object
+            type: object
+          id:
+            description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+            format: uuid
+            pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            type: string
+          livemode:
+            description: Mode (null for platform events).
+            type:
+              - boolean
+              - "null"
+          occurred_at:
+            description: When the state change committed.
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            type: string
+          request:
+            additionalProperties: {}
+            description: Request context (copied into public events).
+            properties:
+              id:
+                anyOf:
+                  - description: Request id, also returned in the `X-Request-Id` header.
+                    examples:
+                      - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                    pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                    type: string
+                  - type: "null"
+                description: API request that caused the change.
+              idempotency_key:
+                description: Its Idempotency-Key.
+                type:
+                  - string
+                  - "null"
+            required:
+              - id
+              - idempotency_key
+            type: object
+          subject:
+            const: evt.identity.member.removed
+            description: Subject.
+            type: string
+          trace:
+            additionalProperties: {}
+            description: Trace context.
+            properties:
+              traceparent:
+                description: W3C traceparent.
+                type: string
+            required:
+              - traceparent
+            type: object
+        required:
+          - id
+          - occurred_at
+          - account_id
+          - livemode
+          - aggregate
+          - subject
+          - data
+        type: object
+      title: evt.identity.member.removed
+    evt_identity_member_role_changed:
+      contentType: application/json
+      headers:
+        properties:
+          Nats-Msg-Id:
+            description: Event id (de-duplication window 120 s).
+            type: string
+        required:
+          - Nats-Msg-Id
+        type: object
+      name: evt.identity.member.role_changed
+      payload:
+        additionalProperties: {}
+        description: Envelope of `evt.identity.member.role_changed`.
+        properties:
+          account_id:
+            anyOf:
+              - description: UUID (RFC 9562).
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                type: string
+              - type: "null"
+            description: Merchant account UUID (null for platform events).
+          aggregate:
+            additionalProperties: {}
+            description: The aggregate that changed.
+            properties:
+              id:
+                description: Aggregate id (prefixed).
+                type: string
+              type:
+                description: Aggregate type.
+                type: string
+              version:
+                description: Aggregate version after the change.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+            required:
+              - type
+              - id
+              - version
+            type: object
+          data:
+            additionalProperties: {}
+            description: Payload.
+            properties:
+              object:
+                $ref: "#/components/schemas/MemberEvent"
+              previous:
+                additionalProperties: {}
+                description: Changed fields with previous values.
+                propertyNames:
+                  type: string
+                type: object
+            required:
+              - object
+            type: object
+          id:
+            description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+            format: uuid
+            pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            type: string
+          livemode:
+            description: Mode (null for platform events).
+            type:
+              - boolean
+              - "null"
+          occurred_at:
+            description: When the state change committed.
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            type: string
+          request:
+            additionalProperties: {}
+            description: Request context (copied into public events).
+            properties:
+              id:
+                anyOf:
+                  - description: Request id, also returned in the `X-Request-Id` header.
+                    examples:
+                      - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                    pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                    type: string
+                  - type: "null"
+                description: API request that caused the change.
+              idempotency_key:
+                description: Its Idempotency-Key.
+                type:
+                  - string
+                  - "null"
+            required:
+              - id
+              - idempotency_key
+            type: object
+          subject:
+            const: evt.identity.member.role_changed
+            description: Subject.
+            type: string
+          trace:
+            additionalProperties: {}
+            description: Trace context.
+            properties:
+              traceparent:
+                description: W3C traceparent.
+                type: string
+            required:
+              - traceparent
+            type: object
+        required:
+          - id
+          - occurred_at
+          - account_id
+          - livemode
+          - aggregate
+          - subject
+          - data
+        type: object
+      title: evt.identity.member.role_changed
     evt_identity_settlement_destination_activated:
       contentType: application/json
       headers:
@@ -2616,6 +3432,125 @@ components:
           - data
         type: object
       title: evt.identity.settlement_destination.disabled
+    evt_identity_settlement_destination_pending_approval:
+      contentType: application/json
+      headers:
+        properties:
+          Nats-Msg-Id:
+            description: Event id (de-duplication window 120 s).
+            type: string
+        required:
+          - Nats-Msg-Id
+        type: object
+      name: evt.identity.settlement_destination.pending_approval
+      payload:
+        additionalProperties: {}
+        description: Envelope of `evt.identity.settlement_destination.pending_approval`.
+        properties:
+          account_id:
+            anyOf:
+              - description: UUID (RFC 9562).
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                type: string
+              - type: "null"
+            description: Merchant account UUID (null for platform events).
+          aggregate:
+            additionalProperties: {}
+            description: The aggregate that changed.
+            properties:
+              id:
+                description: Aggregate id (prefixed).
+                type: string
+              type:
+                description: Aggregate type.
+                type: string
+              version:
+                description: Aggregate version after the change.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+            required:
+              - type
+              - id
+              - version
+            type: object
+          data:
+            additionalProperties: {}
+            description: Payload.
+            properties:
+              object:
+                $ref: "#/components/schemas/InternalSettlementDestination"
+              previous:
+                additionalProperties: {}
+                description: Changed fields with previous values.
+                propertyNames:
+                  type: string
+                type: object
+            required:
+              - object
+            type: object
+          id:
+            description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+            format: uuid
+            pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            type: string
+          livemode:
+            description: Mode (null for platform events).
+            type:
+              - boolean
+              - "null"
+          occurred_at:
+            description: When the state change committed.
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            type: string
+          request:
+            additionalProperties: {}
+            description: Request context (copied into public events).
+            properties:
+              id:
+                anyOf:
+                  - description: Request id, also returned in the `X-Request-Id` header.
+                    examples:
+                      - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                    pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                    type: string
+                  - type: "null"
+                description: API request that caused the change.
+              idempotency_key:
+                description: Its Idempotency-Key.
+                type:
+                  - string
+                  - "null"
+            required:
+              - id
+              - idempotency_key
+            type: object
+          subject:
+            const: evt.identity.settlement_destination.pending_approval
+            description: Subject.
+            type: string
+          trace:
+            additionalProperties: {}
+            description: Trace context.
+            properties:
+              traceparent:
+                description: W3C traceparent.
+                type: string
+            required:
+              - traceparent
+            type: object
+        required:
+          - id
+          - occurred_at
+          - account_id
+          - livemode
+          - aggregate
+          - subject
+          - data
+        type: object
+      title: evt.identity.settlement_destination.pending_approval
     evt_payments_checkout_session_completed:
       contentType: application/json
       headers:
@@ -2854,6 +3789,125 @@ components:
           - data
         type: object
       title: evt.payments.checkout_session.expired
+    evt_payments_ops_action_recorded:
+      contentType: application/json
+      headers:
+        properties:
+          Nats-Msg-Id:
+            description: Event id (de-duplication window 120 s).
+            type: string
+        required:
+          - Nats-Msg-Id
+        type: object
+      name: evt.payments.ops_action.recorded
+      payload:
+        additionalProperties: {}
+        description: Envelope of `evt.payments.ops_action.recorded`.
+        properties:
+          account_id:
+            anyOf:
+              - description: UUID (RFC 9562).
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                type: string
+              - type: "null"
+            description: Merchant account UUID (null for platform events).
+          aggregate:
+            additionalProperties: {}
+            description: The aggregate that changed.
+            properties:
+              id:
+                description: Aggregate id (prefixed).
+                type: string
+              type:
+                description: Aggregate type.
+                type: string
+              version:
+                description: Aggregate version after the change.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+            required:
+              - type
+              - id
+              - version
+            type: object
+          data:
+            additionalProperties: {}
+            description: Payload.
+            properties:
+              object:
+                $ref: "#/components/schemas/OpsActionEvent"
+              previous:
+                additionalProperties: {}
+                description: Changed fields with previous values.
+                propertyNames:
+                  type: string
+                type: object
+            required:
+              - object
+            type: object
+          id:
+            description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+            format: uuid
+            pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            type: string
+          livemode:
+            description: Mode (null for platform events).
+            type:
+              - boolean
+              - "null"
+          occurred_at:
+            description: When the state change committed.
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            type: string
+          request:
+            additionalProperties: {}
+            description: Request context (copied into public events).
+            properties:
+              id:
+                anyOf:
+                  - description: Request id, also returned in the `X-Request-Id` header.
+                    examples:
+                      - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                    pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                    type: string
+                  - type: "null"
+                description: API request that caused the change.
+              idempotency_key:
+                description: Its Idempotency-Key.
+                type:
+                  - string
+                  - "null"
+            required:
+              - id
+              - idempotency_key
+            type: object
+          subject:
+            const: evt.payments.ops_action.recorded
+            description: Subject.
+            type: string
+          trace:
+            additionalProperties: {}
+            description: Trace context.
+            properties:
+              traceparent:
+                description: W3C traceparent.
+                type: string
+            required:
+              - traceparent
+            type: object
+        required:
+          - id
+          - occurred_at
+          - account_id
+          - livemode
+          - aggregate
+          - subject
+          - data
+        type: object
+      title: evt.payments.ops_action.recorded
     evt_payments_payment_intent_canceled:
       contentType: application/json
       headers:
@@ -3806,6 +4860,720 @@ components:
           - data
         type: object
       title: evt.payments.payment_intent.succeeded
+    evt_payments_refund_canceled:
+      contentType: application/json
+      headers:
+        properties:
+          Nats-Msg-Id:
+            description: Event id (de-duplication window 120 s).
+            type: string
+        required:
+          - Nats-Msg-Id
+        type: object
+      name: evt.payments.refund.canceled
+      payload:
+        additionalProperties: {}
+        description: Envelope of `evt.payments.refund.canceled`.
+        properties:
+          account_id:
+            anyOf:
+              - description: UUID (RFC 9562).
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                type: string
+              - type: "null"
+            description: Merchant account UUID (null for platform events).
+          aggregate:
+            additionalProperties: {}
+            description: The aggregate that changed.
+            properties:
+              id:
+                description: Aggregate id (prefixed).
+                type: string
+              type:
+                description: Aggregate type.
+                type: string
+              version:
+                description: Aggregate version after the change.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+            required:
+              - type
+              - id
+              - version
+            type: object
+          data:
+            additionalProperties: {}
+            description: Payload.
+            properties:
+              object:
+                $ref: "#/components/schemas/Refund"
+              previous:
+                additionalProperties: {}
+                description: Changed fields with previous values.
+                propertyNames:
+                  type: string
+                type: object
+            required:
+              - object
+            type: object
+          id:
+            description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+            format: uuid
+            pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            type: string
+          livemode:
+            description: Mode (null for platform events).
+            type:
+              - boolean
+              - "null"
+          occurred_at:
+            description: When the state change committed.
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            type: string
+          request:
+            additionalProperties: {}
+            description: Request context (copied into public events).
+            properties:
+              id:
+                anyOf:
+                  - description: Request id, also returned in the `X-Request-Id` header.
+                    examples:
+                      - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                    pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                    type: string
+                  - type: "null"
+                description: API request that caused the change.
+              idempotency_key:
+                description: Its Idempotency-Key.
+                type:
+                  - string
+                  - "null"
+            required:
+              - id
+              - idempotency_key
+            type: object
+          subject:
+            const: evt.payments.refund.canceled
+            description: Subject.
+            type: string
+          trace:
+            additionalProperties: {}
+            description: Trace context.
+            properties:
+              traceparent:
+                description: W3C traceparent.
+                type: string
+            required:
+              - traceparent
+            type: object
+        required:
+          - id
+          - occurred_at
+          - account_id
+          - livemode
+          - aggregate
+          - subject
+          - data
+        type: object
+      title: evt.payments.refund.canceled
+    evt_payments_refund_created:
+      contentType: application/json
+      headers:
+        properties:
+          Nats-Msg-Id:
+            description: Event id (de-duplication window 120 s).
+            type: string
+        required:
+          - Nats-Msg-Id
+        type: object
+      name: evt.payments.refund.created
+      payload:
+        additionalProperties: {}
+        description: Envelope of `evt.payments.refund.created`.
+        properties:
+          account_id:
+            anyOf:
+              - description: UUID (RFC 9562).
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                type: string
+              - type: "null"
+            description: Merchant account UUID (null for platform events).
+          aggregate:
+            additionalProperties: {}
+            description: The aggregate that changed.
+            properties:
+              id:
+                description: Aggregate id (prefixed).
+                type: string
+              type:
+                description: Aggregate type.
+                type: string
+              version:
+                description: Aggregate version after the change.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+            required:
+              - type
+              - id
+              - version
+            type: object
+          data:
+            additionalProperties: {}
+            description: Payload.
+            properties:
+              object:
+                $ref: "#/components/schemas/Refund"
+              previous:
+                additionalProperties: {}
+                description: Changed fields with previous values.
+                propertyNames:
+                  type: string
+                type: object
+            required:
+              - object
+            type: object
+          id:
+            description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+            format: uuid
+            pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            type: string
+          livemode:
+            description: Mode (null for platform events).
+            type:
+              - boolean
+              - "null"
+          occurred_at:
+            description: When the state change committed.
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            type: string
+          request:
+            additionalProperties: {}
+            description: Request context (copied into public events).
+            properties:
+              id:
+                anyOf:
+                  - description: Request id, also returned in the `X-Request-Id` header.
+                    examples:
+                      - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                    pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                    type: string
+                  - type: "null"
+                description: API request that caused the change.
+              idempotency_key:
+                description: Its Idempotency-Key.
+                type:
+                  - string
+                  - "null"
+            required:
+              - id
+              - idempotency_key
+            type: object
+          subject:
+            const: evt.payments.refund.created
+            description: Subject.
+            type: string
+          trace:
+            additionalProperties: {}
+            description: Trace context.
+            properties:
+              traceparent:
+                description: W3C traceparent.
+                type: string
+            required:
+              - traceparent
+            type: object
+        required:
+          - id
+          - occurred_at
+          - account_id
+          - livemode
+          - aggregate
+          - subject
+          - data
+        type: object
+      title: evt.payments.refund.created
+    evt_payments_refund_failed:
+      contentType: application/json
+      headers:
+        properties:
+          Nats-Msg-Id:
+            description: Event id (de-duplication window 120 s).
+            type: string
+        required:
+          - Nats-Msg-Id
+        type: object
+      name: evt.payments.refund.failed
+      payload:
+        additionalProperties: {}
+        description: Envelope of `evt.payments.refund.failed`.
+        properties:
+          account_id:
+            anyOf:
+              - description: UUID (RFC 9562).
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                type: string
+              - type: "null"
+            description: Merchant account UUID (null for platform events).
+          aggregate:
+            additionalProperties: {}
+            description: The aggregate that changed.
+            properties:
+              id:
+                description: Aggregate id (prefixed).
+                type: string
+              type:
+                description: Aggregate type.
+                type: string
+              version:
+                description: Aggregate version after the change.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+            required:
+              - type
+              - id
+              - version
+            type: object
+          data:
+            additionalProperties: {}
+            description: Payload.
+            properties:
+              object:
+                $ref: "#/components/schemas/Refund"
+              previous:
+                additionalProperties: {}
+                description: Changed fields with previous values.
+                propertyNames:
+                  type: string
+                type: object
+            required:
+              - object
+            type: object
+          id:
+            description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+            format: uuid
+            pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            type: string
+          livemode:
+            description: Mode (null for platform events).
+            type:
+              - boolean
+              - "null"
+          occurred_at:
+            description: When the state change committed.
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            type: string
+          request:
+            additionalProperties: {}
+            description: Request context (copied into public events).
+            properties:
+              id:
+                anyOf:
+                  - description: Request id, also returned in the `X-Request-Id` header.
+                    examples:
+                      - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                    pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                    type: string
+                  - type: "null"
+                description: API request that caused the change.
+              idempotency_key:
+                description: Its Idempotency-Key.
+                type:
+                  - string
+                  - "null"
+            required:
+              - id
+              - idempotency_key
+            type: object
+          subject:
+            const: evt.payments.refund.failed
+            description: Subject.
+            type: string
+          trace:
+            additionalProperties: {}
+            description: Trace context.
+            properties:
+              traceparent:
+                description: W3C traceparent.
+                type: string
+            required:
+              - traceparent
+            type: object
+        required:
+          - id
+          - occurred_at
+          - account_id
+          - livemode
+          - aggregate
+          - subject
+          - data
+        type: object
+      title: evt.payments.refund.failed
+    evt_payments_refund_pending:
+      contentType: application/json
+      headers:
+        properties:
+          Nats-Msg-Id:
+            description: Event id (de-duplication window 120 s).
+            type: string
+        required:
+          - Nats-Msg-Id
+        type: object
+      name: evt.payments.refund.pending
+      payload:
+        additionalProperties: {}
+        description: Envelope of `evt.payments.refund.pending`.
+        properties:
+          account_id:
+            anyOf:
+              - description: UUID (RFC 9562).
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                type: string
+              - type: "null"
+            description: Merchant account UUID (null for platform events).
+          aggregate:
+            additionalProperties: {}
+            description: The aggregate that changed.
+            properties:
+              id:
+                description: Aggregate id (prefixed).
+                type: string
+              type:
+                description: Aggregate type.
+                type: string
+              version:
+                description: Aggregate version after the change.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+            required:
+              - type
+              - id
+              - version
+            type: object
+          data:
+            additionalProperties: {}
+            description: Payload.
+            properties:
+              object:
+                $ref: "#/components/schemas/Refund"
+              previous:
+                additionalProperties: {}
+                description: Changed fields with previous values.
+                propertyNames:
+                  type: string
+                type: object
+            required:
+              - object
+            type: object
+          id:
+            description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+            format: uuid
+            pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            type: string
+          livemode:
+            description: Mode (null for platform events).
+            type:
+              - boolean
+              - "null"
+          occurred_at:
+            description: When the state change committed.
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            type: string
+          request:
+            additionalProperties: {}
+            description: Request context (copied into public events).
+            properties:
+              id:
+                anyOf:
+                  - description: Request id, also returned in the `X-Request-Id` header.
+                    examples:
+                      - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                    pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                    type: string
+                  - type: "null"
+                description: API request that caused the change.
+              idempotency_key:
+                description: Its Idempotency-Key.
+                type:
+                  - string
+                  - "null"
+            required:
+              - id
+              - idempotency_key
+            type: object
+          subject:
+            const: evt.payments.refund.pending
+            description: Subject.
+            type: string
+          trace:
+            additionalProperties: {}
+            description: Trace context.
+            properties:
+              traceparent:
+                description: W3C traceparent.
+                type: string
+            required:
+              - traceparent
+            type: object
+        required:
+          - id
+          - occurred_at
+          - account_id
+          - livemode
+          - aggregate
+          - subject
+          - data
+        type: object
+      title: evt.payments.refund.pending
+    evt_payments_refund_requires_action:
+      contentType: application/json
+      headers:
+        properties:
+          Nats-Msg-Id:
+            description: Event id (de-duplication window 120 s).
+            type: string
+        required:
+          - Nats-Msg-Id
+        type: object
+      name: evt.payments.refund.requires_action
+      payload:
+        additionalProperties: {}
+        description: Envelope of `evt.payments.refund.requires_action`.
+        properties:
+          account_id:
+            anyOf:
+              - description: UUID (RFC 9562).
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                type: string
+              - type: "null"
+            description: Merchant account UUID (null for platform events).
+          aggregate:
+            additionalProperties: {}
+            description: The aggregate that changed.
+            properties:
+              id:
+                description: Aggregate id (prefixed).
+                type: string
+              type:
+                description: Aggregate type.
+                type: string
+              version:
+                description: Aggregate version after the change.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+            required:
+              - type
+              - id
+              - version
+            type: object
+          data:
+            additionalProperties: {}
+            description: Payload.
+            properties:
+              object:
+                $ref: "#/components/schemas/Refund"
+              previous:
+                additionalProperties: {}
+                description: Changed fields with previous values.
+                propertyNames:
+                  type: string
+                type: object
+            required:
+              - object
+            type: object
+          id:
+            description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+            format: uuid
+            pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            type: string
+          livemode:
+            description: Mode (null for platform events).
+            type:
+              - boolean
+              - "null"
+          occurred_at:
+            description: When the state change committed.
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            type: string
+          request:
+            additionalProperties: {}
+            description: Request context (copied into public events).
+            properties:
+              id:
+                anyOf:
+                  - description: Request id, also returned in the `X-Request-Id` header.
+                    examples:
+                      - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                    pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                    type: string
+                  - type: "null"
+                description: API request that caused the change.
+              idempotency_key:
+                description: Its Idempotency-Key.
+                type:
+                  - string
+                  - "null"
+            required:
+              - id
+              - idempotency_key
+            type: object
+          subject:
+            const: evt.payments.refund.requires_action
+            description: Subject.
+            type: string
+          trace:
+            additionalProperties: {}
+            description: Trace context.
+            properties:
+              traceparent:
+                description: W3C traceparent.
+                type: string
+            required:
+              - traceparent
+            type: object
+        required:
+          - id
+          - occurred_at
+          - account_id
+          - livemode
+          - aggregate
+          - subject
+          - data
+        type: object
+      title: evt.payments.refund.requires_action
+    evt_payments_refund_succeeded:
+      contentType: application/json
+      headers:
+        properties:
+          Nats-Msg-Id:
+            description: Event id (de-duplication window 120 s).
+            type: string
+        required:
+          - Nats-Msg-Id
+        type: object
+      name: evt.payments.refund.succeeded
+      payload:
+        additionalProperties: {}
+        description: Envelope of `evt.payments.refund.succeeded`.
+        properties:
+          account_id:
+            anyOf:
+              - description: UUID (RFC 9562).
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                type: string
+              - type: "null"
+            description: Merchant account UUID (null for platform events).
+          aggregate:
+            additionalProperties: {}
+            description: The aggregate that changed.
+            properties:
+              id:
+                description: Aggregate id (prefixed).
+                type: string
+              type:
+                description: Aggregate type.
+                type: string
+              version:
+                description: Aggregate version after the change.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+            required:
+              - type
+              - id
+              - version
+            type: object
+          data:
+            additionalProperties: {}
+            description: Payload.
+            properties:
+              object:
+                $ref: "#/components/schemas/Refund"
+              previous:
+                additionalProperties: {}
+                description: Changed fields with previous values.
+                propertyNames:
+                  type: string
+                type: object
+            required:
+              - object
+            type: object
+          id:
+            description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+            format: uuid
+            pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            type: string
+          livemode:
+            description: Mode (null for platform events).
+            type:
+              - boolean
+              - "null"
+          occurred_at:
+            description: When the state change committed.
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            type: string
+          request:
+            additionalProperties: {}
+            description: Request context (copied into public events).
+            properties:
+              id:
+                anyOf:
+                  - description: Request id, also returned in the `X-Request-Id` header.
+                    examples:
+                      - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                    pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                    type: string
+                  - type: "null"
+                description: API request that caused the change.
+              idempotency_key:
+                description: Its Idempotency-Key.
+                type:
+                  - string
+                  - "null"
+            required:
+              - id
+              - idempotency_key
+            type: object
+          subject:
+            const: evt.payments.refund.succeeded
+            description: Subject.
+            type: string
+          trace:
+            additionalProperties: {}
+            description: Trace context.
+            properties:
+              traceparent:
+                description: W3C traceparent.
+                type: string
+            required:
+              - traceparent
+            type: object
+        required:
+          - id
+          - occurred_at
+          - account_id
+          - livemode
+          - aggregate
+          - subject
+          - data
+        type: object
+      title: evt.payments.refund.succeeded
     evt_rails_execution_failed:
       contentType: application/json
       headers:
@@ -4401,6 +6169,125 @@ components:
           - data
         type: object
       title: evt.rails.execution.updated
+    evt_rails_ops_action_recorded:
+      contentType: application/json
+      headers:
+        properties:
+          Nats-Msg-Id:
+            description: Event id (de-duplication window 120 s).
+            type: string
+        required:
+          - Nats-Msg-Id
+        type: object
+      name: evt.rails.ops_action.recorded
+      payload:
+        additionalProperties: {}
+        description: Envelope of `evt.rails.ops_action.recorded`.
+        properties:
+          account_id:
+            anyOf:
+              - description: UUID (RFC 9562).
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                type: string
+              - type: "null"
+            description: Merchant account UUID (null for platform events).
+          aggregate:
+            additionalProperties: {}
+            description: The aggregate that changed.
+            properties:
+              id:
+                description: Aggregate id (prefixed).
+                type: string
+              type:
+                description: Aggregate type.
+                type: string
+              version:
+                description: Aggregate version after the change.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+            required:
+              - type
+              - id
+              - version
+            type: object
+          data:
+            additionalProperties: {}
+            description: Payload.
+            properties:
+              object:
+                $ref: "#/components/schemas/OpsActionEvent"
+              previous:
+                additionalProperties: {}
+                description: Changed fields with previous values.
+                propertyNames:
+                  type: string
+                type: object
+            required:
+              - object
+            type: object
+          id:
+            description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+            format: uuid
+            pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            type: string
+          livemode:
+            description: Mode (null for platform events).
+            type:
+              - boolean
+              - "null"
+          occurred_at:
+            description: When the state change committed.
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            type: string
+          request:
+            additionalProperties: {}
+            description: Request context (copied into public events).
+            properties:
+              id:
+                anyOf:
+                  - description: Request id, also returned in the `X-Request-Id` header.
+                    examples:
+                      - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                    pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                    type: string
+                  - type: "null"
+                description: API request that caused the change.
+              idempotency_key:
+                description: Its Idempotency-Key.
+                type:
+                  - string
+                  - "null"
+            required:
+              - id
+              - idempotency_key
+            type: object
+          subject:
+            const: evt.rails.ops_action.recorded
+            description: Subject.
+            type: string
+          trace:
+            additionalProperties: {}
+            description: Trace context.
+            properties:
+              traceparent:
+                description: W3C traceparent.
+                type: string
+            required:
+              - traceparent
+            type: object
+        required:
+          - id
+          - occurred_at
+          - account_id
+          - livemode
+          - aggregate
+          - subject
+          - data
+        type: object
+      title: evt.rails.ops_action.recorded
     evt_sentinel_audit_finding_created:
       contentType: application/json
       headers:
@@ -4639,6 +6526,125 @@ components:
           - data
         type: object
       title: evt.sentinel.kill_switch.engaged
+    evt_sentinel_kill_switch_release_requested:
+      contentType: application/json
+      headers:
+        properties:
+          Nats-Msg-Id:
+            description: Event id (de-duplication window 120 s).
+            type: string
+        required:
+          - Nats-Msg-Id
+        type: object
+      name: evt.sentinel.kill_switch.release_requested
+      payload:
+        additionalProperties: {}
+        description: Envelope of `evt.sentinel.kill_switch.release_requested`.
+        properties:
+          account_id:
+            anyOf:
+              - description: UUID (RFC 9562).
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                type: string
+              - type: "null"
+            description: Merchant account UUID (null for platform events).
+          aggregate:
+            additionalProperties: {}
+            description: The aggregate that changed.
+            properties:
+              id:
+                description: Aggregate id (prefixed).
+                type: string
+              type:
+                description: Aggregate type.
+                type: string
+              version:
+                description: Aggregate version after the change.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+            required:
+              - type
+              - id
+              - version
+            type: object
+          data:
+            additionalProperties: {}
+            description: Payload.
+            properties:
+              object:
+                $ref: "#/components/schemas/OpsApproval"
+              previous:
+                additionalProperties: {}
+                description: Changed fields with previous values.
+                propertyNames:
+                  type: string
+                type: object
+            required:
+              - object
+            type: object
+          id:
+            description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+            format: uuid
+            pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            type: string
+          livemode:
+            description: Mode (null for platform events).
+            type:
+              - boolean
+              - "null"
+          occurred_at:
+            description: When the state change committed.
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            type: string
+          request:
+            additionalProperties: {}
+            description: Request context (copied into public events).
+            properties:
+              id:
+                anyOf:
+                  - description: Request id, also returned in the `X-Request-Id` header.
+                    examples:
+                      - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                    pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                    type: string
+                  - type: "null"
+                description: API request that caused the change.
+              idempotency_key:
+                description: Its Idempotency-Key.
+                type:
+                  - string
+                  - "null"
+            required:
+              - id
+              - idempotency_key
+            type: object
+          subject:
+            const: evt.sentinel.kill_switch.release_requested
+            description: Subject.
+            type: string
+          trace:
+            additionalProperties: {}
+            description: Trace context.
+            properties:
+              traceparent:
+                description: W3C traceparent.
+                type: string
+            required:
+              - traceparent
+            type: object
+        required:
+          - id
+          - occurred_at
+          - account_id
+          - livemode
+          - aggregate
+          - subject
+          - data
+        type: object
+      title: evt.sentinel.kill_switch.release_requested
     evt_sentinel_kill_switch_released:
       contentType: application/json
       headers:
@@ -4758,6 +6764,125 @@ components:
           - data
         type: object
       title: evt.sentinel.kill_switch.released
+    evt_sentinel_ops_action_recorded:
+      contentType: application/json
+      headers:
+        properties:
+          Nats-Msg-Id:
+            description: Event id (de-duplication window 120 s).
+            type: string
+        required:
+          - Nats-Msg-Id
+        type: object
+      name: evt.sentinel.ops_action.recorded
+      payload:
+        additionalProperties: {}
+        description: Envelope of `evt.sentinel.ops_action.recorded`.
+        properties:
+          account_id:
+            anyOf:
+              - description: UUID (RFC 9562).
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                type: string
+              - type: "null"
+            description: Merchant account UUID (null for platform events).
+          aggregate:
+            additionalProperties: {}
+            description: The aggregate that changed.
+            properties:
+              id:
+                description: Aggregate id (prefixed).
+                type: string
+              type:
+                description: Aggregate type.
+                type: string
+              version:
+                description: Aggregate version after the change.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+            required:
+              - type
+              - id
+              - version
+            type: object
+          data:
+            additionalProperties: {}
+            description: Payload.
+            properties:
+              object:
+                $ref: "#/components/schemas/OpsActionEvent"
+              previous:
+                additionalProperties: {}
+                description: Changed fields with previous values.
+                propertyNames:
+                  type: string
+                type: object
+            required:
+              - object
+            type: object
+          id:
+            description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+            format: uuid
+            pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            type: string
+          livemode:
+            description: Mode (null for platform events).
+            type:
+              - boolean
+              - "null"
+          occurred_at:
+            description: When the state change committed.
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            type: string
+          request:
+            additionalProperties: {}
+            description: Request context (copied into public events).
+            properties:
+              id:
+                anyOf:
+                  - description: Request id, also returned in the `X-Request-Id` header.
+                    examples:
+                      - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                    pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                    type: string
+                  - type: "null"
+                description: API request that caused the change.
+              idempotency_key:
+                description: Its Idempotency-Key.
+                type:
+                  - string
+                  - "null"
+            required:
+              - id
+              - idempotency_key
+            type: object
+          subject:
+            const: evt.sentinel.ops_action.recorded
+            description: Subject.
+            type: string
+          trace:
+            additionalProperties: {}
+            description: Trace context.
+            properties:
+              traceparent:
+                description: W3C traceparent.
+                type: string
+            required:
+              - traceparent
+            type: object
+        required:
+          - id
+          - occurred_at
+          - account_id
+          - livemode
+          - aggregate
+          - subject
+          - data
+        type: object
+      title: evt.sentinel.ops_action.recorded
     evt_webhooks_endpoint_disabled:
       contentType: application/json
       headers:
@@ -4942,7 +7067,7 @@ components:
             - suspended
             - closed
         verified_legal_name:
-          description: Legal name verified by KYB, shown on checkout once set.
+          description: Legal name approved by NearPay's KYB review (self-declared business details reviewed by ops), shown on checkout once set.
           type:
             - string
             - "null"
@@ -5395,6 +7520,15 @@ components:
             - const: asset
               type: string
           description: ISO 4217 code for fiat pricing, or `asset` when priced in an asset (then `asset_id` is set).
+        customer:
+          anyOf:
+            - description: customer id (`cus_` + 26 base32 chars).
+              examples:
+                - cus_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^cus_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Customer attached to the session (Stage 2).
         description:
           description: Description shown to the payer.
           type:
@@ -5448,6 +7582,15 @@ components:
               type: string
             - $ref: "#/components/schemas/PaymentIntent"
           description: Payment intent id, or the object with `expand[]=payment_intent`.
+        payment_link:
+          anyOf:
+            - description: payment_link id (`plink_` + 26 base32 chars).
+              examples:
+                - plink_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^plink_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Payment link that opened the session (Stage 2).
         sequence:
           description: Increases with every change; discard webhook objects with a lower sequence. Servers MUST send it (optional in the 0.1.x schema only so readers built on 0.1.4 stay compatible).
           maximum: 9007199254740991
@@ -5552,6 +7695,12 @@ components:
             - eip155:8453
           pattern: ^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$
           type: string
+        fingerprint:
+          anyOf:
+            - pattern: ^[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{2}$
+              type: string
+            - type: "null"
+          description: Fingerprint of the destination as shown at checkout (CR-15-04, spec 0.2.0); optional so older servers stay valid.
         settlement_destination:
           description: settlement_destination id (`sd_` + 26 base32 chars).
           examples:
@@ -5824,6 +7973,16 @@ components:
           type:
             - string
             - "null"
+        reference:
+          anyOf:
+            - $ref: "#/components/schemas/ExecutionReference"
+            - type: "null"
+          description: Payments object served (from the create request); null for executions created before Stage 2.
+        refund:
+          anyOf:
+            - $ref: "#/components/schemas/ExecutionRefund"
+            - type: "null"
+          description: "Refund legs: `origin` is the merchant side (asset, chain, `refund_to` = the merchant destination) and `settlement` the payer side (`recipient` = the payer's refund address, `tag` 0)."
         refund_reason:
           description: Provider refund reason.
           type:
@@ -6003,6 +8162,96 @@ components:
         - chain
         - deadline
       type: object
+    ExecutionReference:
+      additionalProperties: {}
+      description: The payments object an execution belongs to.
+      properties:
+        payment_attempt:
+          anyOf:
+            - description: payment_attempt id (`pa_` + 26 base32 chars).
+              examples:
+                - pa_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^pa_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: "Payment attempt (`kind: payment`)."
+        payment_intent:
+          description: payment_intent id (`pi_` + 26 base32 chars).
+          examples:
+            - pi_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^pi_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        refund:
+          anyOf:
+            - description: refund id (`re_` + 26 base32 chars).
+              examples:
+                - re_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^re_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: "Refund (`kind: refund`)."
+        refund_leg:
+          anyOf:
+            - maximum: 9007199254740991
+              minimum: 1
+              type: integer
+            - type: "null"
+          description: "Refund leg number (`kind: refund`)."
+      required:
+        - payment_intent
+        - payment_attempt
+        - refund
+        - refund_leg
+      type: object
+    ExecutionRefund:
+      additionalProperties: {}
+      description: "Refund-leg details of an execution (`kind: refund`)."
+      properties:
+        amount:
+          description: What the merchant sends, base units of the source (settlement) asset.
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        amount_out_expected:
+          anyOf:
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+            - type: "null"
+          description: What the payer should receive, base units of the recipient asset (quote `amountOut`).
+        min_amount_out:
+          anyOf:
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+            - type: "null"
+          description: Quote `minAmountOut` (route legs).
+        swap_type:
+          anyOf:
+            - description: Route quote type.
+              enum:
+                - EXACT_INPUT
+                - EXACT_OUTPUT
+              type: string
+            - type: "null"
+          description: Route legs only; null for `intents_transfer`.
+        token:
+          anyOf:
+            - $ref: "#/components/schemas/TokenContract"
+            - type: "null"
+          description: How to transfer the source asset on its chain (`sign_and_send` legs); null for Intents sources.
+        transfer:
+          anyOf:
+            - $ref: "#/components/schemas/RefundTransfer"
+            - type: "null"
+          description: "Set when the source is an Intents account: the transfer to sign (to the payer, or to the 1Click deposit address)."
+      required:
+        - swap_type
+        - amount
+        - amount_out_expected
+        - min_amount_out
+        - token
+        - transfer
+      type: object
     FeeSummary:
       additionalProperties: {}
       description: Fee snapshot of a payment (INV-6).
@@ -6021,6 +8270,50 @@ components:
       required:
         - bearer
         - total_bps
+      type: object
+    IntentMessage:
+      additionalProperties: {}
+      description: Verifier message (`DefusePayload`).
+      properties:
+        deadline:
+          description: Latest time the Verifier accepts the payload.
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+          type: string
+        intents:
+          description: Intents executed atomically.
+          items:
+            anyOf:
+              - $ref: "#/components/schemas/TransferIntent"
+              - additionalProperties: {}
+                properties:
+                  intent:
+                    description: Intent kind.
+                    type: string
+                required:
+                  - intent
+                type: object
+            description: A Verifier intent.
+          minItems: 1
+          type: array
+        nonce:
+          description: 32-byte nonce (4-byte Verifier salt ‖ 28 random bytes), standard base64.
+          pattern: ^[A-Za-z0-9+/]{43}=$
+          type: string
+        signer_id:
+          description: Intents account that signs (the payer).
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        verifying_contract:
+          const: intents.near
+          description: Verifier contract id.
+          type: string
+      required:
+        - signer_id
+        - verifying_contract
+        - deadline
+        - nonce
+        - intents
       type: object
     IntentsRequirement:
       additionalProperties: {}
@@ -6095,6 +8388,40 @@ components:
           maxLength: 256
           minLength: 1
           type: string
+        approval:
+          anyOf:
+            - additionalProperties: {}
+              properties:
+                approved_by:
+                  description: Users who approved, in order (the creator counts when 1 is required).
+                  items:
+                    description: user id (`usr_` + 26 base32 chars).
+                    examples:
+                      - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+                    pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                    type: string
+                  type: array
+                rejected_by:
+                  anyOf:
+                    - description: user id (`usr_` + 26 base32 chars).
+                      examples:
+                        - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+                      pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                      type: string
+                    - type: "null"
+                  description: User who rejected the destination, if any (it is then disabled).
+                required:
+                  description: "Approvals needed: 2 when the account has ≥ 2 owner/admin members, else 1."
+                  maximum: 2
+                  minimum: 1
+                  type: integer
+              required:
+                - required
+                - approved_by
+                - rejected_by
+              type: object
+            - type: "null"
+          description: Approval state; null for test-mode destinations. Absent from Stage 1 servers.
         asset_id:
           description: Asset the merchant receives.
           examples:
@@ -6246,7 +8573,12 @@ components:
           pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
           type: string
         reason:
-          description: Decision reason.
+          description: "Decision reason (internal: never shown to merchants)."
+          type:
+            - string
+            - "null"
+        requested_info:
+          description: What ops asked the merchant for (`needs_info`; shown in the `kyb.decision` mail). Absent before Stage 2.
           type:
             - string
             - "null"
@@ -6263,6 +8595,302 @@ components:
         - account_id
         - status
         - reason
+      type: object
+    KybSubmittedEvent:
+      additionalProperties: {}
+      description: The owner submitted self-declared business details for review.
+      properties:
+        account_id:
+          description: account id (`acct_` + 26 base32 chars).
+          examples:
+            - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        status:
+          description: KYB case status.
+          type: string
+          x-extensible-enum:
+            - not_started
+            - pending
+            - needs_info
+            - approved
+            - rejected
+        submitted_at:
+          description: Submission time.
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+          type: string
+      required:
+        - account_id
+        - status
+        - submitted_at
+      type: object
+    MemberEvent:
+      additionalProperties: {}
+      description: A team change (ids only; notify resolves emails through identity).
+      properties:
+        account_id:
+          description: account id (`acct_` + 26 base32 chars).
+          examples:
+            - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        actor_user_id:
+          anyOf:
+            - description: user id (`usr_` + 26 base32 chars).
+              examples:
+                - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Owner/admin who made the change; null when the user accepted an invitation.
+        previous_role:
+          anyOf:
+            - description: Role of a user in a merchant account.
+              enum:
+                - owner
+                - admin
+                - developer
+                - finance
+                - support
+                - viewer
+              type: string
+            - type: "null"
+          description: Role before a change (`role_changed`); null otherwise.
+        role:
+          description: Role of a user in a merchant account.
+          enum:
+            - owner
+            - admin
+            - developer
+            - finance
+            - support
+            - viewer
+          type: string
+        user_id:
+          description: user id (`usr_` + 26 base32 chars).
+          examples:
+            - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+      required:
+        - account_id
+        - user_id
+        - role
+        - previous_role
+        - actor_user_id
+      type: object
+    OpsActionEvent:
+      additionalProperties: {}
+      description: "A console operator action recorded by the owning service; identity copies it into `audit_events` so the console audit log is one trail. Ids only: no emails, notes or addresses."
+      properties:
+        account_id:
+          anyOf:
+            - description: account id (`acct_` + 26 base32 chars).
+              examples:
+                - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Merchant account concerned, if any (the `audit_events.account`).
+        action:
+          description: Action, `<object>.<verb>`, e.g. `case.closed`, `blocklist_entry.added`, `kill_switch.engaged`, `kill_switch.release_approved`, `finding.acknowledged`.
+          maxLength: 100
+          minLength: 1
+          type: string
+        actor:
+          additionalProperties: {}
+          description: Operator who acted (ids only; identity resolves the email for display).
+          properties:
+            ops_role:
+              description: Role of a console operator.
+              enum:
+                - ops
+                - ops_admin
+              type: string
+            sub:
+              description: Operator user id (`sub` of the ops principal).
+              examples:
+                - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+          required:
+            - sub
+            - ops_role
+          type: object
+        approval:
+          anyOf:
+            - description: ops_approval id (`opa_` + 26 base32 chars).
+              examples:
+                - opa_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^opa_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Two-person approval the action completed, if any.
+        id:
+          description: Action id (UUIDv7); identity dedupes `audit_events` on it. Also the envelope `aggregate.id`.
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+          type: string
+        occurred_at:
+          description: When the action committed.
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+          type: string
+        target:
+          additionalProperties: {}
+          description: Object acted on.
+          properties:
+            id:
+              description: Object id (prefixed id, or a fixed name such as `global`).
+              maxLength: 128
+              minLength: 1
+              type: string
+            type:
+              description: Object type, e.g. `compliance_case`, `blocklist_entry`, `kill_switch`.
+              maxLength: 64
+              minLength: 1
+              type: string
+          required:
+            - type
+            - id
+          type: object
+      required:
+        - id
+        - actor
+        - action
+        - target
+        - account_id
+        - approval
+        - occurred_at
+      type: object
+    OpsApproval:
+      additionalProperties: {}
+      description: A console action waiting for (or decided by) a second operator.
+      properties:
+        action:
+          description: Action that needs a second approver.
+          type: string
+          x-extensible-enum:
+            - account.suspend
+            - account.reinstate
+            - kill_switch.release
+        decided_at:
+          anyOf:
+            - description: Unix time in seconds.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: When it was decided.
+        decided_by:
+          anyOf:
+            - additionalProperties: {}
+              properties:
+                id:
+                  description: user id (`usr_` + 26 base32 chars).
+                  examples:
+                    - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+                  pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                  type: string
+                role:
+                  description: Role of a console operator.
+                  enum:
+                    - ops
+                    - ops_admin
+                  type: string
+              required:
+                - id
+                - role
+              type: object
+            - type: "null"
+          description: Approving or rejecting operator.
+        decision_note:
+          description: Note of the deciding operator.
+          type:
+            - string
+            - "null"
+        expires_at:
+          description: A pending request expires at this time.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        id:
+          description: ops_approval id (`opa_` + 26 base32 chars).
+          examples:
+            - opa_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^opa_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        object:
+          const: ops_approval
+          description: Always `ops_approval`.
+          type: string
+        reason:
+          description: Requester's reason (audited; never shown to merchants).
+          type: string
+        requested_at:
+          description: When it was requested.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        requested_by:
+          additionalProperties: {}
+          description: Requesting operator.
+          properties:
+            id:
+              description: user id (`usr_` + 26 base32 chars).
+              examples:
+                - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            role:
+              description: Role of a console operator.
+              enum:
+                - ops
+                - ops_admin
+              type: string
+          required:
+            - id
+            - role
+          type: object
+        status:
+          description: "`approved` means the action was executed in the same transaction."
+          type: string
+          x-extensible-enum:
+            - pending
+            - approved
+            - rejected
+            - expired
+        target:
+          additionalProperties: {}
+          description: What the action applies to.
+          properties:
+            id:
+              description: "`acct_…` or `ks_…`."
+              type: string
+            type:
+              description: Target type.
+              type: string
+              x-extensible-enum:
+                - account
+                - kill_switch
+          required:
+            - type
+            - id
+          type: object
+      required:
+        - id
+        - object
+        - action
+        - target
+        - reason
+        - status
+        - requested_by
+        - requested_at
+        - decided_by
+        - decided_at
+        - decision_note
+        - expires_at
       type: object
     PaymentAttemptSummary:
       additionalProperties: {}
@@ -6381,6 +9009,10 @@ components:
               pattern: ^(0|[1-9][0-9]{0,77})$
               type: string
           description: "Fiat: integer minor units. Asset: base units as a decimal string."
+        amount_refund_pending:
+          description: Amount of refunds in `requires_action` or `pending`, base units of the settlement asset (Stage 2).
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
         amount_refunded:
           description: Refunded amount, base units of the settlement asset.
           pattern: ^(0|[1-9][0-9]{0,77})$
@@ -6439,6 +9071,15 @@ components:
             - const: asset
               type: string
           description: ISO 4217 code for fiat pricing, or `asset` when priced in an asset (then `asset_id` is set).
+        customer:
+          anyOf:
+            - description: customer id (`cus_` + 26 base32 chars).
+              examples:
+                - cus_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^cus_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Customer the intent belongs to (Stage 2).
         description:
           description: Description shown to the payer.
           type:
@@ -6503,6 +9144,55 @@ components:
               - reason
             type: object
           type: array
+        payment_link:
+          anyOf:
+            - description: payment_link id (`plink_` + 26 base32 chars).
+              examples:
+                - plink_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^plink_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: "Payment link that created the intent (`source: payment_link`)."
+        refunds:
+          description: Refunds of this intent, newest first (Stage 2).
+          items:
+            description: refund id (`re_` + 26 base32 chars).
+            examples:
+              - re_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^re_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+          type: array
+        review_decision:
+          anyOf:
+            - additionalProperties: {}
+              properties:
+                decided_at:
+                  description: When the decision was recorded.
+                  maximum: 9007199254740991
+                  minimum: 0
+                  type: integer
+                decision:
+                  description: Merchant decision.
+                  enum:
+                    - accept
+                    - reject
+                  type: string
+                refund:
+                  anyOf:
+                    - description: refund id (`re_` + 26 base32 chars).
+                      examples:
+                        - re_01jbz9k3m4n5p6q7r8s9t0v1w2
+                      pattern: ^re_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                      type: string
+                    - type: "null"
+                  description: Refund created by a `reject` of a settled amount (draft, merchant signs).
+              required:
+                - decision
+                - decided_at
+                - refund
+              type: object
+            - type: "null"
+          description: Merchant decision on a `requires_review` intent (Stage 2).
         review_reason:
           anyOf:
             - description: Why the intent needs review.
@@ -6600,6 +9290,86 @@ components:
         - blocked_countries
         - blocked_regions
       type: object
+    PriceRate:
+      additionalProperties: {}
+      description: "A price or FX rate with its source and timestamps (INV-5: exact rational)."
+      properties:
+        as_of:
+          description: "When the source says the value applies (ECB: publication time of the reference day; feeds: their update time)."
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+          type: string
+        base:
+          anyOf:
+            - description: ISO 4217 currency code, lower-case (e.g. `usd`).
+              pattern: ^[a-z]{3}$
+              type: string
+            - description: NEAR Intents asset id, e.g. `nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1`.
+              examples:
+                - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+              maxLength: 256
+              pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+              type: string
+          description: "What is priced: a currency code or an asset id."
+        decimal:
+          description: The rate as a decimal string rounded half-even to ≤ 18 places; display only, never for arithmetic.
+          pattern: ^(0|[1-9][0-9]{0,59})(\.[0-9]{1,18})?$
+          type: string
+        fetched_at:
+          description: When rails read it.
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+          type: string
+        kind:
+          description: "`fx`: fiat exchange rate; `price`: token price."
+          type: string
+          x-extensible-enum:
+            - fx
+            - price
+        quote:
+          description: Currency the value is expressed in (`usd`).
+          pattern: ^[a-z]{3}$
+          type: string
+        role:
+          description: "`primary`/`secondary`: the two token prices the dual-source check compares (rails §8.2); `reference`: a fiat FX reference rate."
+          type: string
+          x-extensible-enum:
+            - primary
+            - secondary
+            - reference
+        source:
+          description: "Where a rate comes from: `oneclick` (1Click `/v0/tokens`, primary token price), `coingecko` (keyless public feed, secondary token price), `ecb` (ECB euro reference rates, fiat FX), `sandbox` (test-mode token prices), `fixed` (test-mode FX table, and `usd`→`usd`)."
+          type: string
+          x-extensible-enum:
+            - oneclick
+            - coingecko
+            - ecb
+            - sandbox
+            - fixed
+        valid_until:
+          anyOf:
+            - description: RFC 3339 UTC timestamp, e.g. `2026-11-05T10:00:00.000Z`.
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+              type: string
+            - type: "null"
+          description: After this instant rails no longer uses the rate (staleness bound, rails §8.2); null = no bound (`fixed`).
+        value:
+          allOf:
+            - $ref: "#/components/schemas/Ratio"
+          description: Quote major units per one major unit of `base`.
+      required:
+        - base
+        - quote
+        - kind
+        - role
+        - source
+        - value
+        - decimal
+        - as_of
+        - fetched_at
+        - valid_until
+      type: object
     PriceSnapshot:
       additionalProperties: {}
       description: Prices used to compute the settlement amount (INV-6).
@@ -6609,6 +9379,14 @@ components:
           format: date-time
           pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
           type: string
+        currency:
+          anyOf:
+            - description: ISO 4217 currency code, lower-case (e.g. `usd`).
+              pattern: ^[a-z]{3}$
+              type: string
+            - const: asset
+              type: string
+          description: "Pricing currency of the payment (spec 0.2.0; rails 0.2.0+ always sends it): an ISO code, or `asset`."
         fx:
           description: FX rate pricing currency → USD (decimal string), null for USD.
           type:
@@ -6617,11 +9395,23 @@ components:
         par:
           description: Settled at par (USD stablecoin, depeg guard passed).
           type: boolean
+        par_currency:
+          anyOf:
+            - description: ISO 4217 currency code, lower-case (e.g. `usd`).
+              pattern: ^[a-z]{3}$
+              type: string
+            - type: "null"
+          description: Currency the settlement asset was taken at par with (`usd` for USD stablecoins), or null (spec 0.2.0).
         primary_usd:
           description: Primary USD price of the settlement asset (decimal string).
           type:
             - string
             - "null"
+        rates:
+          description: "Every rate used, exact, with source, `as_of` and `valid_until` (spec 0.2.0; rails 0.2.0+ always sends it): the FX rate of a non-USD currency and the primary + secondary prices of a non-par asset."
+          items:
+            $ref: "#/components/schemas/PriceRate"
+          type: array
         secondary_usd:
           description: Secondary USD price (decimal string).
           type:
@@ -6633,6 +9423,549 @@ components:
         - fx
         - par
         - as_of
+      type: object
+    Ratio:
+      additionalProperties: {}
+      description: An exact rational number `num / den` (integer strings, never a float).
+      properties:
+        den:
+          description: Denominator (positive integer string).
+          pattern: ^[1-9][0-9]{0,77}$
+          type: string
+        num:
+          description: Numerator (integer string).
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+      required:
+        - num
+        - den
+      type: object
+    Refund:
+      additionalProperties: {}
+      description: Money returned to a payer, signed by the merchant (non-custodial).
+      properties:
+        amount:
+          description: Refunded amount, base units of `asset_id`.
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        amount_received:
+          anyOf:
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+            - type: "null"
+          description: What the payer received, base units of `recipient.asset_id` (from evidence).
+        asset_id:
+          description: Settlement asset the amount is in.
+          examples:
+            - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+          maxLength: 256
+          pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+          type: string
+        canceled_at:
+          anyOf:
+            - description: Unix time in seconds.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: When the merchant canceled.
+        created:
+          description: Unix time in seconds.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        decimals:
+          description: Decimals of `asset_id`.
+          maximum: 255
+          minimum: 0
+          type: integer
+        evidence:
+          anyOf:
+            - $ref: "#/components/schemas/Evidence"
+            - type: "null"
+          description: Payer-side evidence of the leg that refunded the payer (INV-2).
+        extra_amount_sent:
+          description: Settlement-asset amount sent by duplicate legs (signed and sent after another leg had refunded the payer); `0` normally.
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        failure_code:
+          description: Why the refund failed (the last leg's code).
+          type:
+            - string
+            - "null"
+        fee_mode:
+          description: "`payer_absorbs` (default, `EXACT_INPUT`): the merchant sends `amount`, the payer receives it minus route costs. `merchant_absorbs` (`EXACT_OUTPUT`): the payer receives the equivalent of `amount`; the merchant sends slightly more."
+          enum:
+            - payer_absorbs
+            - merchant_absorbs
+          type: string
+        id:
+          description: refund id (`re_` + 26 base32 chars).
+          examples:
+            - re_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^re_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        legs:
+          description: Legs, newest first.
+          items:
+            $ref: "#/components/schemas/RefundLeg"
+          type: array
+        livemode:
+          description: "`true` for live mode, `false` for test mode."
+          type: boolean
+        metadata:
+          additionalProperties:
+            maxLength: 500
+            type: string
+          description: Up to 50 key/value pairs (key ≤ 40 chars, value ≤ 500 chars) for your own use.
+          propertyNames:
+            maxLength: 40
+            minLength: 1
+            type: string
+          type: object
+        method:
+          description: "`route_quote`: a 1Click route back to the payer's origin chain and asset. `intents_transfer`: a merchant-signed Verifier transfer to the payer's Intents account (refund of an `intents_transfer` payment; no route provider)."
+          type: string
+          x-extensible-enum:
+            - route_quote
+            - intents_transfer
+        next_action:
+          anyOf:
+            - $ref: "#/components/schemas/RefundNextAction"
+            - type: "null"
+          description: Present in `requires_action` once the current leg is prepared; null while it is being prepared and in every other status.
+        object:
+          const: refund
+          description: Always `refund`.
+          type: string
+        payment_attempt:
+          description: Attempt whose settlement is refunded (the paying attempt, or an overpayment).
+          examples:
+            - pa_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^pa_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        payment_intent:
+          description: payment_intent id (`pi_` + 26 base32 chars).
+          examples:
+            - pi_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^pi_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        reason:
+          anyOf:
+            - description: Why the merchant refunds.
+              type: string
+              x-extensible-enum:
+                - requested_by_customer
+                - duplicate
+                - fraudulent
+                - overpayment
+                - other
+            - type: "null"
+        recipient:
+          $ref: "#/components/schemas/RefundRecipient"
+        sequence:
+          description: Increases with every change; discard webhook objects with a lower sequence.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        source:
+          description: What created the refund.
+          type: string
+          x-extensible-enum:
+            - api
+            - dashboard
+            - review_rejection
+        status:
+          description: "Refund status (domain-model §4.4): `requires_action` = waiting for the merchant's signature; `pending` = the merchant's funds were detected and are on their way; `failed` = the provider returned them to the merchant (prepare again to retry)."
+          type: string
+          x-extensible-enum:
+            - requires_action
+            - pending
+            - succeeded
+            - failed
+            - canceled
+        succeeded_at:
+          anyOf:
+            - description: Unix time in seconds.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: When the payer-side evidence was verified.
+      required:
+        - id
+        - object
+        - created
+        - livemode
+        - status
+        - payment_intent
+        - payment_attempt
+        - amount
+        - asset_id
+        - decimals
+        - fee_mode
+        - reason
+        - method
+        - recipient
+        - next_action
+        - legs
+        - amount_received
+        - evidence
+        - extra_amount_sent
+        - source
+        - failure_code
+        - succeeded_at
+        - canceled_at
+        - sequence
+        - metadata
+      type: object
+    RefundLeg:
+      additionalProperties: {}
+      description: One prepared route or transfer for a refund.
+      properties:
+        amount:
+          description: What the merchant sends, base units of the settlement asset.
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        amount_out_expected:
+          anyOf:
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+            - type: "null"
+          description: What the payer is expected to receive, base units of the recipient asset (route estimate).
+        created:
+          description: Unix time in seconds.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        deadline:
+          description: Sign and send before this time.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        duplicate:
+          description: Settled after another leg had already refunded the payer (recorded in `extra_amount_sent`).
+          type: boolean
+        evidence:
+          anyOf:
+            - $ref: "#/components/schemas/Evidence"
+            - type: "null"
+          description: Payer-side evidence once verified (INV-2).
+        failure_code:
+          description: Why the leg failed, returned or was held.
+          type:
+            - string
+            - "null"
+        method:
+          description: "`route_quote`: a 1Click route back to the payer's origin chain and asset. `intents_transfer`: a merchant-signed Verifier transfer to the payer's Intents account (refund of an `intents_transfer` payment; no route provider)."
+          type: string
+          x-extensible-enum:
+            - route_quote
+            - intents_transfer
+        number:
+          description: Leg number, 1-based; a re-prepared refund gets a new leg.
+          maximum: 9007199254740991
+          minimum: 1
+          type: integer
+        status:
+          description: "Leg status: `returned` = the provider sent the funds back to the merchant destination; `expired` = the deadline passed without a deposit."
+          type: string
+          x-extensible-enum:
+            - awaiting_signature
+            - submitted
+            - processing
+            - succeeded
+            - returned
+            - failed
+            - expired
+            - held
+        submitted_tx:
+          anyOf:
+            - description: Transaction hash in the chain's text form.
+              maxLength: 128
+              minLength: 8
+              type: string
+            - type: "null"
+          description: Transaction the merchant reported, or the relayed Intents transaction.
+        swap_type:
+          anyOf:
+            - description: How the route leg was quoted.
+              enum:
+                - EXACT_INPUT
+                - EXACT_OUTPUT
+              type: string
+            - type: "null"
+          description: "Route legs: how the quote was made; null for Intents transfers."
+      required:
+        - number
+        - status
+        - method
+        - swap_type
+        - amount
+        - amount_out_expected
+        - deadline
+        - submitted_tx
+        - duplicate
+        - evidence
+        - failure_code
+        - created
+      type: object
+    RefundNextAction:
+      description: What the merchant signs for the current leg. Wallets build exactly this (never another recipient or amount; dashboard §1).
+      oneOf:
+        - $ref: "#/components/schemas/RefundSignAndSend"
+        - $ref: "#/components/schemas/RefundSignIntent"
+    RefundRecipient:
+      additionalProperties: {}
+      description: "Where the refund goes (INV-7: the payer's recorded refund address)."
+      properties:
+        address:
+          description: Payer's refund address (or Intents account).
+          maxLength: 256
+          minLength: 1
+          type: string
+        asset_id:
+          description: Asset the payer receives (the asset they paid with).
+          examples:
+            - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+          maxLength: 256
+          pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+          type: string
+        chain:
+          description: Chain the payer receives on.
+          examples:
+            - eip155:8453
+          pattern: ^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$
+          type: string
+        overridden:
+          description: An owner replaced the recorded refund address (INV-7).
+          type: boolean
+        type:
+          description: Address on the origin chain, or a NEAR Intents account.
+          enum:
+            - origin_chain
+            - intents
+          type: string
+      required:
+        - address
+        - asset_id
+        - chain
+        - type
+        - overridden
+      type: object
+    RefundSignAndSend:
+      additionalProperties: {}
+      description: "Next action: transfer exactly `amount` of `asset_id` from `from` to `to` on `chain`."
+      properties:
+        amount:
+          description: Exact amount to send, base units.
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        asset_id:
+          description: Asset to send (the settlement asset).
+          examples:
+            - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+          maxLength: 256
+          pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+          type: string
+        chain:
+          description: Chain to send on (the settlement destination's chain).
+          examples:
+            - eip155:8453
+          pattern: ^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$
+          type: string
+        deadline:
+          description: Send before this time; later deposits return to `from`.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        decimals:
+          description: Token decimals.
+          maximum: 255
+          minimum: 0
+          type: integer
+        display:
+          description: Human-readable summary, e.g. `Send 2.000000 USDC on Base to 0xab…`.
+          type: string
+        from:
+          description: The settlement destination address; sign with this wallet (refunds of the route go back to it).
+          maxLength: 256
+          minLength: 1
+          type: string
+        memo:
+          description: Memo the transfer must carry, if any.
+          type:
+            - string
+            - "null"
+        symbol:
+          description: Token symbol.
+          type: string
+        to:
+          description: 1Click deposit address of this leg.
+          maxLength: 256
+          minLength: 1
+          type: string
+        token:
+          $ref: "#/components/schemas/TokenRef"
+        type:
+          const: sign_and_send
+          description: Sign and broadcast a transfer on `chain`.
+          type: string
+      required:
+        - type
+        - chain
+        - from
+        - to
+        - asset_id
+        - token
+        - symbol
+        - decimals
+        - amount
+        - memo
+        - deadline
+        - display
+      type: object
+    RefundSignIntent:
+      additionalProperties: {}
+      description: "Next action: sign this Verifier transfer with the merchant's Intents account."
+      properties:
+        deadline:
+          description: The payload's deadline; after it, prepare a new leg.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        display:
+          description: Human-readable summary, e.g. `Transfer 2.000000 USDC to payer.near`.
+          type: string
+        message:
+          allOf:
+            - $ref: "#/components/schemas/IntentMessage"
+          description: Parsed payload, for display and checks; sign `nep413.message` or `payload`.
+        nep413:
+          additionalProperties: {}
+          description: Arguments for a NEP-413 `signMessage` call, used verbatim.
+          properties:
+            message:
+              description: Exact NEP-413 `message` (JSON string of `Nep413IntentMessage`).
+              minLength: 2
+              type: string
+            nonce:
+              description: 32-byte nonce (4-byte Verifier salt ‖ 28 random bytes), standard base64.
+              pattern: ^[A-Za-z0-9+/]{43}=$
+              type: string
+            recipient:
+              const: intents.near
+              description: NEP-413 recipient.
+              type: string
+          required:
+            - recipient
+            - nonce
+            - message
+          type: object
+        payload:
+          description: Exact string to sign for `erc191` / `raw_ed25519` (JSON of `IntentMessage`, same nonce).
+          minLength: 2
+          type: string
+        signer_id:
+          description: The merchant's Intents account (the settlement destination).
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        standards:
+          description: Signing standards accepted for `signer_id` (`nep413` for NEAR wallets, `erc191` for 0x accounts).
+          items:
+            description: Signing standard supported by NearPay.
+            enum:
+              - nep413
+              - erc191
+              - raw_ed25519
+            type: string
+          minItems: 1
+          type: array
+        transfer:
+          additionalProperties: {}
+          description: The single transfer the payload contains (for the human-readable summary).
+          properties:
+            amount:
+              description: Amount, base units.
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+            memo:
+              description: Binding memo of this leg.
+              pattern: ^np1:[1-9A-HJ-NP-Za-km-z]{43,44}$
+              type: string
+            receiver_id:
+              description: Payer's Intents account (`intents_transfer`) or the 1Click Intents deposit address (`route_quote`).
+              pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+              type: string
+            token:
+              description: Asset transferred.
+              examples:
+                - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+              maxLength: 256
+              pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+              type: string
+          required:
+            - receiver_id
+            - token
+            - amount
+            - memo
+          type: object
+        type:
+          const: sign_intent
+          description: Sign a NEAR Intents payload; submit it with `submit_tx`.
+          type: string
+      required:
+        - type
+        - signer_id
+        - transfer
+        - standards
+        - nep413
+        - payload
+        - message
+        - deadline
+        - display
+      type: object
+    RefundTransfer:
+      additionalProperties: {}
+      description: "What a merchant signs for a refund leg from an Intents account: exactly one transfer, memo = binding."
+      properties:
+        amount:
+          description: Amount, base units.
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        deadline:
+          description: Latest acceptable payload deadline.
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+          type: string
+        memo:
+          description: Binding memo the transfer must carry (agentpay matches it; the indexer attributes by it).
+          pattern: ^np1:[1-9A-HJ-NP-Za-km-z]{43,44}$
+          type: string
+        receiver_id:
+          description: Payer Intents account (`intents_transfer` leg) or the 1Click INTENTS deposit address (`route_quote` leg).
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        signer_id:
+          description: Merchant Intents account (the settlement destination) that signs.
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        token:
+          description: Asset transferred (the settlement asset).
+          examples:
+            - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+          maxLength: 256
+          pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+          type: string
+      required:
+        - signer_id
+        - receiver_id
+        - token
+        - amount
+        - memo
+        - deadline
       type: object
     Review:
       additionalProperties: {}
@@ -6667,6 +10000,15 @@ components:
           format: date-time
           pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
           type: string
+        payment_intent:
+          anyOf:
+            - description: payment_intent id (`pi_` + 26 base32 chars).
+              examples:
+                - pi_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^pi_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Payment intent of an `execution` subject (from `Execution.reference`); webhooks shows such a review as one of this intent.
         reason:
           description: Why.
           type: string
@@ -6710,6 +10052,87 @@ components:
         - opened_at
         - closed_at
       type: object
+    TokenContract:
+      additionalProperties: {}
+      description: How to transfer an asset on its chain (wallet path).
+      properties:
+        address:
+          anyOf:
+            - maxLength: 256
+              minLength: 1
+              type: string
+            - type: "null"
+          description: Contract address (EVM `0x…`) or token account (NEAR); null for `native`.
+        standard:
+          description: "`erc20`: ERC-20 contract on an EVM chain; `native`: the chain's native coin (no contract); `nep141`: NEP-141 token on NEAR; `spl`: SPL mint on Solana; `other`: no wallet transfer recipe (manual path)."
+          type: string
+          x-extensible-enum:
+            - erc20
+            - native
+            - nep141
+            - spl
+            - other
+      required:
+        - standard
+        - address
+      type: object
+    TokenRef:
+      additionalProperties: {}
+      description: How to transfer an asset on its chain.
+      properties:
+        address:
+          description: Token contract / mint / NEP-141 account; null for native assets.
+          type:
+            - string
+            - "null"
+        standard:
+          description: Token standard on the chain.
+          type: string
+          x-extensible-enum:
+            - native
+            - erc20
+            - nep141
+            - spl
+            - other
+      required:
+        - standard
+        - address
+      type: object
+    TransferIntent:
+      additionalProperties: {}
+      description: NEAR Intents `transfer` intent.
+      properties:
+        intent:
+          const: transfer
+          description: Intent kind.
+          type: string
+        memo:
+          description: Memo; NearPay puts the binding here.
+          maxLength: 512
+          type: string
+        receiver_id:
+          description: Receiving Intents account.
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        tokens:
+          additionalProperties:
+            description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+            pattern: ^(0|[1-9][0-9]{0,77})$
+            type: string
+          description: Asset id → amount in base units.
+          propertyNames:
+            description: NEAR Intents asset id, e.g. `nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1`.
+            examples:
+              - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+            maxLength: 256
+            pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+            type: string
+          type: object
+      required:
+        - intent
+        - receiver_id
+        - tokens
+      type: object
     UsdAmount:
       additionalProperties: {}
       description: An amount in US dollars (minor units).
@@ -6733,7 +10156,7 @@ info:
   license:
     name: Apache-2.0
   title: NearPay domain events
-  version: 0.1.5
+  version: 0.2.0
 operations:
   evt_agentpay_agent_payment_failed_send:
     action: send
@@ -6754,6 +10177,15 @@ operations:
       - compliance
     x-producer: agentpay
     x-stage: 1
+  evt_compliance_account_action_requested_send:
+    action: send
+    channel:
+      $ref: "#/channels/evt_compliance_account_action_requested"
+    summary: compliance publishes evt.compliance.account.action_requested
+    x-consumers:
+      - notify
+    x-producer: compliance
+    x-stage: 2
   evt_compliance_account_reinstated_send:
     action: send
     channel:
@@ -6814,6 +10246,25 @@ operations:
       - notify
     x-producer: compliance
     x-stage: 1
+  evt_compliance_kyb_submitted_send:
+    action: send
+    channel:
+      $ref: "#/channels/evt_compliance_kyb_submitted"
+    summary: compliance publishes evt.compliance.kyb.submitted
+    x-consumers:
+      - identity
+      - notify
+    x-producer: compliance
+    x-stage: 2
+  evt_compliance_ops_action_recorded_send:
+    action: send
+    channel:
+      $ref: "#/channels/evt_compliance_ops_action_recorded"
+    summary: compliance publishes evt.compliance.ops_action.recorded
+    x-consumers:
+      - identity
+    x-producer: compliance
+    x-stage: 2
   evt_compliance_policy_updated_send:
     action: send
     channel:
@@ -6831,6 +10282,7 @@ operations:
     x-consumers:
       - payments
       - notify
+      - webhooks
     x-producer: compliance
     x-stage: 1
   evt_compliance_review_opened_send:
@@ -6841,6 +10293,7 @@ operations:
     x-consumers:
       - payments
       - notify
+      - webhooks
     x-producer: compliance
     x-stage: 1
   evt_identity_account_created_send:
@@ -6860,6 +10313,7 @@ operations:
     summary: identity publishes evt.identity.account.updated
     x-consumers:
       - payments
+      - webhooks
     x-producer: identity
     x-stage: 1
   evt_identity_api_key_created_send:
@@ -6880,6 +10334,33 @@ operations:
       - identity
     x-producer: identity
     x-stage: 1
+  evt_identity_member_added_send:
+    action: send
+    channel:
+      $ref: "#/channels/evt_identity_member_added"
+    summary: identity publishes evt.identity.member.added
+    x-consumers:
+      - notify
+    x-producer: identity
+    x-stage: 2
+  evt_identity_member_removed_send:
+    action: send
+    channel:
+      $ref: "#/channels/evt_identity_member_removed"
+    summary: identity publishes evt.identity.member.removed
+    x-consumers:
+      - notify
+    x-producer: identity
+    x-stage: 2
+  evt_identity_member_role_changed_send:
+    action: send
+    channel:
+      $ref: "#/channels/evt_identity_member_role_changed"
+    summary: identity publishes evt.identity.member.role_changed
+    x-consumers:
+      - notify
+    x-producer: identity
+    x-stage: 2
   evt_identity_settlement_destination_activated_send:
     action: send
     channel:
@@ -6933,6 +10414,15 @@ operations:
       - sentinel
     x-producer: identity
     x-stage: 1
+  evt_identity_settlement_destination_pending_approval_send:
+    action: send
+    channel:
+      $ref: "#/channels/evt_identity_settlement_destination_pending_approval"
+    summary: identity publishes evt.identity.settlement_destination.pending_approval
+    x-consumers:
+      - notify
+    x-producer: identity
+    x-stage: 2
   evt_payments_checkout_session_completed_send:
     action: send
     channel:
@@ -6951,6 +10441,15 @@ operations:
       - webhooks
     x-producer: payments
     x-stage: 1
+  evt_payments_ops_action_recorded_send:
+    action: send
+    channel:
+      $ref: "#/channels/evt_payments_ops_action_recorded"
+    summary: payments publishes evt.payments.ops_action.recorded
+    x-consumers:
+      - identity
+    x-producer: payments
+    x-stage: 2
   evt_payments_payment_intent_canceled_send:
     action: send
     channel:
@@ -7024,6 +10523,61 @@ operations:
       - notify
     x-producer: payments
     x-stage: 1
+  evt_payments_refund_canceled_send:
+    action: send
+    channel:
+      $ref: "#/channels/evt_payments_refund_canceled"
+    summary: payments publishes evt.payments.refund.canceled
+    x-consumers:
+      - webhooks
+    x-producer: payments
+    x-stage: 2
+  evt_payments_refund_created_send:
+    action: send
+    channel:
+      $ref: "#/channels/evt_payments_refund_created"
+    summary: payments publishes evt.payments.refund.created
+    x-consumers:
+      - webhooks
+    x-producer: payments
+    x-stage: 2
+  evt_payments_refund_failed_send:
+    action: send
+    channel:
+      $ref: "#/channels/evt_payments_refund_failed"
+    summary: payments publishes evt.payments.refund.failed
+    x-consumers:
+      - webhooks
+    x-producer: payments
+    x-stage: 2
+  evt_payments_refund_pending_send:
+    action: send
+    channel:
+      $ref: "#/channels/evt_payments_refund_pending"
+    summary: payments publishes evt.payments.refund.pending
+    x-consumers:
+      - webhooks
+    x-producer: payments
+    x-stage: 2
+  evt_payments_refund_requires_action_send:
+    action: send
+    channel:
+      $ref: "#/channels/evt_payments_refund_requires_action"
+    summary: payments publishes evt.payments.refund.requires_action
+    x-consumers:
+      - webhooks
+    x-producer: payments
+    x-stage: 2
+  evt_payments_refund_succeeded_send:
+    action: send
+    channel:
+      $ref: "#/channels/evt_payments_refund_succeeded"
+    summary: payments publishes evt.payments.refund.succeeded
+    x-consumers:
+      - webhooks
+      - notify
+    x-producer: payments
+    x-stage: 2
   evt_rails_execution_failed_send:
     action: send
     channel:
@@ -7072,6 +10626,15 @@ operations:
       - payments
     x-producer: rails
     x-stage: 1
+  evt_rails_ops_action_recorded_send:
+    action: send
+    channel:
+      $ref: "#/channels/evt_rails_ops_action_recorded"
+    summary: rails publishes evt.rails.ops_action.recorded
+    x-consumers:
+      - identity
+    x-producer: rails
+    x-stage: 2
   evt_sentinel_audit_finding_created_send:
     action: send
     channel:
@@ -7091,8 +10654,18 @@ operations:
       - rails
       - agentpay
       - notify
+      - payments
     x-producer: sentinel
     x-stage: 1
+  evt_sentinel_kill_switch_release_requested_send:
+    action: send
+    channel:
+      $ref: "#/channels/evt_sentinel_kill_switch_release_requested"
+    summary: sentinel publishes evt.sentinel.kill_switch.release_requested
+    x-consumers:
+      - notify
+    x-producer: sentinel
+    x-stage: 2
   evt_sentinel_kill_switch_released_send:
     action: send
     channel:
@@ -7102,8 +10675,18 @@ operations:
       - rails
       - agentpay
       - notify
+      - payments
     x-producer: sentinel
     x-stage: 1
+  evt_sentinel_ops_action_recorded_send:
+    action: send
+    channel:
+      $ref: "#/channels/evt_sentinel_ops_action_recorded"
+    summary: sentinel publishes evt.sentinel.ops_action.recorded
+    x-consumers:
+      - identity
+    x-producer: sentinel
+    x-stage: 2
   evt_webhooks_endpoint_disabled_send:
     action: send
     channel:

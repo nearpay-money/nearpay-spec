@@ -20,4 +20,4 @@ export * from "./webhooks/signature.js";
 export * from "./x402/scheme.js";
 
 /** Version of this contract package (kept equal to package.json by `test/package.test.ts`). */
-export const SPEC_VERSION = "0.1.5";
+export const SPEC_VERSION = "0.2.0";

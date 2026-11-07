@@ -32,9 +32,11 @@ describe("route tables", () => {
     }
   });
 
-  it("put roles and step-up only on session routes", () => {
+  it("put roles only on session routes and step-up only on session or ops routes", () => {
     for (const r of ALL) {
-      if (r.roles || r.stepUp) expect(r.auth, r.id).toContain("session");
+      if (r.roles) expect(r.auth, r.id).toContain("session");
+      // stage 2 — identity-console: console routes take step-up too
+      if (r.stepUp) expect(r.auth.includes("session") || r.auth.some((a) => a.startsWith("ops:")), r.id).toBe(true);
     }
   });
 
@@ -80,7 +82,7 @@ describe("route tables", () => {
 });
 
 describe("anonymous allow-list (identity §11, system audit S-03)", () => {
-  // The LLD list, Stage 1 subset (payment links Stage 2, invoices Stage 3, vendor webhooks Stage 2/5).
+  // The LLD list, Stage 1 subset plus Stage 2 payment links (invoices Stage 3, vendor webhooks Stage 2/5).
   const expected: [string, RegExp][] = [
     ["POST", /^\/v1\/auth\/(signup|magic_links\/verify|passkeys\/.+|recovery)$/],
     ["GET|POST", /^\/v1\/checkout\/sessions\/\{id\}\/public(\/.*)?$/],
@@ -90,6 +92,8 @@ describe("anonymous allow-list (identity §11, system audit S-03)", () => {
     ["GET", /^\/v1\/assets$/],
     ["GET", /^\/x402\/supported$/],
     ["GET", /^\/v1\/webhook_signing_keys$/],
+    // stage 2 — payments (payment links, identity §11 `GET|POST /v1/payment_links/{id}/public/**`)
+    ["GET|POST", /^\/v1\/payment_links\/\{id\}\/public(\/.*)?$/],
   ];
   it("contains exactly the routes the LLD allows", () => {
     for (const r of PUBLIC_ANONYMOUS_ROUTES) {

@@ -26,6 +26,7 @@ import {
   errorDocUrl,
   GENERIC_ERROR_CODES,
   HEADERS,
+  hasMetadataFilter,
   IntentMessage,
   IntentsRequirement,
   MultiPayload,
@@ -134,6 +135,9 @@ function operationFor(r: AnyRoute, visibility: "public" | "internal"): Doc {
       auth: r.auth,
       ...(r.roles ? { roles: r.roles } : {}),
       ...(r.stepUp ? { step_up: true } : {}),
+      // stage 2 — identity-console: console routes
+      ...(r.opsRoles ? { ops_roles: r.opsRoles } : {}),
+      ...(r.visibility === "ops" ? { visibility: "ops" } : {}),
       idempotent: r.idempotent,
       ...(r.testModeOnly ? { test_mode_only: true } : {}),
       stage: r.stage,
@@ -142,6 +146,21 @@ function operationFor(r: AnyRoute, visibility: "public" | "internal"): Doc {
   };
   if (r.description) op.description = r.description;
   if (Object.keys(requestParams).length) op.requestParams = requestParams;
+  // stage 2 — payments: `metadata[key]=value` filters (ADR-0018) as one deepObject parameter
+  if (r.query && hasMetadataFilter(r.query)) {
+    op.parameters = [
+      {
+        in: "query",
+        name: "metadata",
+        style: "deepObject",
+        explode: true,
+        required: false,
+        description:
+          "Exact-match metadata filters `metadata[key]=value` (key 1–40 chars, value ≤ 500 chars, up to 10).",
+        schema: { type: "object", additionalProperties: { type: "string", maxLength: 500 }, maxProperties: 10 },
+      },
+    ];
+  }
   if (r.body) op.requestBody = { required: true, content: { "application/json": { schema: r.body } } };
   return op;
 }

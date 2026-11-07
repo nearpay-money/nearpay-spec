@@ -2,19 +2,26 @@
 import type { AnyRoute } from "../common/route.js";
 import * as agentpay from "./agentpay.js";
 import * as compliance from "./compliance.js";
+import * as customers from "./customers.js"; // stage 2 — payments
 import * as identity from "./identity.js";
 import * as payer from "./payer.js";
+import * as paymentLinks from "./payment-links.js"; // stage 2 — payments
 import * as payments from "./payments.js";
 import * as rails from "./rails.js";
+import * as refunds from "./refunds.js"; // stage 2 — payments
 import * as sentinel from "./sentinel.js";
 import * as webhooks from "./webhooks.js";
 
 export * from "./agentpay.js";
 export * from "./compliance.js";
+export * from "./customers.js"; // stage 2 — payments
 export * from "./identity.js";
 export * from "./payer.js";
+export * from "./payment-links.js"; // stage 2 — payments
 export * from "./payments.js";
 export * from "./rails.js";
+export * from "./refunds.js"; // stage 2 — payments
+export * from "./reviews.js"; // stage 2 — payments
 export * from "./sentinel.js";
 export * from "./webhooks.js";
 
@@ -34,6 +41,10 @@ export const PUBLIC_ROUTES: readonly AnyRoute[] = Object.freeze([
   ...routesOf(sentinel),
   ...routesOf(rails),
   ...routesOf(webhooks),
+  // stage 2 — payments
+  ...routesOf(refunds),
+  ...routesOf(paymentLinks),
+  ...routesOf(customers),
 ]);
 
 /**

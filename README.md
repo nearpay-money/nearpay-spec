@@ -63,6 +63,8 @@ nearpay-spec/
 
 ## Status
 
+`0.2.0` — Stage 2 contracts (step 2.1, contract freeze; additive over 0.1.5, see `CHANGELOG.md`): 102 public, 48 internal and 47 console (`/ops/…`, visibility `ops`) routes, 54 domain event subjects, 21 webhook types, 77 error codes. Adds team/invitations, restricted keys, two-approver destinations, self-declared KYB, the operations console (hardware-passkey sign-in, KYB queue, cases, blocklist, two-person suspension and kill-switch release, executions explorer, reconciliation), refunds, payment links, customers, headless payment intents, review webhooks, rails pricing/FX (ECB + public price feed), Explorer feed, observation archive and reconciliation evidence.
+
 `0.1.5` — step 1.2/1.3 change requests (additive; see `CHANGELOG.md`): new dashboard, delivery-log and attestation-challenge routes, x402 `replayed`/`deadline`, `sequence` on checkout sessions and agent payments, tolerant open-enum parsing for SDKs.
 
 `0.1.0` — Stage 1 contracts (step 1.1): 60 public and 36 internal routes, 39 domain event subjects, 12 webhook types, 60 error codes, the x402 `intents-transfer` scheme, and shared test vectors. NEAR Intents signing formats (NEP-413, ERC-191, raw ed25519) were checked against the live `intents.near` Verifier with read-only `simulate_intents` calls.

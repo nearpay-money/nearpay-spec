@@ -49,7 +49,13 @@ export const WebhookEndpoint = out({
     .string()
     .regex(/^whsec_[0-9A-Za-z]{32,64}$/)
     .optional()
-    .describe("Signing secret; returned only when the endpoint is created."),
+    .describe("Signing secret; returned only when the endpoint is created or its secret is rotated."),
+  // stage 2 — identity-console: secret rotation (webhooks §5)
+  previous_secret_expires_at: UnixTime.nullable()
+    .optional()
+    .describe(
+      "While a rotated-out secret is still used: until when deliveries carry a second `v1=` signature made with it. Absent from Stage 1 servers.",
+    ),
 }).meta({ id: "WebhookEndpoint", description: "A URL that receives signed events." });
 
 const EndpointParams = inp({ id: id("we") });
@@ -282,4 +288,61 @@ export const listWebhookSigningKeys = route({
   status: 200,
   errors: [],
   stage: 1,
+});
+
+// =============================================================================================
+// stage 2 — identity-console: secret rotation and resend (lld/webhooks.md §5, §12)
+// =============================================================================================
+
+export const rotateWebhookEndpointSecret = route({
+  id: "rotateWebhookEndpointSecret",
+  method: "POST",
+  path: "/v1/webhook_endpoints/{id}/rotate_secret",
+  service: "webhooks",
+  visibility: "public",
+  summary: "Replace the signing secret; the old one keeps signing during an overlap window.",
+  description:
+    "Returns the endpoint with the new `secret` (shown once) and `previous_secret_expires_at`. During the overlap every delivery carries two `v1=` signatures (new and previous secret); `expire_previous_in_seconds: 0` drops the previous secret at once. Rotating again during an overlap replaces the previous secret with the current one. The idempotent response (it carries the secret) is stored encrypted.",
+  auth: WRITE,
+  roles: DEV_ROLES,
+  idempotent: true,
+  params: EndpointParams,
+  body: inp({
+    expire_previous_in_seconds: z
+      .int()
+      .min(0)
+      .max(86_400)
+      .default(86_400)
+      .describe("Overlap during which the previous secret still signs (0–86 400 s, default 24 h)."),
+  }),
+  response: WebhookEndpoint,
+  status: 200,
+  errors: [],
+  stage: 2,
+});
+
+export const EventResend = out({
+  object: z.literal("event_resend").describe("Always `event_resend`."),
+  event: id("evt"),
+  deliveries: z.array(WebhookDelivery).describe("New deliveries, one per endpoint (status `pending`)."),
+}).meta({ id: "EventResend", description: "Deliveries queued by a resend." });
+
+export const resendEvent = route({
+  id: "resendEvent",
+  method: "POST",
+  path: "/v1/events/{id}/resend",
+  service: "webhooks",
+  visibility: "public",
+  summary: "Deliver an event again, to one endpoint or to every enabled endpoint subscribed to its type.",
+  description:
+    "Creates a new delivery per endpoint (fresh retry schedule; the event keeps its id, so receivers dedupe on `NearPay-Event-Id`). With `endpoint`, the endpoint must be the caller's, in the event's mode and enabled (`409 state_conflict` if disabled); subscriptions are ignored (like `test`). Events older than 30 days are `404`.",
+  auth: WRITE,
+  roles: DEV_ROLES,
+  idempotent: true,
+  params: inp({ id: id("evt") }),
+  body: inp({ endpoint: id("we").optional() }),
+  response: EventResend,
+  status: 202,
+  errors: ["state_conflict"],
+  stage: 2,
 });

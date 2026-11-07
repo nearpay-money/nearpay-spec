@@ -7,19 +7,24 @@ import {
   Binding,
   ChainAddress,
   ChainId,
+  ClientSecretHeaders,
   CountryCode,
   closedEnum,
   IntentsRequirement,
   id,
   inp,
+  KybProfile,
   KybStatus,
   MultiPayload,
   NearAccountId,
+  OPS_ROLES,
   openEnum,
   out,
   PaymentIntent,
   PricingAmount,
   PricingCurrency,
+  PublicCheckoutSession,
+  ROLES,
   route,
   SettlementValue,
   Timestamp,
@@ -102,6 +107,36 @@ export const getReceiptContext = route({
   stage: 1,
 });
 
+// stage 2 — rails-fx (CR-15-15)
+export const PayerSessionContext = out({
+  account_id: id("acct"),
+  livemode: z.boolean().describe("Mode of the session."),
+  session: PublicCheckoutSession,
+}).meta({
+  id: "PayerSessionContext",
+  description: "A checkout session as the payer sees it, plus its account and mode (agentpay's checkout routes).",
+});
+
+export const getPayerCheckoutSession = route({
+  id: "getPayerCheckoutSession",
+  method: "GET",
+  path: "/internal/checkout_sessions/{id}/payer",
+  service: "payments",
+  visibility: "internal",
+  summary: "Verify a payer's client secret and read the session as the payer sees it (agentpay `agent_pay`).",
+  description:
+    "Replaces agentpay's call to the public `GET /v1/checkout/sessions/{id}/public` (CR-15-15): agentpay forwards the caller's `X-NearPay-Client-Secret` and authenticates with its service token. A wrong secret answers `client_secret_invalid`, exactly like the public route.",
+  auth: ["service:payments.read"],
+  idempotent: false,
+  params: inp({ id: id("cs") }),
+  headers: ClientSecretHeaders,
+  response: PayerSessionContext,
+  status: 200,
+  errors: ["client_secret_invalid"],
+  stage: 2,
+});
+// end stage 2 — rails-fx
+
 // =============================================================================================
 // agentpay
 // =============================================================================================
@@ -112,10 +147,23 @@ export const relaySignedIntent = route({
   path: "/internal/relay",
   service: "agentpay",
   visibility: "internal",
-  summary: "Queue a payer-signed payload for a checkout `intents_transfer` attempt.",
+  summary:
+    "Queue an owner-signed payload: a checkout `intents_transfer` attempt, or a refund leg from an Intents account.",
+  description:
+    "Checkout (`kind` absent or `checkout`): the execution is a `payment` `intents_transfer` in `awaiting_deposit` and the payload holds exactly the two requirement transfers. Refund (`kind: refund`, Stage 2): the execution is a `refund` execution whose `refund.transfer` is set, still awaiting its deposit; the payload is signed by `refund.transfer.signer_id` (the merchant) and holds exactly that one transfer (receiver, token, amount, memo = binding) with a deadline ≤ `refund.transfer.deadline`. Account and mode come from the execution; the payload is relayed exactly as signed (INV-1).",
   auth: ["service:agentpay.relay"],
   idempotent: true,
-  body: inp({ execution_id: id("ex"), binding: Binding, signed: MultiPayload }),
+  body: inp({
+    execution_id: id("ex"),
+    binding: Binding,
+    signed: MultiPayload,
+    // stage 2 — payments
+    kind: closedEnum(
+      ["checkout", "refund"],
+      "What the payload pays (default `checkout`); must match the execution kind.",
+    ).optional(),
+    refund: id("re").optional().describe("Refund the leg belongs to (`kind: refund`; recorded on the agent payment)."),
+  }),
   response: out({ agent_payment_id: id("ap") }).meta({ id: "RelayAccepted", description: "Queued for relay." }),
   status: 202,
   errors: ["intent_invalid", "insufficient_balance", "rail_unavailable"],
@@ -149,10 +197,16 @@ export const createScreening = route({
   response: out({
     screening_id: id("scr"),
     decision: ScreeningDecision,
-    risk: z.string().nullable().describe("Vendor risk level."),
+    risk: z.string().nullable().describe("Provider risk level; null for the v1 `local` provider (list hits only)."),
     reasons: z.array(z.string()).describe("Reasons (`sanctions`, `blocklist`, `vendor_unavailable`, …)."),
     cached: z.boolean().describe("Served from cache."),
     post_screen_required: z.boolean().describe("Screen again after settlement (vendor was unavailable)."),
+    // stage 2 — identity-console: vendor-neutral screening interface (ADR-0020)
+    provider: openEnum(["local", "sandbox"], "Screening provider behind the vendor-neutral interface.")
+      .optional()
+      .describe(
+        "Which provider decided: `local` (OFAC digital-currency list + NearPay blocklist; the only live provider in v1) or `sandbox` (test-mode magic rule). Absent from Stage 1 servers.",
+      ),
   }).meta({ id: "Screening", description: "A screening decision." }),
   status: 200,
   errors: ["screening_unavailable"],
@@ -186,8 +240,10 @@ export const decideKyb = route({
   path: "/internal/kyb_cases/{id}/decision",
   service: "compliance",
   visibility: "internal",
-  summary: "Manual KYB decision (ops CLI in Stage 1, console in Stage 2).",
+  summary: "Manual KYB decision (in-container ops CLI; the console uses `decideOpsKybCase`).",
   auth: ["ops:compliance.kyb.decide"],
+  // stage 2 — identity-console
+  opsRoles: ["ops", "ops_admin"],
   idempotent: true,
   params: inp({ id: id("acct") }),
   body: inp({
@@ -202,6 +258,33 @@ export const decideKyb = route({
   status: 200,
   errors: ["state_conflict"],
   stage: 1,
+});
+
+// stage 2 — identity-console: identity reads the approved details on `evt.compliance.kyb.approved`
+// (legal name and country stay off the bus: a sole proprietor's legal name is personal data)
+export const InternalKybCase = out({
+  account_id: id("acct"),
+  status: KybStatus,
+  profile: KybProfile,
+  decided_at: Timestamp.nullable().describe("Last decision."),
+}).meta({ id: "InternalKybCase", description: "A KYB case with its declared details (identity reads it)." });
+
+export const getInternalKybCase = route({
+  id: "getInternalKybCase",
+  method: "GET",
+  path: "/internal/kyb_cases/{id}",
+  service: "compliance",
+  visibility: "internal",
+  summary: "An account's KYB case with the declared details.",
+  description:
+    "Identity calls it when it consumes `evt.compliance.kyb.approved` and copies `profile.legal_name` / `profile.country_of_incorporation` into `verified_legal_name` / `country`.",
+  auth: ["service:compliance.read"],
+  idempotent: false,
+  params: inp({ id: id("acct") }),
+  response: InternalKybCase,
+  status: 200,
+  errors: [],
+  stage: 2,
 });
 
 // =============================================================================================
@@ -222,7 +305,11 @@ export const setKillSwitch = route({
   service: "sentinel",
   visibility: "internal",
   summary: "Engage or release the global quoting kill switch.",
+  description:
+    "In-container ops CLI path. From Stage 2 a release (`engaged: false`) here is single-person, so it is refused with `409 two_person_required` when `NP_ENV=server`; the console's two-person release (`requestOpsKillSwitchRelease` + `approveOpsKillSwitchRelease`) is the only release there. Local and test stacks keep the one-operator release (testbed T7).",
   auth: ["ops:sentinel.killswitch"],
+  // stage 2 — identity-console
+  opsRoles: ["ops", "ops_admin"],
   idempotent: true,
   body: inp({
     engaged: z.boolean().describe("Engage or release."),
@@ -230,7 +317,7 @@ export const setKillSwitch = route({
   }),
   response: KillSwitchState,
   status: 200,
-  errors: [],
+  errors: ["two_person_required"],
   stage: 1,
 });
 
@@ -251,6 +338,33 @@ export const MagicLinkMessage = inp({
   dedupe_key: z.string().min(1).max(200).describe("Stable key; repeated sends are deduplicated."),
 });
 
+// stage 2 — identity-console: invitation and operator-enrolment mails (identity calls them; the
+// links carry single-use tokens, so they never travel in events)
+export const TeamInvitationMessage = inp({
+  template: z.literal("team.invitation").describe("Invitation to join a merchant account."),
+  to: z.email().describe("Invited address."),
+  variables: inp({
+    link_url: Url.describe("Invitation link (`<dashboard>/auth/invite#token=…`)."),
+    account_display_name: z.string().min(1).max(100).describe("Account the invitation joins."),
+    role: closedEnum(ROLES, "Role offered."),
+    expires_in_minutes: z.int().min(1).max(10_080).describe("Validity (7 days)."),
+  }).describe("Template variables (the inviter is named only by the account, never by email)."),
+  locale: z.string().max(16).optional().describe("Locale (default `en`)."),
+  dedupe_key: z.string().min(1).max(200).describe("Stable key (the invitation id); repeats are deduplicated."),
+});
+
+export const OpsEnrolmentMessage = inp({
+  template: z.literal("ops.enrolment").describe("Console operator enrolment link."),
+  to: z.email().describe("Operator address."),
+  variables: inp({
+    link_url: Url.describe("Enrolment link (`<console>/auth/enrol#token=…`)."),
+    role: closedEnum(OPS_ROLES, "Operator role granted."),
+    expires_in_minutes: z.int().min(1).max(1440).describe("Validity (24 h)."),
+  }).describe("Template variables."),
+  locale: z.string().max(16).optional().describe("Locale (default `en`)."),
+  dedupe_key: z.string().min(1).max(200).describe("Stable key; repeats are deduplicated."),
+});
+
 export const sendMessage = route({
   id: "sendMessage",
   method: "POST",
@@ -260,7 +374,9 @@ export const sendMessage = route({
   summary: "Queue a transactional email.",
   auth: ["service:notify.send"],
   idempotent: false,
-  body: z.discriminatedUnion("template", [MagicLinkMessage]).describe("Message to send."),
+  body: z
+    .discriminatedUnion("template", [MagicLinkMessage, TeamInvitationMessage, OpsEnrolmentMessage])
+    .describe("Message to send."),
   response: out({ message_id: id("msg") }).meta({ id: "MessageQueued", description: "Queued message." }),
   status: 202,
   errors: [],

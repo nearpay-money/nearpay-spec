@@ -14,16 +14,21 @@ import {
   closedEnum,
   id,
   KybStatus,
+  OpsRoleSchema,
   openEnum,
   out,
   PaymentIntent,
+  type PublicReview,
+  Refund,
   RequestId,
+  RoleSchema,
   type ServiceName,
   Timestamp,
   Uuid,
   z,
 } from "@nearpay/spec";
 import { InternalSettlementDestination } from "../internal/identity.js";
+import { OpsApproval } from "../internal/ops-approval.js";
 import { Execution } from "../internal/rails.js";
 
 // ---------------------------------------------------------------------------------------------
@@ -33,7 +38,15 @@ import { Execution } from "../internal/rails.js";
 export const KybDecisionEvent = out({
   account_id: id("acct"),
   status: KybStatus,
-  reason: z.string().nullable().describe("Decision reason."),
+  reason: z.string().nullable().describe("Decision reason (internal: never shown to merchants)."),
+  // stage 2 — identity-console
+  requested_info: z
+    .string()
+    .nullable()
+    .optional()
+    .describe(
+      "What ops asked the merchant for (`needs_info`; shown in the `kyb.decision` mail). Absent before Stage 2.",
+    ),
 }).meta({ id: "KybDecisionEvent", description: "A KYB decision." });
 
 export const DestinationBlockedEvent = out({
@@ -62,6 +75,13 @@ export const Review = out({
   status: openEnum(["open", "closed"], "Review status."),
   opened_at: Timestamp.describe("Opened."),
   closed_at: Timestamp.nullable().describe("Closed."),
+  // stage 2 — payments
+  payment_intent: id("pi")
+    .nullable()
+    .optional()
+    .describe(
+      "Payment intent of an `execution` subject (from `Execution.reference`); webhooks shows such a review as one of this intent.",
+    ),
 }).meta({ id: "Review", description: "A compliance review of a payment (payment stands; INV-1)." });
 
 export const PolicyUpdatedEvent = out({
@@ -93,6 +113,50 @@ export const EndpointDisabledEvent = out({
   reason: openEnum(["failing"], "Why."),
   failing_since: Timestamp.describe("First failure of the streak."),
 }).meta({ id: "EndpointDisabledEvent", description: "A webhook endpoint was disabled after 72 h of failures." });
+
+// stage 2 — identity-console
+export const MemberEvent = out({
+  account_id: id("acct"),
+  user_id: id("usr"),
+  role: RoleSchema,
+  previous_role: RoleSchema.nullable().describe("Role before a change (`role_changed`); null otherwise."),
+  actor_user_id: id("usr")
+    .nullable()
+    .describe("Owner/admin who made the change; null when the user accepted an invitation."),
+}).meta({ id: "MemberEvent", description: "A team change (ids only; notify resolves emails through identity)." });
+
+export const KybSubmittedEvent = out({
+  account_id: id("acct"),
+  status: KybStatus,
+  submitted_at: Timestamp.describe("Submission time."),
+}).meta({ id: "KybSubmittedEvent", description: "The owner submitted self-declared business details for review." });
+
+// stage 2 — contracts integration: unified console audit trail (T-12)
+export const OpsActionEvent = out({
+  id: Uuid.describe("Action id (UUIDv7); identity dedupes `audit_events` on it. Also the envelope `aggregate.id`."),
+  actor: out({
+    sub: id("usr").describe("Operator user id (`sub` of the ops principal)."),
+    ops_role: OpsRoleSchema,
+  }).describe("Operator who acted (ids only; identity resolves the email for display)."),
+  action: z
+    .string()
+    .min(1)
+    .max(100)
+    .describe(
+      "Action, `<object>.<verb>`, e.g. `case.closed`, `blocklist_entry.added`, `kill_switch.engaged`, `kill_switch.release_approved`, `finding.acknowledged`.",
+    ),
+  target: out({
+    type: z.string().min(1).max(64).describe("Object type, e.g. `compliance_case`, `blocklist_entry`, `kill_switch`."),
+    id: z.string().min(1).max(128).describe("Object id (prefixed id, or a fixed name such as `global`)."),
+  }).describe("Object acted on."),
+  account_id: id("acct").nullable().describe("Merchant account concerned, if any (the `audit_events.account`)."),
+  approval: id("opa").nullable().describe("Two-person approval the action completed, if any."),
+  occurred_at: Timestamp.describe("When the action committed."),
+}).meta({
+  id: "OpsActionEvent",
+  description:
+    "A console operator action recorded by the owning service; identity copies it into `audit_events` so the console audit log is one trail. Ids only: no emails, notes or addresses.",
+});
 
 export const ApiKeyEvent = ApiKey.omit({ secret: true }).meta({
   id: "ApiKeyEvent",
@@ -135,7 +199,7 @@ export const SUBJECTS = {
     object: Account,
     aggregate: "account",
     producer: "identity",
-    consumers: ["payments"],
+    consumers: ["payments", "webhooks" /* stage 2 — identity-console: `account.updated` */],
     stage: 1,
   }),
   "evt.identity.settlement_destination.created": s({
@@ -259,6 +323,49 @@ export const SUBJECTS = {
     consumers: ["billing"],
     stage: 1,
   }),
+  // stage 2 — payments (payments §7: refunds)
+  "evt.payments.refund.created": s({
+    object: Refund,
+    aggregate: "refund",
+    producer: "payments",
+    consumers: ["webhooks"],
+    stage: 2,
+  }),
+  "evt.payments.refund.requires_action": s({
+    object: Refund,
+    aggregate: "refund",
+    producer: "payments",
+    consumers: ["webhooks"],
+    stage: 2,
+  }),
+  "evt.payments.refund.pending": s({
+    object: Refund,
+    aggregate: "refund",
+    producer: "payments",
+    consumers: ["webhooks"],
+    stage: 2,
+  }),
+  "evt.payments.refund.succeeded": s({
+    object: Refund,
+    aggregate: "refund",
+    producer: "payments",
+    consumers: ["webhooks", "notify"],
+    stage: 2,
+  }),
+  "evt.payments.refund.failed": s({
+    object: Refund,
+    aggregate: "refund",
+    producer: "payments",
+    consumers: ["webhooks"],
+    stage: 2,
+  }),
+  "evt.payments.refund.canceled": s({
+    object: Refund,
+    aggregate: "refund",
+    producer: "payments",
+    consumers: ["webhooks"],
+    stage: 2,
+  }),
 
   // rails (rails §7)
   "evt.rails.execution.updated": s({
@@ -360,14 +467,14 @@ export const SUBJECTS = {
     object: Review,
     aggregate: "case",
     producer: "compliance",
-    consumers: ["payments", "notify"],
+    consumers: ["payments", "notify", "webhooks"],
     stage: 1,
   }),
   "evt.compliance.review.closed": s({
     object: Review,
     aggregate: "case",
     producer: "compliance",
-    consumers: ["payments", "notify"],
+    consumers: ["payments", "notify", "webhooks"],
     stage: 1,
   }),
   "evt.compliance.policy.updated": s({
@@ -383,14 +490,14 @@ export const SUBJECTS = {
     object: KillSwitchEvent,
     aggregate: "kill_switch",
     producer: "sentinel",
-    consumers: ["rails", "agentpay", "notify"],
+    consumers: ["rails", "agentpay", "notify", "payments" /* stage 2 — kill switch blocks live refund legs */],
     stage: 1,
   }),
   "evt.sentinel.kill_switch.released": s({
     object: KillSwitchEvent,
     aggregate: "kill_switch",
     producer: "sentinel",
-    consumers: ["rails", "agentpay", "notify"],
+    consumers: ["rails", "agentpay", "notify", "payments" /* stage 2 — kill switch blocks live refund legs */],
     stage: 1,
   }),
   "evt.sentinel.audit_finding.created": s({
@@ -408,6 +515,87 @@ export const SUBJECTS = {
     producer: "webhooks",
     consumers: ["notify"],
     stage: 1,
+  }),
+
+  // stage 2 — identity-console
+  "evt.identity.member.added": s({
+    object: MemberEvent,
+    aggregate: "membership",
+    producer: "identity",
+    consumers: ["notify"],
+    stage: 2,
+  }),
+  "evt.identity.member.removed": s({
+    object: MemberEvent,
+    aggregate: "membership",
+    producer: "identity",
+    consumers: ["notify"],
+    stage: 2,
+  }),
+  "evt.identity.member.role_changed": s({
+    object: MemberEvent,
+    aggregate: "membership",
+    producer: "identity",
+    consumers: ["notify"],
+    stage: 2,
+  }),
+  "evt.identity.settlement_destination.pending_approval": s({
+    object: InternalSettlementDestination,
+    aggregate: "settlement_destination",
+    producer: "identity",
+    consumers: ["notify"],
+    stage: 2,
+  }),
+  "evt.compliance.kyb.submitted": s({
+    object: KybSubmittedEvent,
+    aggregate: "kyb_case",
+    producer: "compliance",
+    consumers: ["identity", "notify"],
+    stage: 2,
+  }),
+  "evt.compliance.account.action_requested": s({
+    object: OpsApproval,
+    aggregate: "ops_approval",
+    producer: "compliance",
+    consumers: ["notify"],
+    stage: 2,
+  }),
+  "evt.sentinel.kill_switch.release_requested": s({
+    object: OpsApproval,
+    aggregate: "ops_approval",
+    producer: "sentinel",
+    consumers: ["notify"],
+    stage: 2,
+  }),
+
+  // stage 2 — contracts integration: operator actions for the unified audit trail (T-12)
+  "evt.compliance.ops_action.recorded": s({
+    object: OpsActionEvent,
+    aggregate: "ops_action",
+    producer: "compliance",
+    consumers: ["identity"],
+    stage: 2,
+  }),
+  "evt.sentinel.ops_action.recorded": s({
+    object: OpsActionEvent,
+    aggregate: "ops_action",
+    producer: "sentinel",
+    consumers: ["identity"],
+    stage: 2,
+  }),
+  "evt.payments.ops_action.recorded": s({
+    object: OpsActionEvent,
+    aggregate: "ops_action",
+    producer: "payments",
+    consumers: ["identity"],
+    stage: 2,
+  }),
+  "evt.rails.ops_action.recorded": s({
+    object: OpsActionEvent,
+    aggregate: "ops_action",
+    producer: "rails",
+    consumers: ["identity"],
+    stage: 2,
   }),
 } as const satisfies Record<string, SubjectDefinition>;
 
@@ -554,6 +742,49 @@ export const AggregateType = closedEnum(
     "kill_switch",
     "audit_finding",
     "webhook_endpoint",
+    // stage 2 — payments
+    "refund",
+    // stage 2 — contracts integration (aggregates used by stage 2 subjects)
+    "membership",
+    "ops_approval",
+    "ops_action",
   ],
   "Aggregate type.",
 );
+
+// stage 2 — payments
+// ---------------------------------------------------------------------------------------------
+// Public rendering of compliance reviews (webhooks §4: `review.opened` / `review.closed`)
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * Renders a bus `Review` as the public `PublicReview` delivered to merchants. A review of a rails
+ * execution becomes a review of its payment intent; without one (`payment_intent` absent) the review
+ * is not public and the function returns null (webhooks does not deliver it).
+ */
+export function toPublicReview(review: z.output<typeof Review>, livemode: boolean): PublicReview | null {
+  const unix = (t: string) => Math.floor(Date.parse(t) / 1000);
+  let subject: PublicReview["subject"];
+  if (review.subject.type === "execution") {
+    if (!review.payment_intent) return null;
+    subject = { type: "payment_intent", id: review.payment_intent };
+  } else if (
+    review.subject.type === "payment_intent" ||
+    review.subject.type === "agent_payment" ||
+    review.subject.type === "settlement_destination"
+  ) {
+    subject = { type: review.subject.type, id: review.subject.id };
+  } else {
+    return null;
+  }
+  return {
+    id: review.id,
+    object: "review",
+    created: unix(review.opened_at),
+    livemode,
+    subject,
+    reason: review.reason,
+    status: review.status,
+    closed_at: review.closed_at ? unix(review.closed_at) : null,
+  };
+}
