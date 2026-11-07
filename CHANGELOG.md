@@ -8,7 +8,7 @@ additive only (`pnpm compat` gates every release against `test/compat/baseline/`
 ### rails-fx
 
 Stage 2 step 2.1 contracts for rails pricing/FX, the Explorer feed, the observation archive,
-reconciliation evidence, console ops reads, and open change requests (`nearpay-brain` `lld/rails.md`
+reconciliation evidence, and open change requests (`nearpay-brain` `lld/rails.md`
 v1.3, `lld/sandbox.md` v1.3, ADR-0020 decision 5). All additive; new error codes carry `since: "0.1.6"`
 (`ErrorDefinition.since` widened from the literal `"0.1.0"` to `` `0.1.${number}` ``).
 
@@ -35,18 +35,15 @@ v1.3, `lld/sandbox.md` v1.3, ADR-0020 decision 5). All additive; new error codes
 - New rails routes (stage 2): `listFxRates` `GET /internal/fx-rates` (service/ops `rails.read`),
   `estimateSettlement` `GET /internal/settlement-estimate` (service/ops `rails.read`),
   `listExecutionObservations` `GET /internal/executions/{id}/observations` (service/ops `rails.read`),
-  `listOpsExecutions` `GET /internal/ops/executions` (ops `rails.read`), `reverifyExecution`
-  `POST /internal/executions/{id}/reverify` (ops `rails.verify`, new ops scope), `getEvidenceSummary`
-  `GET /internal/evidence/summary` (service/ops `rails.read`). Schemas `FxRates`,
+  `getEvidenceSummary` `GET /internal/evidence/summary` (service/ops `rails.read`). Schemas `FxRates`,
   `SettlementEstimate`, `ObservationSource`, `ProviderObservation`, `ProviderObservationPage`,
-  `ExecutionPage`, `EvidenceSummary`. Implementer: **nearpay-rails**. Readers: **nearpay-payments**
-  (fx-rates, estimate, evidence summary), **nearpay-console** (ops reads, reverify),
-  **nearpay-sentinel** (evidence summary).
+  `EvidenceSummary`. Implementer: **nearpay-rails**. Readers: **nearpay-payments** (fx-rates, estimate,
+  evidence summary), **nearpay-sentinel** (evidence summary), console via the identity-console `/ops/…`
+  routes (which reference `Execution`, `ProviderObservation`, `EvidenceSummary`).
 - `listEvidence` accepts optional `states` (`succeeded|refunded|failed`, comma list) and `kind`, and
   `ops:rails.read`; the 0.1.5 query is unchanged in meaning (default: `succeeded`, both kinds).
 - New error `fx_rate_unavailable` (503, `rail_unavailable`, retryable).
-- New ops scope `rails.verify` (`OPS_SCOPES`).
-- **CR-15-06** `TokenContract` `{standard: erc20|native|nep141 (open), address|null}`;
+- **CR-15-06** `TokenContract` `{standard: erc20|native|nep141|spl|other (open), address|null}`;
   optional `PaymentOption.token` (public) and `InternalPaymentOption.token`. Producers: **nearpay-rails**
   → **nearpay-payments**; reader: **nearpay-checkout**.
 - **CR-15-07** optional `Attestation.asset` `{asset_id, symbol, decimals}` of the asset the payer sends.

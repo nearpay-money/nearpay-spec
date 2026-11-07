@@ -431,7 +431,7 @@ export const listEvidence = route({
 
 // =============================================================================================
 // stage 2 — rails-fx: pricing/FX (rails §8.2), observation archive (§8.11), reconciliation evidence
-// (§8.10), ops reads for the console's Verifier holds & executions explorer (§6)
+// (§8.10); console routes over executions are on the `/ops/…` table (identity-console)
 // =============================================================================================
 
 const ModeQuery = z
@@ -578,60 +578,6 @@ export const listExecutionObservations = route({
   }).meta({ id: "ProviderObservationPage", description: "Observations of an execution." }),
   status: 200,
   errors: [],
-  stage: 2,
-});
-
-export const listOpsExecutions = route({
-  id: "listOpsExecutions",
-  method: "GET",
-  path: "/internal/ops/executions",
-  service: "rails",
-  visibility: "internal",
-  summary: "Executions across accounts for the console (Verifier holds, executions explorer), newest first.",
-  description: "`state=held` lists open holds; `held_reason` narrows them. Always one mode at a time (INV-8).",
-  auth: ["ops:rails.read"],
-  idempotent: false,
-  query: inp({
-    livemode: ModeQuery,
-    account_id: id("acct").optional().describe("Only this account."),
-    state: AttemptStatus.optional().describe("Only this state."),
-    held_reason: openEnum(
-      ["evidence_mismatch", "evidence_timeout", "failed_after_deposit", "unknown_status"],
-      "Only this hold reason.",
-    ).optional(),
-    kind: ExecutionKind.optional().describe("Only payments or refund legs."),
-    provider: Provider.optional().describe("Only this provider."),
-    deposit_address: ChainAddress.optional().describe("Only this deposit address."),
-    created_gte: Timestamp.optional().describe("Created at or after."),
-    created_lte: Timestamp.optional().describe("Created at or before."),
-    starting_after: id("ex").optional().describe("Cursor: last execution of the previous page."),
-    limit: z.coerce.number().int().min(1).max(100).default(50).describe("Page size."),
-  }),
-  response: out({
-    data: z.array(Execution).describe("Executions, newest first."),
-    has_more: z.boolean().describe("More pages."),
-  }).meta({ id: "ExecutionPage", description: "A page of executions." }),
-  status: 200,
-  errors: [],
-  stage: 2,
-});
-
-export const reverifyExecution = route({
-  id: "reverifyExecution",
-  method: "POST",
-  path: "/internal/executions/{id}/reverify",
-  service: "rails",
-  visibility: "internal",
-  summary: "Run the verifier again now for a held or verifying execution (e.g. after an RPC outage).",
-  description:
-    "Never forces a state: the execution moves only if the verifier now finds evidence (INV-2). Audited with the ops principal and reason (observation source `operator`).",
-  auth: ["ops:rails.verify"],
-  idempotent: true,
-  params: ExecParams,
-  body: inp({ reason: z.string().min(1).max(500).describe("Why (audited).") }),
-  response: null,
-  status: 202,
-  errors: ["state_conflict"],
   stage: 2,
 });
 

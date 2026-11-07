@@ -986,22 +986,6 @@ components:
         - chain
         - deadline
       type: object
-    ExecutionPage:
-      additionalProperties: {}
-      description: A page of executions.
-      properties:
-        data:
-          description: Executions, newest first.
-          items:
-            $ref: "#/components/schemas/Execution"
-          type: array
-        has_more:
-          description: More pages.
-          type: boolean
-      required:
-        - data
-        - has_more
-      type: object
     FeeSchedule:
       additionalProperties: {}
       description: A fee schedule (identity owns, rails applies).
@@ -1773,12 +1757,14 @@ components:
             - type: "null"
           description: Contract address (EVM `0x…`) or token account (NEAR); null for `native`.
         standard:
-          description: "`erc20`: ERC-20 contract on an EVM chain; `native`: the chain's native coin (no contract); `nep141`: NEP-141 token on NEAR."
+          description: "`erc20`: ERC-20 contract on an EVM chain; `native`: the chain's native coin (no contract); `nep141`: NEP-141 token on NEAR; `spl`: SPL mint on Solana; `other`: no wallet transfer recipe (manual path)."
           type: string
           x-extensible-enum:
             - erc20
             - native
             - nep141
+            - spl
+            - other
       required:
         - standard
         - address
@@ -2367,72 +2353,6 @@ paths:
         idempotent: false
         service: rails
         stage: 2
-  /internal/executions/{id}/reverify:
-    post:
-      description: "Never forces a state: the execution moves only if the verifier now finds evidence (INV-2). Audited with the ops principal and reason (observation source `operator`)."
-      operationId: reverifyExecution
-      parameters:
-        - description: execution id (`ex_` + 26 base32 chars).
-          in: path
-          name: id
-          required: true
-          schema:
-            description: execution id (`ex_` + 26 base32 chars).
-            examples:
-              - ex_01jbz9k3m4n5p6q7r8s9t0v1w2
-            pattern: ^ex_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
-            type: string
-        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
-          in: header
-          name: Idempotency-Key
-          schema:
-            description: Makes the request safe to retry for 24 h (same key + same body = same result).
-            maxLength: 255
-            minLength: 1
-            type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              additionalProperties: false
-              properties:
-                reason:
-                  description: Why (audited).
-                  maxLength: 500
-                  minLength: 1
-                  type: string
-              required:
-                - reason
-              type: object
-        required: true
-      responses:
-        "202":
-          description: Run the verifier again now for a held or verifying execution (e.g. after an RPC outage).
-        "409":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-          description: "Error: `state_conflict`."
-          x-error-codes:
-            - state_conflict
-        default:
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
-      security:
-        - internalToken: []
-      summary: Run the verifier again now for a held or verifying execution (e.g. after an RPC outage).
-      tags:
-        - rails
-      x-nearpay:
-        auth:
-          - ops:rails.verify
-        idempotent: true
-        service: rails
-        stage: 2
   /internal/executions/{id}/signals:
     post:
       operationId: signalExecution
@@ -2531,143 +2451,6 @@ paths:
       x-nearpay:
         auth:
           - service:rails.read
-          - ops:rails.read
-        idempotent: false
-        service: rails
-        stage: 2
-  /internal/ops/executions:
-    get:
-      description: "`state=held` lists open holds; `held_reason` narrows them. Always one mode at a time (INV-8)."
-      operationId: listOpsExecutions
-      parameters:
-        - description: Mode.
-          in: query
-          name: livemode
-          required: true
-          schema:
-            description: Mode.
-            enum:
-              - "true"
-              - "false"
-            type: string
-        - description: Only this account.
-          in: query
-          name: account_id
-          schema:
-            description: Only this account.
-            examples:
-              - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
-            pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
-            type: string
-        - description: Only this state.
-          in: query
-          name: state
-          schema:
-            description: Only this state.
-            type: string
-            x-extensible-enum:
-              - quoting
-              - awaiting_deposit
-              - deposit_detected
-              - incomplete_deposit
-              - settling
-              - verifying
-              - succeeded
-              - refunded
-              - failed
-              - expired_unpaid
-              - held
-        - in: query
-          name: held_reason
-          schema:
-            description: Only this hold reason.
-            type: string
-            x-extensible-enum:
-              - evidence_mismatch
-              - evidence_timeout
-              - failed_after_deposit
-              - unknown_status
-        - description: Only payments or refund legs.
-          in: query
-          name: kind
-          schema:
-            description: Only payments or refund legs.
-            type: string
-            x-extensible-enum:
-              - payment
-              - refund
-        - description: Only this provider.
-          in: query
-          name: provider
-          schema:
-            description: Only this provider.
-            type: string
-            x-extensible-enum:
-              - oneclick
-              - sandbox
-              - direct_intents
-        - description: Only this deposit address.
-          in: query
-          name: deposit_address
-          schema:
-            description: Only this deposit address.
-            maxLength: 256
-            minLength: 1
-            type: string
-        - description: Created at or after.
-          in: query
-          name: created_gte
-          schema:
-            description: Created at or after.
-            format: date-time
-            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
-            type: string
-        - description: Created at or before.
-          in: query
-          name: created_lte
-          schema:
-            description: Created at or before.
-            format: date-time
-            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
-            type: string
-        - description: "Cursor: last execution of the previous page."
-          in: query
-          name: starting_after
-          schema:
-            description: "Cursor: last execution of the previous page."
-            examples:
-              - ex_01jbz9k3m4n5p6q7r8s9t0v1w2
-            pattern: ^ex_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
-            type: string
-        - description: Page size.
-          in: query
-          name: limit
-          schema:
-            default: 50
-            description: Page size.
-            maximum: 100
-            minimum: 1
-            type: integer
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ExecutionPage"
-          description: Executions across accounts for the console (Verifier holds, executions explorer), newest first.
-        default:
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
-      security:
-        - internalToken: []
-      summary: Executions across accounts for the console (Verifier holds, executions explorer), newest first.
-      tags:
-        - rails
-      x-nearpay:
-        auth:
           - ops:rails.read
         idempotent: false
         service: rails

@@ -102,8 +102,6 @@ export const OPS_SCOPES = [
   "sentinel.killswitch",
   "rails.read",
   "payments.read",
-  // stage 2 — rails-fx
-  "rails.verify",
 ] as const;
 export type OpsScope = (typeof OPS_SCOPES)[number];
 

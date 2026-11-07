@@ -13,14 +13,12 @@ import {
   listEvidence,
   listExecutionObservations,
   listFxRates,
-  listOpsExecutions,
   OneClickQuoteResponse,
   OneClickStatusQuoteResponse,
   OneClickStatusResponse,
   PriceRate,
   PriceSnapshot,
   Ratio,
-  reverifyExecution,
   sandboxExplorerTransactions,
   sandboxStatus,
 } from "../src/internal-entry.js";
@@ -29,7 +27,6 @@ import {
   DestinationSnapshot,
   ERRORS,
   exampleId,
-  OPS_SCOPES,
   PaymentOption,
   TokenContract,
   WebhookTypeSchema,
@@ -123,21 +120,12 @@ describe("exact rates (INV-5)", () => {
 
 describe("stage 2 rails routes", () => {
   it("are stage 2, owned by rails and read-only where they read", () => {
-    for (const r of [
-      listFxRates,
-      estimateSettlement,
-      listExecutionObservations,
-      listOpsExecutions,
-      getEvidenceSummary,
-      reverifyExecution,
-    ]) {
+    for (const r of [listFxRates, estimateSettlement, listExecutionObservations, getEvidenceSummary]) {
       expect(r.stage, r.id).toBe(2);
       expect(r.service, r.id).toBe("rails");
       expect(INTERNAL_ROUTES).toContain(r);
     }
-    expect(listOpsExecutions.auth).toEqual(["ops:rails.read"]);
-    expect(reverifyExecution.auth).toEqual(["ops:rails.verify"]);
-    expect(OPS_SCOPES).toContain("rails.verify");
+    expect(getEvidenceSummary.auth).toEqual(["service:rails.read", "ops:rails.read"]);
   });
 
   it("settlement estimate takes integer strings and the pricing currency", () => {
@@ -151,11 +139,16 @@ describe("stage 2 rails routes", () => {
     expect(estimateSettlement.errors).toContain("fx_rate_unavailable");
   });
 
-  it("fx-rates filters by a currency list; ops list requires a mode (INV-8)", () => {
+  it("fx-rates filters by a currency list; the evidence summary requires a mode (INV-8)", () => {
     expect(listFxRates.query?.safeParse({ currencies: "usd,eur" }).success).toBe(true);
     expect(listFxRates.query?.safeParse({ currencies: "USD" }).success).toBe(false);
-    expect(listOpsExecutions.query?.safeParse({ state: "held" }).success).toBe(false);
-    expect(listOpsExecutions.query?.safeParse({ livemode: "true", state: "held" }).success).toBe(true);
+    expect(getEvidenceSummary.query?.safeParse({ account_id: exampleId("acct"), day: "2026-11-06" }).success).toBe(
+      false,
+    );
+    expect(
+      getEvidenceSummary.query?.safeParse({ account_id: exampleId("acct"), livemode: "false", day: "2026-11-06" })
+        .success,
+    ).toBe(true);
   });
 
   it("evidence list keeps its 0.1.5 query valid and adds states/kind", () => {

@@ -106,8 +106,8 @@ export const PublicCheckoutSession = out({
 /** Token contract of an asset on its chain (CR-15-06), so wallets need not derive it from asset-id naming. */
 export const TokenContract = out({
   standard: openEnum(
-    ["erc20", "native", "nep141"],
-    "`erc20`: ERC-20 contract on an EVM chain; `native`: the chain's native coin (no contract); `nep141`: NEP-141 token on NEAR.",
+    ["erc20", "native", "nep141", "spl", "other"],
+    "`erc20`: ERC-20 contract on an EVM chain; `native`: the chain's native coin (no contract); `nep141`: NEP-141 token on NEAR; `spl`: SPL mint on Solana; `other`: no wallet transfer recipe (manual path).",
   ),
   address: z
     .string()

@@ -3897,12 +3897,14 @@ components:
             - type: "null"
           description: Contract address (EVM `0x…`) or token account (NEAR); null for `native`.
         standard:
-          description: "`erc20`: ERC-20 contract on an EVM chain; `native`: the chain's native coin (no contract); `nep141`: NEP-141 token on NEAR."
+          description: "`erc20`: ERC-20 contract on an EVM chain; `native`: the chain's native coin (no contract); `nep141`: NEP-141 token on NEAR; `spl`: SPL mint on Solana; `other`: no wallet transfer recipe (manual path)."
           type: string
           x-extensible-enum:
             - erc20
             - native
             - nep141
+            - spl
+            - other
       required:
         - standard
         - address
