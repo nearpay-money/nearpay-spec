@@ -3,6 +3,60 @@
 `@nearpay/spec` and `@nearpay-internal/spec` share one version. Within a version line changes are
 additive only (`pnpm compat` gates every release against `test/compat/baseline/`, the last release).
 
+## Unreleased
+
+### identity-console
+
+Stage 2 step 2.1 contracts for identity, compliance, webhooks, notify, sentinel and the console
+(owner decisions 2026-11-07, ADR-0020). All additive; Stage 1 routes, fields and enum values are unchanged.
+
+- **Console (ops) routes** — new route visibility `ops` (paths `/ops/…`, served by the owning
+  service, routed by the gateway only on the console host) and route field `opsRoles`
+  (`OPS_ROLES = ops | ops_admin`); `route()` refuses ops routes without `opsRoles`, with merchant
+  roles or with non-ops auth (anonymous only under `/ops/auth/`). Exports `OPS_ROUTES` (also part of
+  `INTERNAL_ROUTES`, emitted into `openapi/internal/<service>.yaml` with `x-nearpay.visibility: ops`
+  and `ops_roles`) and `OPS_ANONYMOUS_ROUTES`. New `OPS_SCOPES`: `console.session`,
+  `identity.merchants.read`, `identity.audit.read`, `compliance.read`, `compliance.accounts.write`,
+  `compliance.blocklist.write`, `compliance.screen`, `sentinel.read`, `sentinel.findings.write`;
+  `OPS_ROLE_SCOPES`; `OPS_SESSION_TTL_SECONDS`; internal JWT claim `ops_role`. Routes: console
+  sign-in (enrolment link → hardware passkey with AAGUID allow-list → `__Host-np_ops`), step-up,
+  session, logout (identity); merchants search/get and audit log (identity); KYB queue/decision,
+  cases list/get/assign/comment/close, blocklist list/add/remove, screening, re-screen, merchant
+  suspension with two-person approval (compliance); kill switch get/engage, two-person release
+  request/approve/reject, log, findings list/get/acknowledge (sentinel); executions explorer and
+  holds (rails, `Execution`). `OpsApproval` (`opa_`): the second approver is an `ops_admin` with a
+  different operator id, enforced server-side (`approver_conflict`). `setKillSwitch` declares
+  `two_person_required` (single-person release refused when `NP_ENV=server`); `decideKyb` and
+  `setKillSwitch` declare `opsRoles`. Implementers: **nearpay-identity**, **nearpay-compliance**,
+  **nearpay-sentinel**, **nearpay-rails**; kit (**@nearpay-internal/service**) must check
+  `opsRoles` against `ops_role` and accept `stepUp` for ops principals; gateway
+  (**nearpay-deploy**) routes `ops.…/api/ops/*`. Reader: **nearpay-console**.
+- **Identity** — `startRecovery`, team (`listMembers`, `updateMember`, `removeMember`),
+  invitations (`listInvitations`, `createInvitation`, `revokeInvitation`, `acceptInvitation`;
+  `inv_`), multi-account sessions (`listMemberships`, `switchSessionAccount`), restricted keys
+  (`createApiKey` accepts `type: restricted` + `scopes`; `updateApiKey`), two-approver rule
+  (`approveSettlementDestination`, optional `SettlementDestination.approval`), audit export
+  (`listAccountAuditEvents`, `AuditEvent`, `aud_`). `Registration` gains optional `purpose` and
+  `invitation`. Identity's service client gains `compliance.read` (reads the approved KYB details).
+- **Self-declared KYB** — `KybProfile` (legal name, country of incorporation, registration number,
+  business type, website, address, representative, expected monthly volume band), `getKyb`,
+  `updateKybProfile`, `submitKyb` (`kyb_profile_incomplete`); `KybCase` gains optional `profile`,
+  `editable`, `requested_info`, `submitted_at`, `decided_at`; `vendor_flow_url` is always null.
+  Status values unchanged (`pending` = submitted for review). Event `evt.compliance.kyb.submitted`;
+  `KybDecisionEvent.requested_info?`; internal `getInternalKybCase`. `Screening.provider?`
+  (`local` | `sandbox`) behind the vendor-neutral interface.
+- **Webhooks** — `rotateWebhookEndpointSecret` (overlap ≤ 24 h,
+  `WebhookEndpoint.previous_secret_expires_at?`), `resendEvent` (`EventResend`); webhook types
+  `account.updated`, `review.opened`, `review.closed` (`Review` moved to `@nearpay/spec`, re-exported
+  by the internal package); webhooks now consumes `evt.identity.account.updated` and
+  `evt.compliance.review.*`.
+- **Notify / events** — `sendMessage` templates `team.invitation` and `ops.enrolment`; subjects
+  `evt.identity.member.added|removed|role_changed`, `evt.identity.settlement_destination.pending_approval`,
+  `evt.compliance.account.action_requested`, `evt.sentinel.kill_switch.release_requested` (all → notify).
+- Errors: `last_owner`, `member_exists`, `invitation_invalid`, `approver_conflict`,
+  `two_person_required`, `authenticator_not_allowed`, `kyb_profile_incomplete`.
+- ID prefixes: `inv` (invitation), `aud` (audit event), `opa` (ops approval), `bl` (blocklist entry).
+
 ## 0.1.5 — Stage 1, step 1.4 (change requests from steps 1.2/1.3)
 
 All changes are additive (`pnpm compat`: no breaking change since 0.1.4; oasdiff reports info-level changes only).

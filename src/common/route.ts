@@ -3,12 +3,17 @@
  * gateway allow-lists and tests are generated from one definition.
  */
 import type { ErrorCode } from "../errors/catalogue.js";
-import type { Role, RouteAuth, ServiceName } from "./auth.js";
+import type { OpsRole, Role, RouteAuth, ServiceName } from "./auth.js";
 import { z } from "./schema.js";
 
 export type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
 export type SuccessStatus = 200 | 201 | 202 | 204;
-export type RouteVisibility = "public" | "internal";
+/**
+ * `ops` (stage 2 — identity-console): console routes under `/ops/…`, served by the owning service
+ * and routed by the gateway only on the console host (`ops.<domain>/api/ops/*`, ForwardAuth with
+ * the `__Host-np_ops` cookie); `/internal/*` stays unrouted.
+ */
+export type RouteVisibility = "public" | "internal" | "ops";
 /** Who serves the route: a NearPay service, or the gateway itself. */
 export type RouteOwner = ServiceName | "gateway";
 
@@ -39,8 +44,13 @@ export interface RouteDefinition<
   readonly auth: readonly RouteAuth[];
   /** Session principals must hold one of these roles. Omitted = any role. */
   readonly roles?: readonly Role[];
-  /** Session principals need a fresh step-up assertion (≤ 10 min). */
+  /** Session (or ops) principals need a fresh step-up assertion (≤ 10 min). */
   readonly stepUp?: boolean;
+  /**
+   * Ops principals must hold one of these console roles (`ops_role` claim). Required on every
+   * `ops` route that is not anonymous (stage 2 — identity-console).
+   */
+  readonly opsRoles?: readonly OpsRole[];
   /** Honours `Idempotency-Key` (foundations §7). */
   readonly idempotent: boolean;
   readonly params?: P;
@@ -89,6 +99,23 @@ export function route<
   }
   if (def.visibility === "internal" && !def.path.startsWith("/internal/") && def.service !== "sandbox") {
     throw new Error(`route ${def.id}: internal paths start with /internal/`);
+  }
+  // stage 2 — identity-console: console (ops) routes
+  if (def.visibility === "ops") {
+    if (!def.path.startsWith("/ops/")) throw new Error(`route ${def.id}: ops paths start with /ops/`);
+    if (!def.auth.every((a) => a === "anonymous" || a.startsWith("ops:"))) {
+      throw new Error(`route ${def.id}: ops routes admit only ops principals (or anonymous sign-in)`);
+    }
+    if (def.auth.includes("anonymous") && !def.path.startsWith("/ops/auth/")) {
+      throw new Error(`route ${def.id}: anonymous ops routes live under /ops/auth/`);
+    }
+    if (def.roles) throw new Error(`route ${def.id}: ops routes declare opsRoles, not merchant roles`);
+  }
+  if (def.auth.some((a) => a.startsWith("ops:")) && def.visibility === "ops" && !def.opsRoles?.length) {
+    throw new Error(`route ${def.id}: ops routes must declare opsRoles`);
+  }
+  if (def.opsRoles && !def.auth.some((a) => a.startsWith("ops:"))) {
+    throw new Error(`route ${def.id}: opsRoles need an ops auth entry`);
   }
   return Object.freeze(def);
 }

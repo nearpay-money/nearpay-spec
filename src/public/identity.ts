@@ -2,9 +2,9 @@
  * Public identity API (lld/identity.md §6, Stage 1 subset): sign-up and passkeys, account,
  * API keys, settlement destinations. Dashboard routes are session-only (ADR-0014).
  */
-import { ApiVersion, ROLES } from "../common/auth.js";
+import { ApiVersion, KEY_SCOPES, ROLES, RoleSchema } from "../common/auth.js";
 import { id } from "../common/ids.js";
-import { listOf, listQueryShape } from "../common/pagination.js";
+import { createdFilterShape, listOf, listQueryShape } from "../common/pagination.js";
 import {
   AssetId,
   Bps,
@@ -55,7 +55,12 @@ export const Account = out({
   object: z.literal("account").describe("Always `account`."),
   created: UnixTime,
   display_name: z.string().min(1).max(100).describe("Name shown to payers until KYB verifies a legal name."),
-  verified_legal_name: z.string().nullable().describe("Legal name verified by KYB, shown on checkout once set."),
+  verified_legal_name: z
+    .string()
+    .nullable()
+    .describe(
+      "Legal name approved by NearPay's KYB review (self-declared business details reviewed by ops), shown on checkout once set.",
+    ),
   country: CountryCode.nullable().describe("Country of the merchant."),
   status: openEnum(["active", "suspended", "closed"], "Account status."),
   kyb_status: openEnum(["not_started", "pending", "needs_info", "approved", "rejected"], "KYB status."),
@@ -163,6 +168,19 @@ export const SettlementDestination = out({
   ),
   per_payment_cap: UsdAmount.nullable().describe("Cap per payment for unverified destinations."),
   disabled_reason: openEnum(["merchant", "compliance", "replaced"], "Why it was disabled.").nullable(),
+  // stage 2 — identity-console: two-approver rule (identity §5)
+  approval: out({
+    required: z
+      .int()
+      .min(1)
+      .max(2)
+      .describe("Approvals needed: 2 when the account has ≥ 2 owner/admin members, else 1."),
+    approved_by: z.array(id("usr")).describe("Users who approved, in order (the creator counts when 1 is required)."),
+    rejected_by: id("usr").nullable().describe("User who rejected the destination, if any (it is then disabled)."),
+  })
+    .nullable()
+    .optional()
+    .describe("Approval state; null for test-mode destinations. Absent from Stage 1 servers."),
   attestation_challenge: AttestationChallenge.optional().describe(
     "Present on creation and on `POST /v1/settlement_destinations/{id}/challenge` while the destination awaits its ownership signature.",
   ),
@@ -207,6 +225,18 @@ export const verifyMagicLink = route({
     registration_token: z.string().min(32).describe("Single-use token for passkey registration (5 minutes)."),
     email: z.email().describe("Verified email."),
     expires_at: UnixTime.describe("Registration token expiry."),
+    // stage 2 — identity-console
+    purpose: openEnum(["signup", "recovery", "invite"], "Why the magic link was sent.")
+      .optional()
+      .describe(
+        "Why the magic link was sent: `signup` creates an account, `recovery` adds a passkey to the existing user (locks destination changes 48 h), `invite` joins the inviting account. Absent from Stage 1 servers (= `signup`).",
+      ),
+    invitation: out({
+      account_display_name: z.string().describe("Account the invitation joins."),
+      role: RoleSchema,
+    })
+      .optional()
+      .describe("Present for `invite`: what passkey registration will join."),
   }).meta({ id: "Registration", description: "A verified email ready for passkey registration." }),
   status: 200,
   errors: ["link_expired", "link_used"],
@@ -436,6 +466,24 @@ export const getAccountRequirements = route({
 const KeyIdParams = inp({ id: id("key") });
 const KEY_ROLES = ["owner", "admin", "developer"] as const;
 
+// stage 2 — identity-console: restricted keys (identity §6)
+/**
+ * Per-resource permissions of a restricted key: `<resource>.read` or `<resource>.write` (write
+ * implies read). Items accept any string so the service, not request validation, answers an unknown
+ * scope with `scope_unknown`.
+ */
+const RestrictedKeyScopes = z
+  .array(
+    z
+      .string()
+      .min(1)
+      .max(64)
+      .describe(`A scope: ${KEY_SCOPES.map((k) => `\`${k}\``).join(", ")}.`),
+  )
+  .min(1)
+  .max(KEY_SCOPES.length)
+  .describe("Scopes of a restricted key.");
+
 export const listApiKeys = route({
   id: "listApiKeys",
   method: "GET",
@@ -465,9 +513,16 @@ export const createApiKey = route({
   stepUp: true,
   idempotent: true,
   body: inp({
-    type: closedEnum(["secret", "publishable"], "Key type (restricted keys arrive in Stage 2)."),
+    type: closedEnum(
+      ["secret", "publishable", "restricted"],
+      "Key type. `restricted` (`rk_…`, Stage 2) holds only the `scopes` given.",
+    ),
     livemode: z.boolean().describe("Create a live (`true`) or test (`false`) key."),
     name: z.string().min(1).max(64).describe("Label."),
+    // stage 2 — identity-console
+    scopes: RestrictedKeyScopes.optional().describe(
+      "Required for `restricted` keys (at least one), refused for the other types. An unknown scope is `400 scope_unknown`.",
+    ),
     ip_allowlist: z.array(z.cidrv4().or(z.cidrv6())).max(20).optional().describe("Allowed CIDR ranges."),
     expires_at: UnixTime.optional().describe("Optional expiry."),
   }),
@@ -679,4 +734,328 @@ export const disableSettlementDestination = route({
   status: 200,
   errors: ["state_conflict"],
   stage: 1,
+});
+
+// =============================================================================================
+// stage 2 — identity-console: recovery, team & invitations, account switching, restricted keys,
+// two-approver rule, audit log (lld/identity.md §5–§6, §12)
+// =============================================================================================
+
+export const startRecovery = route({
+  id: "startRecovery",
+  method: "POST",
+  path: "/v1/auth/recovery",
+  service: "identity",
+  visibility: "public",
+  summary: "Start account recovery: email a magic link that adds a new passkey.",
+  description:
+    "Always `202` (no enumeration): only an address with a user gets a link (15 min, single use, at most 5 per hour). The link goes through `verifyMagicLink` (`purpose: recovery`) and passkey registration; completing it sets the account's `recovered_at`, which blocks destination changes for 48 h (`recovery_lock`), and notifies every owner.",
+  auth: ["anonymous"],
+  idempotent: false,
+  body: inp({
+    email: z.email().max(254).describe("Email address of the user who lost their passkeys."),
+    turnstile_token: z.string().min(1).max(4096).describe("Cloudflare Turnstile token."),
+  }),
+  response: null,
+  status: 202,
+  errors: ["turnstile_failed"],
+  stage: 2,
+});
+
+export const Member = out({
+  object: z.literal("member").describe("Always `member`."),
+  user: out({
+    id: id("usr"),
+    email: z.email().describe("Email of the member."),
+  }).describe("The member's user."),
+  role: RoleSchema,
+  created: UnixTime.describe("When the user joined the account."),
+  last_login_at: UnixTime.nullable().describe("Last sign-in of the user."),
+}).meta({ id: "Member", description: "A user's membership in the account (FR-ACC-01)." });
+
+export const Invitation = out({
+  id: id("inv"),
+  object: z.literal("invitation").describe("Always `invitation`."),
+  created: UnixTime,
+  email: z.email().describe("Invited address; only a user with this email can accept."),
+  role: RoleSchema,
+  status: openEnum(["pending", "accepted", "revoked", "expired"], "Invitation status."),
+  invited_by: id("usr"),
+  expires_at: UnixTime.describe("Expiry (7 days after sending)."),
+  accepted_at: UnixTime.nullable().describe("When it was accepted."),
+}).meta({ id: "Invitation", description: "An invitation to join the account with a role." });
+
+export const Membership = out({
+  object: z.literal("membership").describe("Always `membership`."),
+  account: out({
+    id: id("acct"),
+    display_name: z.string().describe("Account display name."),
+  }).describe("Account."),
+  role: RoleSchema,
+  current: z.boolean().describe("Whether the current session acts for this account."),
+}).meta({ id: "Membership", description: "An account the signed-in user belongs to." });
+
+export const AuditEvent = out({
+  id: id("aud"),
+  object: z.literal("audit_event").describe("Always `audit_event`."),
+  created: UnixTime,
+  account: id("acct").nullable().describe("Account the action concerns; null for platform actions."),
+  actor: out({
+    type: openEnum(["user", "api_key", "operator", "service", "system"], "Who acted."),
+    id: z.string().describe("`usr_…` (user or operator), `key_…`, a service name or `system`."),
+  }).describe("Who performed the action."),
+  action: z.string().describe("Action, e.g. `destination.created`, `member.invited`, `api_key.rolled`."),
+  target: out({
+    type: z.string().describe("Object type."),
+    id: z.string().describe("Object id."),
+  })
+    .nullable()
+    .describe("Object acted on."),
+  details: z.record(z.string(), z.unknown()).describe("Action details (no secrets, no personal data beyond ids)."),
+}).meta({ id: "AuditEvent", description: "An append-only audit record (identity §12)." });
+
+const TEAM_ROLES = ["owner", "admin"] as const;
+
+export const listMembers = route({
+  id: "listMembers",
+  method: "GET",
+  path: "/v1/account/members",
+  service: "identity",
+  visibility: "public",
+  summary: "List the account's members.",
+  auth: ["session"],
+  roles: TEAM_ROLES,
+  idempotent: false,
+  query: inp(listQueryShape),
+  response: listOf(Member, "MemberList", "A page of members."),
+  status: 200,
+  errors: [],
+  stage: 2,
+});
+
+export const updateMember = route({
+  id: "updateMember",
+  method: "PATCH",
+  path: "/v1/account/members/{user}",
+  service: "identity",
+  visibility: "public",
+  summary: "Change a member's role.",
+  description:
+    "Only owners grant or take away `owner` (`403 permission_denied` for admins). Taking away the last owner is `409 last_owner`.",
+  auth: ["session"],
+  roles: TEAM_ROLES,
+  stepUp: true,
+  idempotent: true,
+  params: inp({ user: id("usr") }),
+  body: inp({ role: RoleSchema }),
+  response: Member,
+  status: 200,
+  errors: ["last_owner"],
+  stage: 2,
+});
+
+export const removeMember = route({
+  id: "removeMember",
+  method: "DELETE",
+  path: "/v1/account/members/{user}",
+  service: "identity",
+  visibility: "public",
+  summary: "Remove a member; their sessions for this account end at once.",
+  description: "Only owners remove an owner. Removing the last owner is `409 last_owner`.",
+  auth: ["session"],
+  roles: TEAM_ROLES,
+  stepUp: true,
+  idempotent: false,
+  params: inp({ user: id("usr") }),
+  response: null,
+  status: 204,
+  errors: ["last_owner"],
+  stage: 2,
+});
+
+export const listInvitations = route({
+  id: "listInvitations",
+  method: "GET",
+  path: "/v1/account/invitations",
+  service: "identity",
+  visibility: "public",
+  summary: "List invitations.",
+  auth: ["session"],
+  roles: TEAM_ROLES,
+  idempotent: false,
+  query: inp({
+    ...listQueryShape,
+    status: openEnum(["pending", "accepted", "revoked", "expired"], "Only invitations with this status.").optional(),
+  }),
+  response: listOf(Invitation, "InvitationList", "A page of invitations."),
+  status: 200,
+  errors: [],
+  stage: 2,
+});
+
+export const createInvitation = route({
+  id: "createInvitation",
+  method: "POST",
+  path: "/v1/account/invitations",
+  service: "identity",
+  visibility: "public",
+  summary: "Invite a user by email; the email carries a single-use link (7 days).",
+  description:
+    "Only owners invite owners. The link (`<dashboard>/auth/invite#token=…`) goes through `verifyMagicLink` for a new user, or `acceptInvitation` for a signed-in existing user. Emits `evt.identity.member.added` when accepted.",
+  auth: ["session"],
+  roles: TEAM_ROLES,
+  stepUp: true,
+  idempotent: true,
+  body: inp({
+    email: z.email().max(254).describe("Address to invite."),
+    role: RoleSchema,
+  }),
+  response: Invitation,
+  status: 201,
+  errors: ["member_exists"],
+  stage: 2,
+});
+
+export const revokeInvitation = route({
+  id: "revokeInvitation",
+  method: "DELETE",
+  path: "/v1/account/invitations/{id}",
+  service: "identity",
+  visibility: "public",
+  summary: "Revoke a pending invitation; its link stops working.",
+  auth: ["session"],
+  roles: TEAM_ROLES,
+  idempotent: false,
+  params: inp({ id: id("inv") }),
+  response: null,
+  status: 204,
+  errors: ["state_conflict"],
+  stage: 2,
+});
+
+export const acceptInvitation = route({
+  id: "acceptInvitation",
+  method: "POST",
+  path: "/v1/auth/invitations/accept",
+  service: "identity",
+  visibility: "public",
+  summary: "Accept an invitation as the signed-in user; the session switches to the joined account.",
+  description:
+    "The invitation's email must equal the user's email. Returns the re-issued session (same cookie, new account and role, step-up cleared).",
+  auth: ["session"],
+  idempotent: false,
+  body: inp({ token: z.string().min(16).max(256).describe("Token from the invitation link.") }),
+  response: DashboardSession,
+  status: 200,
+  errors: ["invitation_invalid"],
+  stage: 2,
+});
+
+export const listMemberships = route({
+  id: "listMemberships",
+  method: "GET",
+  path: "/v1/auth/accounts",
+  service: "identity",
+  visibility: "public",
+  summary: "Accounts the signed-in user belongs to.",
+  auth: ["session"],
+  idempotent: false,
+  response: out({
+    object: z.literal("list").describe("Always `list`."),
+    data: z.array(Membership).describe("Memberships, most recently used first."),
+  }).meta({ id: "MembershipList", description: "The signed-in user's memberships." }),
+  status: 200,
+  errors: [],
+  stage: 2,
+});
+
+export const switchSessionAccount = route({
+  id: "switchSessionAccount",
+  method: "POST",
+  path: "/v1/auth/session/account",
+  service: "identity",
+  visibility: "public",
+  summary: "Make the session act for another account of the user.",
+  description:
+    "Returns the re-issued session (same cookie, new account and role, step-up cleared). Sign-in picks the most recently used account.",
+  auth: ["session"],
+  idempotent: false,
+  body: inp({ account: id("acct") }),
+  response: DashboardSession,
+  status: 200,
+  errors: [],
+  stage: 2,
+});
+
+export const updateApiKey = route({
+  id: "updateApiKey",
+  method: "PATCH",
+  path: "/v1/api_keys/{id}",
+  service: "identity",
+  visibility: "public",
+  summary: "Rename a key or change a restricted key's scopes or IP allow-list.",
+  description: "`scopes` only on restricted keys (`409 state_conflict` otherwise). Changes apply within 30 s.",
+  auth: ["session"],
+  roles: KEY_ROLES,
+  stepUp: true,
+  idempotent: true,
+  params: KeyIdParams,
+  body: inp({
+    name: z.string().min(1).max(64).optional().describe("Label."),
+    scopes: RestrictedKeyScopes.optional().describe("New scopes of a restricted key (replaces the list)."),
+    ip_allowlist: z
+      .array(z.cidrv4().or(z.cidrv6()))
+      .max(20)
+      .optional()
+      .describe("Allowed CIDR ranges (replaces the list; empty = any)."),
+  }),
+  response: ApiKey,
+  status: 200,
+  errors: ["scope_unknown", "state_conflict"],
+  stage: 2,
+});
+
+export const approveSettlementDestination = route({
+  id: "approveSettlementDestination",
+  method: "POST",
+  path: "/v1/settlement_destinations/{id}/approve",
+  service: "identity",
+  visibility: "public",
+  summary: "Approve or reject a destination awaiting approval (two-approver rule).",
+  description:
+    "When two approvals are required the approver must be an owner/admin other than the creator and other than any earlier approver; identity enforces it server-side on the session's user id (`403 approver_conflict`). Approval starts the 24 h cool-off; `reject` disables the destination. Only `pending_approval` destinations (`409 state_conflict`).",
+  auth: ["session"],
+  roles: ["owner", "admin"],
+  stepUp: true,
+  idempotent: true,
+  params: DestinationIdParams,
+  body: inp({ decision: closedEnum(["approve", "reject"], "Decision.") }),
+  response: SettlementDestination,
+  status: 200,
+  errors: ["approver_conflict", "state_conflict"],
+  stage: 2,
+});
+
+export const listAccountAuditEvents = route({
+  id: "listAccountAuditEvents",
+  method: "GET",
+  path: "/v1/account/audit_events",
+  service: "identity",
+  visibility: "public",
+  summary: "The account's audit log, newest first (audit export).",
+  description:
+    "Cursor list over the whole retention period; the dashboard's export walks it with `created[…]` filters and writes CSV client-side.",
+  auth: ["session"],
+  roles: TEAM_ROLES,
+  idempotent: false,
+  query: inp({
+    ...listQueryShape,
+    ...createdFilterShape,
+    action: z.string().max(100).optional().describe("Only this action."),
+    actor: z.string().max(64).optional().describe("Only this actor id."),
+  }),
+  response: listOf(AuditEvent, "AuditEventList", "A page of audit events."),
+  status: 200,
+  errors: [],
+  stage: 2,
 });

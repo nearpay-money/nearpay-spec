@@ -100,6 +100,59 @@
           "minLength": 1,
           "type": "string"
         },
+        "approval": {
+          "anyOf": [
+            {
+              "additionalProperties": {},
+              "properties": {
+                "approved_by": {
+                  "description": "Users who approved, in order (the creator counts when 1 is required).",
+                  "items": {
+                    "description": "user id (`usr_` + 26 base32 chars).",
+                    "examples": [
+                      "usr_01jbz9k3m4n5p6q7r8s9t0v1w2"
+                    ],
+                    "pattern": "^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "rejected_by": {
+                  "anyOf": [
+                    {
+                      "description": "user id (`usr_` + 26 base32 chars).",
+                      "examples": [
+                        "usr_01jbz9k3m4n5p6q7r8s9t0v1w2"
+                      ],
+                      "pattern": "^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "User who rejected the destination, if any (it is then disabled)."
+                },
+                "required": {
+                  "description": "Approvals needed: 2 when the account has ≥ 2 owner/admin members, else 1.",
+                  "maximum": 2,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "required",
+                "approved_by",
+                "rejected_by"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Approval state; null for test-mode destinations. Absent from Stage 1 servers."
+        },
         "asset_id": {
           "description": "Asset the merchant receives.",
           "examples": [

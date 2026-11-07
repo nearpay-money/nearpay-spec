@@ -32,9 +32,11 @@ describe("route tables", () => {
     }
   });
 
-  it("put roles and step-up only on session routes", () => {
+  it("put roles only on session routes and step-up only on session or ops routes", () => {
     for (const r of ALL) {
-      if (r.roles || r.stepUp) expect(r.auth, r.id).toContain("session");
+      if (r.roles) expect(r.auth, r.id).toContain("session");
+      // stage 2 — identity-console: console routes take step-up too
+      if (r.stepUp) expect(r.auth.includes("session") || r.auth.some((a) => a.startsWith("ops:")), r.id).toBe(true);
     }
   });
 

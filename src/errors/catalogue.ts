@@ -495,6 +495,59 @@ export const ERRORS = {
     message: "Unknown event type: {type}",
     example: "Unknown event type: payment_intent.done",
   }),
+
+  // stage 2 — identity-console
+  // ------------------------------------------------------------------ identity: team, approvals, console
+  last_owner: e({
+    status: 409,
+    type: "state_conflict",
+    retryable: false,
+    message: "The account must keep at least one owner.",
+    example: "The account must keep at least one owner.",
+  }),
+  member_exists: e({
+    status: 409,
+    type: "state_conflict",
+    retryable: false,
+    message: "{email} is already a member of this account or has a pending invitation.",
+    example: "ana@example.com is already a member of this account or has a pending invitation.",
+  }),
+  invitation_invalid: e({
+    status: 400,
+    type: "invalid_request_error",
+    retryable: false,
+    message: "The invitation is invalid: {reason}",
+    example: "The invitation is invalid: it was sent to another email address.",
+  }),
+  approver_conflict: e({
+    status: 403,
+    type: "permission_error",
+    retryable: false,
+    message: "This approval needs a different approver: {reason}",
+    example: "This approval needs a different approver: the requester cannot approve their own request.",
+  }),
+  two_person_required: e({
+    status: 409,
+    type: "state_conflict",
+    retryable: false,
+    message: "This action needs a second approver; request it in the console.",
+    example: "This action needs a second approver; request it in the console.",
+  }),
+  authenticator_not_allowed: e({
+    status: 403,
+    type: "permission_error",
+    retryable: false,
+    message: "Console passkeys must be hardware security keys on the allow-list.",
+    example: "Console passkeys must be hardware security keys on the allow-list.",
+  }),
+  // ------------------------------------------------------------------ compliance: KYB
+  kyb_profile_incomplete: e({
+    status: 400,
+    type: "invalid_request_error",
+    retryable: false,
+    message: "The business details are incomplete: {fields}",
+    example: "The business details are incomplete: registration_number, business_address.",
+  }),
 } as const satisfies Record<string, ErrorDefinition>;
 
 export type ErrorCode = keyof typeof ERRORS;

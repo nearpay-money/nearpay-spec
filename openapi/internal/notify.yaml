@@ -77,6 +77,13 @@ components:
             - screening_unavailable
             - url_invalid
             - event_type_unknown
+            - last_owner
+            - member_exists
+            - invitation_invalid
+            - approver_conflict
+            - two_person_required
+            - authenticator_not_allowed
+            - kyb_profile_incomplete
         doc_url:
           description: Documentation page for this error code.
           format: uri
@@ -198,6 +205,118 @@ paths:
                       required:
                         - link_url
                         - purpose
+                        - expires_in_minutes
+                      type: object
+                  required:
+                    - template
+                    - to
+                    - variables
+                    - dedupe_key
+                  type: object
+                - additionalProperties: false
+                  properties:
+                    dedupe_key:
+                      description: Stable key (the invitation id); repeats are deduplicated.
+                      maxLength: 200
+                      minLength: 1
+                      type: string
+                    locale:
+                      description: Locale (default `en`).
+                      maxLength: 16
+                      type: string
+                    template:
+                      const: team.invitation
+                      description: Invitation to join a merchant account.
+                      type: string
+                    to:
+                      description: Invited address.
+                      format: email
+                      pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+                      type: string
+                    variables:
+                      additionalProperties: false
+                      description: Template variables (the inviter is named only by the account, never by email).
+                      properties:
+                        account_display_name:
+                          description: Account the invitation joins.
+                          maxLength: 100
+                          minLength: 1
+                          type: string
+                        expires_in_minutes:
+                          description: Validity (7 days).
+                          maximum: 10080
+                          minimum: 1
+                          type: integer
+                        link_url:
+                          description: Invitation link (`<dashboard>/auth/invite#token=…`).
+                          format: uri
+                          maxLength: 2048
+                          type: string
+                        role:
+                          description: Role offered.
+                          enum:
+                            - owner
+                            - admin
+                            - developer
+                            - finance
+                            - support
+                            - viewer
+                          type: string
+                      required:
+                        - link_url
+                        - account_display_name
+                        - role
+                        - expires_in_minutes
+                      type: object
+                  required:
+                    - template
+                    - to
+                    - variables
+                    - dedupe_key
+                  type: object
+                - additionalProperties: false
+                  properties:
+                    dedupe_key:
+                      description: Stable key; repeats are deduplicated.
+                      maxLength: 200
+                      minLength: 1
+                      type: string
+                    locale:
+                      description: Locale (default `en`).
+                      maxLength: 16
+                      type: string
+                    template:
+                      const: ops.enrolment
+                      description: Console operator enrolment link.
+                      type: string
+                    to:
+                      description: Operator address.
+                      format: email
+                      pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+                      type: string
+                    variables:
+                      additionalProperties: false
+                      description: Template variables.
+                      properties:
+                        expires_in_minutes:
+                          description: Validity (24 h).
+                          maximum: 1440
+                          minimum: 1
+                          type: integer
+                        link_url:
+                          description: Enrolment link (`<console>/auth/enrol#token=…`).
+                          format: uri
+                          maxLength: 2048
+                          type: string
+                        role:
+                          description: Operator role granted.
+                          enum:
+                            - ops
+                            - ops_admin
+                          type: string
+                      required:
+                        - link_url
+                        - role
                         - expires_in_minutes
                       type: object
                   required:

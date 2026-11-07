@@ -10,6 +10,9 @@ import { id } from "../common/ids.js";
 import { Livemode, UnixTime } from "../common/primitives.js";
 import { openEnum, out, z } from "../common/schema.js";
 import { AgentPayment } from "../public/agentpay.js";
+// stage 2 — identity-console
+import { Review } from "../public/compliance.js";
+import { Account } from "../public/identity.js";
 import { CheckoutSession, PaymentIntent } from "../public/payments.js";
 
 /** Ping object sent by `POST /v1/webhook_endpoints/{id}/test`. */
@@ -32,6 +35,10 @@ export const WEBHOOK_TYPES = {
   "agent_payment.settled": { object: AgentPayment, subject: "evt.agentpay.agent_payment.settled" },
   "agent_payment.failed": { object: AgentPayment, subject: "evt.agentpay.agent_payment.failed" },
   ping: { object: Ping, subject: null },
+  // stage 2 — identity-console
+  "account.updated": { object: Account, subject: "evt.identity.account.updated" },
+  "review.opened": { object: Review, subject: "evt.compliance.review.opened" },
+  "review.closed": { object: Review, subject: "evt.compliance.review.closed" },
 } as const satisfies Record<string, { object: z.ZodType; subject: string | null }>;
 
 export type WebhookType = keyof typeof WEBHOOK_TYPES;

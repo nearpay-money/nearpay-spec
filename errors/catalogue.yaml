@@ -540,3 +540,66 @@ errors:
     example: "Unknown event type: payment_intent.done"
     doc_url: https://docs.nearpay.money/errors/event_type_unknown
     since: 0.1.0
+  - code: last_owner
+    status: 409
+    type: state_conflict
+    retryable: false
+    generic: false
+    message: The account must keep at least one owner.
+    example: The account must keep at least one owner.
+    doc_url: https://docs.nearpay.money/errors/last_owner
+    since: 0.1.0
+  - code: member_exists
+    status: 409
+    type: state_conflict
+    retryable: false
+    generic: false
+    message: "{email} is already a member of this account or has a pending invitation."
+    example: ana@example.com is already a member of this account or has a pending invitation.
+    doc_url: https://docs.nearpay.money/errors/member_exists
+    since: 0.1.0
+  - code: invitation_invalid
+    status: 400
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: "The invitation is invalid: {reason}"
+    example: "The invitation is invalid: it was sent to another email address."
+    doc_url: https://docs.nearpay.money/errors/invitation_invalid
+    since: 0.1.0
+  - code: approver_conflict
+    status: 403
+    type: permission_error
+    retryable: false
+    generic: false
+    message: "This approval needs a different approver: {reason}"
+    example: "This approval needs a different approver: the requester cannot approve their own request."
+    doc_url: https://docs.nearpay.money/errors/approver_conflict
+    since: 0.1.0
+  - code: two_person_required
+    status: 409
+    type: state_conflict
+    retryable: false
+    generic: false
+    message: This action needs a second approver; request it in the console.
+    example: This action needs a second approver; request it in the console.
+    doc_url: https://docs.nearpay.money/errors/two_person_required
+    since: 0.1.0
+  - code: authenticator_not_allowed
+    status: 403
+    type: permission_error
+    retryable: false
+    generic: false
+    message: Console passkeys must be hardware security keys on the allow-list.
+    example: Console passkeys must be hardware security keys on the allow-list.
+    doc_url: https://docs.nearpay.money/errors/authenticator_not_allowed
+    since: 0.1.0
+  - code: kyb_profile_incomplete
+    status: 400
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: "The business details are incomplete: {fields}"
+    example: "The business details are incomplete: registration_number, business_address."
+    doc_url: https://docs.nearpay.money/errors/kyb_profile_incomplete
+    since: 0.1.0
