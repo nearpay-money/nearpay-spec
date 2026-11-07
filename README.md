@@ -63,6 +63,8 @@ nearpay-spec/
 
 ## Status
 
+`0.2.1` — Stage 2 change requests (additive; see `CHANGELOG.md`): service-readable kill-switch state, abandoning orphaned refund legs, observed fees and deposited amounts on executions, missing route error codes, CLI actors on operator actions, recovery and secret-rotation events, and display data for checkout, dashboard and console. 102 public, 51 internal and 47 console routes, 58 domain event subjects, 21 webhook types, 77 error codes.
+
 `0.2.0` — Stage 2 contracts (step 2.1, contract freeze; additive over 0.1.5, see `CHANGELOG.md`): 102 public, 48 internal and 47 console (`/ops/…`, visibility `ops`) routes, 54 domain event subjects, 21 webhook types, 77 error codes. Adds team/invitations, restricted keys, two-approver destinations, self-declared KYB, the operations console (hardware-passkey sign-in, KYB queue, cases, blocklist, two-person suspension and kill-switch release, executions explorer, reconciliation), refunds, payment links, customers, headless payment intents, review webhooks, rails pricing/FX (ECB + public price feed), Explorer feed, observation archive and reconciliation evidence.
 
 `0.1.5` — step 1.2/1.3 change requests (additive; see `CHANGELOG.md`): new dashboard, delivery-log and attestation-challenge routes, x402 `replayed`/`deadline`, `sequence` on checkout sessions and agent payments, tolerant open-enum parsing for SDKs.

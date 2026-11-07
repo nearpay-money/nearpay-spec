@@ -51,6 +51,12 @@ export const DepositInstructions = out({
   deadline: Timestamp.describe("Send before this time; later deposits are refunded."),
   chain: ChainId.describe("Chain to send on."),
   origin_asset_id: AssetId.describe("Asset to send."),
+  // spec 0.2.1 — checkout CR (payer fee breakdown)
+  fee_amount: BaseUnits.nullable()
+    .optional()
+    .describe(
+      "Part of `amount_in` that pays NearPay's fee, base units of the origin asset — display only (not attested): `0` when the merchant bears the fee, null when unknown. Absent from older servers.",
+    ),
 }).meta({
   id: "DepositInstructions",
   description: "Where and how much the payer sends (render only after sentinel attestation).",
@@ -71,7 +77,20 @@ export const PayerAttempt = out({
   ),
   failure_code: z.string().nullable().describe("Reason the attempt failed or was refunded."),
   refunded_amount: BaseUnits.nullable().describe("Amount the provider refunded to the payer, if any."),
+  // spec 0.2.1 — checkout CR
+  amount_received: BaseUnits.nullable()
+    .optional()
+    .describe(
+      "What the payer's deposit actually delivered, base units of the origin asset; null until a deposit is detected. Shows “received X of Y” for an `incomplete_deposit`. Absent from older servers.",
+    ),
 }).meta({ id: "PayerAttempt", description: "A payment attempt as the payer sees it." });
+
+// spec 0.2.1 — checkout CR: render an asset-priced amount without a registry call
+export const PricingAssetDisplay = out({
+  asset_id: AssetId.describe("Pricing asset."),
+  symbol: z.string().min(1).max(32).describe("Token symbol."),
+  decimals: z.int().min(0).max(255).describe("Token decimals (format `amount` with them)."),
+}).meta({ id: "PricingAssetDisplay", description: "Display data of a pricing asset (rails registry)." });
 
 export const PublicCheckoutSession = out({
   id: id("cs"),
@@ -100,6 +119,10 @@ export const PublicCheckoutSession = out({
   success_url: Url.describe("Redirect target after success (`?session_id=` appended)."),
   cancel_url: Url.nullable().describe("Redirect target on cancel."),
   attempt: PayerAttempt.nullable().describe("The current visible attempt, if any."),
+  // spec 0.2.1 — checkout CR
+  pricing_asset: PricingAssetDisplay.nullable()
+    .optional()
+    .describe("Display data of the pricing asset when `currency` is `asset`; null for fiat pricing. Spec 0.2.1."),
 }).meta({ id: "PublicCheckoutSession", description: "A checkout session as the payer sees it." });
 
 // stage 2 — rails-fx (CR-15-06)

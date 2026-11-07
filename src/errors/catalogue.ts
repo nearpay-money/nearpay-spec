@@ -247,8 +247,9 @@ export const ERRORS = {
     status: 403,
     type: "permission_error",
     retryable: false,
-    message: "Settlement destinations cannot change until {until} after account recovery.",
-    example: "Settlement destinations cannot change until 2026-11-07T10:00:00Z after account recovery.",
+    // spec 0.2.1: also team changes (identity §18 recovery lock)
+    message: "Settlement destinations and team roles cannot change until {until} after account recovery.",
+    example: "Settlement destinations and team roles cannot change until 2026-11-07T10:00:00Z after account recovery.",
   }),
   screening_blocked: e({
     status: 402,

@@ -36,6 +36,14 @@ export const ComplianceCase = out({
   review: z.boolean().describe("Whether the merchant sees it as a review (`review.opened` was emitted)."),
   created: UnixTime.describe("Opened."),
   closed_at: UnixTime.nullable().describe("Closed."),
+  // spec 0.2.1 — console CR
+  account_display_name: z
+    .string()
+    .nullable()
+    .optional()
+    .describe(
+      "Display name of `account_id` (kept current from `evt.identity.account.*`); null for platform cases or when unknown (spec 0.2.1).",
+    ),
   events: z
     .array(
       out({

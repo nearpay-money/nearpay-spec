@@ -90,6 +90,20 @@
             "string",
             "null"
           ]
+        },
+        "website": {
+          "anyOf": [
+            {
+              "description": "Absolute URL.",
+              "format": "uri",
+              "maxLength": 2048,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Merchant website (account setting, shown in the dashboard and receipts); absent from older servers."
         }
       },
       "required": [
@@ -128,6 +142,12 @@
               ],
               "description": "Accent colour `#RRGGBB`."
             },
+            "corner_radius": {
+              "description": "Corner radius of checkout cards and controls, px (default 8); absent from older servers.",
+              "maximum": 24,
+              "minimum": 0,
+              "type": "integer"
+            },
             "logo_url": {
               "anyOf": [
                 {
@@ -141,6 +161,15 @@
                 }
               ],
               "description": "HTTPS URL of a square logo."
+            },
+            "theme": {
+              "description": "Checkout colour scheme (default `auto`); absent from older servers.",
+              "type": "string",
+              "x-extensible-enum": [
+                "auto",
+                "light",
+                "dark"
+              ]
             }
           },
           "required": [

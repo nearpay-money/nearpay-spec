@@ -119,6 +119,17 @@ export const PaymentAttemptSummary = out({
   is_overpayment: z.boolean().describe("Settled after another attempt already paid the intent."),
   failure_code: z.string().nullable().describe("Why the attempt failed, refunded or was held."),
   evidence: Evidence.nullable().describe("Settlement evidence, once verified."),
+  // spec 0.2.1 — dashboard CRs (payment detail: payer address and amount sent)
+  refund_to: ChainAddress.nullable()
+    .optional()
+    .describe(
+      "The payer's own address as given at checkout, where refunds go (INV-7): the refund address on the origin chain (`route_quote`; the connected wallet or a typed address, which may differ from the wallet that sent the deposit) or the payer's Intents account (`intents_transfer`). Spec 0.2.1.",
+    ),
+  origin_amount: BaseUnits.nullable()
+    .optional()
+    .describe(
+      "What the payer actually sent, base units of `origin_asset_id` (rails `deposited_amount`); null until a deposit is detected. Spec 0.2.1.",
+    ),
 }).meta({ id: "PaymentAttemptSummary", description: "One payment attempt of an intent, as merchants see it." });
 
 export const IntentStatus = openEnum(

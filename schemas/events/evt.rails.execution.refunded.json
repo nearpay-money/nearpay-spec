@@ -111,6 +111,27 @@
       "additionalProperties": {},
       "description": "A provider run moving value for a payment (rails owns).",
       "properties": {
+        "abandon_reason": {
+          "description": "Reason payments gave when abandoning the leg.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "abandoned_at": {
+          "anyOf": [
+            {
+              "description": "RFC 3339 UTC timestamp, e.g. `2026-11-05T10:00:00.000Z`.",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "When payments abandoned this refund leg (`abandonExecution`); it is then `expired_unpaid` and only tracked for late money (INV-3)."
+        },
         "account_id": {
           "description": "account id (`acct_` + 26 base32 chars).",
           "examples": [
@@ -157,6 +178,19 @@
             "type": "string"
           },
           "type": "array"
+        },
+        "deposited_amount": {
+          "anyOf": [
+            {
+              "description": "Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).",
+              "pattern": "^(0|[1-9][0-9]{0,77})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "What the payer actually deposited, base units of `origin.asset_id` (provider `depositedAmount`, or the executed Intents transfer incl. fee); null until a deposit is detected. Lets checkout and the dashboard show “received X of Y” for an incomplete deposit."
         },
         "evidence": {
           "anyOf": [
@@ -232,6 +266,17 @@
           ],
           "type": "string"
         },
+        "observed_fee": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObservedFee"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "NearPay fee observed for this execution (reconciliation fee check): the app fee the provider reports for a route, or the fee transfer of an executed Intents payload; null until known or when the provider reports none (refund legs carry no app fee: null)."
+        },
         "origin": {
           "additionalProperties": {},
           "description": "Payer side.",
@@ -252,6 +297,12 @@
               ],
               "pattern": "^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$",
               "type": "string"
+            },
+            "decimals": {
+              "description": "Decimals of the asset (display of base units; spec 0.2.1, absent from older rails).",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
             },
             "refund_to": {
               "description": "Refund address.",
@@ -393,6 +444,12 @@
               "pattern": "^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$",
               "type": "string"
             },
+            "decimals": {
+              "description": "Decimals of the asset (display of base units; spec 0.2.1, absent from older rails).",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
             "expected": {
               "description": "Expected output = base + tag.",
               "pattern": "^(0|[1-9][0-9]{0,77})$",
@@ -532,6 +589,19 @@
           "format": "date-time",
           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
           "type": "string"
+        },
+        "fee_amount_in": {
+          "anyOf": [
+            {
+              "description": "Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).",
+              "pattern": "^(0|[1-9][0-9]{0,77})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Part of `amount_in` that pays NearPay's fee, base units of the origin asset (display only): `0` when the merchant bears the fee, null when rails cannot apportion it. Absent from rails before 0.2.1."
         },
         "memo": {
           "description": "Memo.",
@@ -762,6 +832,31 @@
       ],
       "type": "object"
     },
+    "ObservedFee": {
+      "additionalProperties": {},
+      "description": "NearPay fee as observed for an execution (provider-reported app fee or the executed Intents fee transfer).",
+      "properties": {
+        "amount": {
+          "description": "Fee amount, base units of `asset_id`.",
+          "pattern": "^(0|[1-9][0-9]{0,77})$",
+          "type": "string"
+        },
+        "asset_id": {
+          "description": "Asset the fee was taken in.",
+          "examples": [
+            "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1"
+          ],
+          "maxLength": 256,
+          "pattern": "^(nep141:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+|nep245:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+:[\\x21-\\x7e]{1,128})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount",
+        "asset_id"
+      ],
+      "type": "object"
+    },
     "PriceRate": {
       "additionalProperties": {},
       "description": "A price or FX rate with its source and timestamps (INV-5: exact rational).",
@@ -987,6 +1082,19 @@
           "description": "Binding memo the transfer must carry (agentpay matches it; the indexer attributes by it).",
           "pattern": "^np1:[1-9A-HJ-NP-Za-km-z]{43,44}$",
           "type": "string"
+        },
+        "nonce": {
+          "anyOf": [
+            {
+              "description": "32-byte nonce (4-byte Verifier salt ‖ 28 random bytes), standard base64.",
+              "pattern": "^[A-Za-z0-9+/]{43}=$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Nonce to sign with (current Verifier salt ‖ 28 random bytes), issued by rails when it prepares the leg; payments copies it into `next_action` unchanged. Absent from rails before 0.2.1 (payments then derives it from the salt itself)."
         },
         "receiver_id": {
           "description": "Payer Intents account (`intents_transfer` leg) or the 1Click INTENTS deposit address (`route_quote` leg).",

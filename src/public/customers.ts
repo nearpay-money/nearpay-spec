@@ -7,9 +7,10 @@
  */
 import { id } from "../common/ids.js";
 import { createdFilterShape, listOf, listQueryShape } from "../common/pagination.js";
-import { ChainAddress, ChainId, Livemode, Metadata, UnixTime } from "../common/primitives.js";
+import { AssetId, ChainAddress, ChainId, Livemode, Metadata, UnixTime } from "../common/primitives.js";
 import { route } from "../common/route.js";
 import { inp, out, z } from "../common/schema.js";
+import { PricingAmount, PricingCurrency } from "./payments.js";
 
 export const CustomerWallet = out({
   chain: ChainId.describe("Chain of the wallet (`near:mainnet` for NEAR and Intents accounts)."),
@@ -33,6 +34,23 @@ export const Customer = out({
     .array(CustomerWallet)
     .describe("Known wallets (informational; refunds always use the payment's refund address)."),
   metadata: Metadata,
+  // spec 0.2.1 — dashboard CR (customer list "Total paid / Last payment")
+  total_paid: z
+    .array(
+      out({
+        currency: PricingCurrency,
+        asset_id: AssetId.nullable().describe("Pricing asset when `currency` is `asset`."),
+        amount: PricingAmount.describe("Sum of the priced amounts of the customer's succeeded payment intents."),
+        count: z.int().min(0).describe("Succeeded payment intents counted."),
+      }).describe("Total for one pricing currency (or pricing asset)."),
+    )
+    .optional()
+    .describe(
+      "Totals of succeeded payments per pricing currency (amounts in different currencies are never added); refunds are not subtracted. Spec 0.2.1.",
+    ),
+  last_payment_at: UnixTime.nullable()
+    .optional()
+    .describe("When the customer's latest payment intent succeeded; null when none. Spec 0.2.1."),
 }).meta({ id: "Customer", description: "A payer the merchant knows." });
 export type Customer = z.infer<typeof Customer>;
 

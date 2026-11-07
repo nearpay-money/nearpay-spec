@@ -267,12 +267,12 @@ info:
     identifier: Apache-2.0
     name: Apache-2.0
   title: nearpay-agentpay internal API
-  version: 0.2.0
+  version: 0.2.1
 openapi: 3.1.0
 paths:
   /internal/relay:
     post:
-      description: "Checkout (`kind` absent or `checkout`): the execution is a `payment` `intents_transfer` in `awaiting_deposit` and the payload holds exactly the two requirement transfers. Refund (`kind: refund`, Stage 2): the execution is a `refund` execution whose `refund.transfer` is set, still awaiting its deposit; the payload is signed by `refund.transfer.signer_id` (the merchant) and holds exactly that one transfer (receiver, token, amount, memo = binding) with a deadline ≤ `refund.transfer.deadline`. Account and mode come from the execution; the payload is relayed exactly as signed (INV-1)."
+      description: "Checkout (`kind` absent or `checkout`): the execution is a `payment` `intents_transfer` in `awaiting_deposit` and the payload holds exactly the two requirement transfers. Refund (`kind: refund`, Stage 2): the execution is a `refund` execution whose `refund.transfer` is set, still awaiting its deposit; the payload is signed by `refund.transfer.signer_id` (the merchant) and holds exactly that one transfer (receiver, token, amount, memo = binding) with a deadline ≤ `refund.transfer.deadline`. Account and mode come from the execution; the payload is relayed exactly as signed (INV-1). Every error answer is a refusal **before anything is queued or published** (no agent payment, nothing relayed), so the caller may treat the payload as unsent; a timeout or `5xx` is an unknown outcome (the payload may be queued — retry the same payload, which is idempotent on its hash) (spec 0.2.1)."
       operationId: relaySignedIntent
       parameters:
         - description: Makes the request safe to retry for 24 h (same key + same body = same result).
@@ -342,6 +342,14 @@ paths:
           description: "Error: `insufficient_balance`."
           x-error-codes:
             - insufficient_balance
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `signed_intent_mismatch`."
+          x-error-codes:
+            - signed_intent_mismatch
         "503":
           content:
             application/json:

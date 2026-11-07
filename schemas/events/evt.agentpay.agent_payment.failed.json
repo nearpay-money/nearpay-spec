@@ -97,14 +97,30 @@
           "type": "string"
         },
         "pay_to": {
-          "description": "Merchant Intents account.",
+          "description": "Receiving Intents account: the merchant (`x402`, `checkout`) or, for a `refund`, the payer's Intents account or the 1Click deposit account of a route refund.",
           "pattern": "^(?=.{2,64}$)(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+$",
           "type": "string"
         },
         "payer": {
-          "description": "Payer Intents account (signer).",
+          "description": "Intents account that signed: the payer (`x402`, `checkout`) or, for a `refund`, the merchant's Intents destination sending the refund.",
           "pattern": "^(?=.{2,64}$)(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+$",
           "type": "string"
+        },
+        "refund": {
+          "anyOf": [
+            {
+              "description": "refund id (`re_` + 26 base32 chars).",
+              "examples": [
+                "re_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^re_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Refund this payload pays a leg of (`refund` kind); null otherwise. Spec 0.2.1."
         },
         "resource_url": {
           "anyOf": [

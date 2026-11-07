@@ -35,6 +35,13 @@ export const UsdAmount = out({
   currency: z.literal("usd").describe("Always `usd`."),
 }).meta({ id: "UsdAmount", description: "An amount in US dollars (minor units)." });
 
+// spec 0.2.1 — dashboard CR (checkout appearance)
+export const CheckoutTheme = openEnum(
+  ["auto", "light", "dark"],
+  "Checkout colour scheme: `auto` follows the payer's device setting.",
+);
+export const CornerRadius = z.int().min(0).max(24).describe("Corner radius in CSS pixels (0 = square).");
+
 export const AccountSettings = out({
   late_payments: z.boolean().describe("Accept settlements that arrive after a session expired (INV-3); default false."),
   underpay_tolerance_bps: Bps.describe("Accept short settlements within this tolerance (0–100 bps); default 0."),
@@ -47,6 +54,11 @@ export const AccountSettings = out({
       .nullable()
       .describe("Accent colour `#RRGGBB`."),
     logo_url: Url.nullable().describe("HTTPS URL of a square logo."),
+    // spec 0.2.1 — dashboard CR (checkout appearance)
+    theme: CheckoutTheme.optional().describe("Checkout colour scheme (default `auto`); absent from older servers."),
+    corner_radius: CornerRadius.optional().describe(
+      "Corner radius of checkout cards and controls, px (default 8); absent from older servers.",
+    ),
   }).describe("Checkout branding."),
 }).meta({ id: "AccountSettings", description: "Merchant settings that change checkout behaviour." });
 
@@ -71,6 +83,10 @@ export const Account = out({
   ),
   api_version: ApiVersion.describe("API version pinned for this account."),
   settings: AccountSettings,
+  // spec 0.2.1 — dashboard CR
+  website: Url.nullable()
+    .optional()
+    .describe("Merchant website (account setting, shown in the dashboard and receipts); absent from older servers."),
 }).meta({ id: "Account", description: "A merchant account." });
 export type Account = z.infer<typeof Account>;
 
@@ -167,7 +183,10 @@ export const SettlementDestination = out({
     "Smallest payment that is economic for this destination (FR-SET-04).",
   ),
   per_payment_cap: UsdAmount.nullable().describe("Cap per payment for unverified destinations."),
-  disabled_reason: openEnum(["merchant", "compliance", "replaced"], "Why it was disabled.").nullable(),
+  disabled_reason: openEnum(
+    ["merchant", "compliance", "replaced", "expired"],
+    "Why it was disabled (`expired`: a pending destination not approved within 7 days; spec 0.2.1).",
+  ).nullable(),
   // stage 2 — identity-console: two-approver rule (identity §5)
   approval: out({
     required: z
@@ -184,6 +203,11 @@ export const SettlementDestination = out({
   attestation_challenge: AttestationChallenge.optional().describe(
     "Present on creation and on `POST /v1/settlement_destinations/{id}/challenge` while the destination awaits its ownership signature.",
   ),
+  // spec 0.2.1 — dashboard and notify CRs
+  created_by: id("usr")
+    .nullable()
+    .optional()
+    .describe("Dashboard user who created the destination; null when unknown (created before Stage 2). Spec 0.2.1."),
 }).meta({ id: "SettlementDestination", description: "Where a merchant receives settlements (FR-SET-01)." });
 export type SettlementDestination = z.infer<typeof SettlementDestination>;
 
@@ -417,6 +441,7 @@ export const updateAccount = route({
   body: inp({
     display_name: z.string().min(1).max(100).optional().describe("Display name."),
     country: CountryCode.optional().describe("Country."),
+    website: Url.nullable().optional().describe("Merchant website, HTTPS (`null` clears it). Spec 0.2.1."),
     fee_bearer: closedEnum(["payer", "merchant"], "Who bears NearPay's fee.").optional(),
     settings: inp({
       late_payments: z.boolean().optional().describe("Accept late settlements."),
@@ -431,6 +456,8 @@ export const updateAccount = route({
           .optional()
           .describe("Accent colour."),
         logo_url: Url.nullable().optional().describe("HTTPS logo URL."),
+        theme: CheckoutTheme.optional().describe("Checkout colour scheme. Spec 0.2.1."),
+        corner_radius: CornerRadius.optional().describe("Corner radius, px. Spec 0.2.1."),
       })
         .optional()
         .describe("Checkout branding."),
@@ -771,6 +798,15 @@ export const Member = out({
   role: RoleSchema,
   created: UnixTime.describe("When the user joined the account."),
   last_login_at: UnixTime.nullable().describe("Last sign-in of the user."),
+  // spec 0.2.1 — dashboard CR (Team page "Security" column)
+  security: out({
+    passkeys: z.int().min(0).describe("Passkeys registered by the user."),
+    recovered_at: UnixTime.nullable().describe(
+      "Last email recovery of the user (a new passkey); within 48 h their destination and team changes are locked.",
+    ),
+  })
+    .optional()
+    .describe("Sign-in security summary of the member (no credential details). Spec 0.2.1."),
 }).meta({ id: "Member", description: "A user's membership in the account (FR-ACC-01)." });
 
 export const Invitation = out({
@@ -850,7 +886,7 @@ export const updateMember = route({
   body: inp({ role: RoleSchema }),
   response: Member,
   status: 200,
-  errors: ["last_owner"],
+  errors: ["last_owner", "recovery_lock" /* spec 0.2.1 */],
   stage: 2,
 });
 
@@ -869,7 +905,7 @@ export const removeMember = route({
   params: inp({ user: id("usr") }),
   response: null,
   status: 204,
-  errors: ["last_owner"],
+  errors: ["last_owner", "recovery_lock" /* spec 0.2.1 */],
   stage: 2,
 });
 
@@ -912,7 +948,7 @@ export const createInvitation = route({
   }),
   response: Invitation,
   status: 201,
-  errors: ["member_exists"],
+  errors: ["member_exists", "recovery_lock" /* spec 0.2.1 */],
   stage: 2,
 });
 
@@ -1032,7 +1068,7 @@ export const approveSettlementDestination = route({
   body: inp({ decision: closedEnum(["approve", "reject"], "Decision.") }),
   response: SettlementDestination,
   status: 200,
-  errors: ["approver_conflict", "state_conflict"],
+  errors: ["approver_conflict", "state_conflict", "recovery_lock" /* spec 0.2.1 */],
   stage: 2,
 });
 

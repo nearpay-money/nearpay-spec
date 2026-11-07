@@ -104,6 +104,13 @@ export const ReconciliationTotals = out({
     expected: BaseUnits.describe("Σ estimated fees of the statement lines."),
     observed: BaseUnits.nullable().describe("Σ fees observed by rails (Explorer `appFees`); null when unavailable."),
   }).describe("Fee reconciliation."),
+  // spec 0.2.1 — console CR
+  decimals: z
+    .int()
+    .min(0)
+    .max(255)
+    .optional()
+    .describe("Decimals of `asset_id` for display (from rails `getInternalAsset`; spec 0.2.1)."),
 }).meta({ id: "ReconciliationTotals", description: "Per-asset totals of a run." });
 
 export const ReconciliationDiff = out({
@@ -154,6 +161,12 @@ export const ReconciliationRun = out({
   diff_count: z.int().min(0).describe("Number of diffs."),
   error: z.string().nullable().describe("Why the run errored."),
   resolution: ReconciliationResolution.nullable().describe("Operator resolution of a `diff`/`error` run."),
+  // spec 0.2.1 — console CR
+  account_display_name: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("Account display name at read time (console lists); null when unknown (spec 0.2.1)."),
 }).meta({
   id: "ReconciliationRun",
   description: "Daily reconciliation of one account, mode and UTC day: Σ statement = Σ verified evidence per asset.",

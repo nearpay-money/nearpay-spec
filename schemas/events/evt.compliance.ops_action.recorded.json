@@ -39,7 +39,7 @@
               "type": "string"
             },
             "sub": {
-              "description": "Operator user id (`sub` of the ops principal).",
+              "description": "Operator user id (`sub` of the ops principal). Ops CLI actions are not published as ops-action events (they stay in the owning service's own log); a CLI actor would be a breaking change to this event (spec 0.2.1 decision).",
               "examples": [
                 "usr_01jbz9k3m4n5p6q7r8s9t0v1w2"
               ],
@@ -70,7 +70,7 @@
           "description": "Two-person approval the action completed, if any."
         },
         "id": {
-          "description": "Action id (UUIDv7); identity dedupes `audit_events` on it. Also the envelope `aggregate.id`.",
+          "description": "Action id (UUIDv7, bare); identity dedupes `audit_events` on it and uses it as the audit event id. The envelope `aggregate.id` is the same uuid as a prefixed id, `aud_<TypeID suffix>` (the outbox keys aggregates by prefixed id; spec 0.2.1 clarification).",
           "format": "uuid",
           "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
           "type": "string"

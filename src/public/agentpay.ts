@@ -18,14 +18,23 @@ export const AgentPayment = out({
   livemode: Livemode,
   kind: openEnum(["x402", "checkout", "refund"], "What the signed payload paid for."),
   status: openEnum(["verified", "queued", "submitted", "settled", "failed"], "Relay status."),
-  payer: NearAccountId.describe("Payer Intents account (signer)."),
-  pay_to: NearAccountId.describe("Merchant Intents account."),
+  payer: NearAccountId.describe(
+    "Intents account that signed: the payer (`x402`, `checkout`) or, for a `refund`, the merchant's Intents destination sending the refund.",
+  ),
+  pay_to: NearAccountId.describe(
+    "Receiving Intents account: the merchant (`x402`, `checkout`) or, for a `refund`, the payer's Intents account or the 1Click deposit account of a route refund.",
+  ),
   asset_id: AssetId.describe("Asset."),
   amount: BaseUnits.describe("Amount to the merchant, base units."),
   fee_amount: BaseUnits.describe("NearPay fee, base units."),
   binding: Binding,
   resource_url: z.url().nullable().describe("Paid resource (x402)."),
   checkout_session: id("cs").nullable().describe("Checkout session paid (checkout kind)."),
+  // spec 0.2.1 — CR-22-AP-02
+  refund: id("re")
+    .nullable()
+    .optional()
+    .describe("Refund this payload pays a leg of (`refund` kind); null otherwise. Spec 0.2.1."),
   tx_hash: TxHash.nullable().describe("NEAR transaction that executed the payload."),
   block_height: z.int().min(0).nullable().describe("Block of the transaction."),
   error_reason: z.string().nullable().describe("Why it failed."),

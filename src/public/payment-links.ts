@@ -11,6 +11,7 @@ import { AssetId, ChainId, Livemode, Metadata, Timestamp, UnixTime, Url } from "
 import { route } from "../common/route.js";
 import { inp, out, z } from "../common/schema.js";
 import { SettlementDestinationType } from "./identity.js";
+import { PricingAssetDisplay } from "./payer.js";
 import { PricingAmount, PricingCurrency, refinePricing } from "./payments.js";
 
 export const PaymentLink = out({
@@ -19,6 +20,12 @@ export const PaymentLink = out({
   created: UnixTime,
   livemode: Livemode,
   active: z.boolean().describe("Whether new payers can open sessions."),
+  // spec 0.2.1 — dashboard CR
+  name: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("Internal name in the dashboard (never shown to payers); null when unset. Spec 0.2.1."),
   url: Url.describe("Shareable payer URL (`<pay origin>/l/<id>`)."),
   amount: PricingAmount,
   currency: PricingCurrency,
@@ -46,6 +53,7 @@ export const PaymentLinkCreate = inp({
   currency: PricingCurrency,
   asset_id: AssetId.optional().describe("Pricing asset; required when `currency` is `asset`."),
   description: z.string().min(1).max(500).describe("What the payer pays for."),
+  name: z.string().min(1).max(100).optional().describe("Internal name (never shown to payers). Spec 0.2.1."),
   settlement_destination: id("sd").optional().describe("Destination to settle to; default: the account default."),
   success_url: Url.optional().describe("Redirect after payment."),
   session_expires_in: z.int().min(300).max(86_400).optional().describe("Session lifetime, seconds (default 3600)."),
@@ -134,6 +142,7 @@ export const updatePaymentLink = route({
   body: inp({
     active: z.boolean().optional().describe("Accept (`true`) or stop accepting (`false`) new payers."),
     description: z.string().min(1).max(500).optional().describe("What the payer pays for."),
+    name: z.string().min(1).max(100).nullable().optional().describe("Internal name (`null` clears it). Spec 0.2.1."),
     success_url: Url.nullable().optional().describe("Redirect after payment (`null` clears it)."),
     max_uses: z.int().min(1).nullable().optional().describe("Usage limit (`null` removes it)."),
     collect_email: z.boolean().optional().describe("Ask the payer for a receipt email."),
@@ -171,6 +180,10 @@ export const PublicPaymentLink = out({
     .nullable()
     .describe("How the merchant is paid (never the raw address); null when no destination is usable now."),
   collect_email: z.boolean().describe("Ask the payer for a receipt email before opening the session."),
+  // spec 0.2.1 — checkout CR
+  pricing_asset: PricingAssetDisplay.nullable()
+    .optional()
+    .describe("Display data of the pricing asset when `currency` is `asset`; null for fiat pricing. Spec 0.2.1."),
 }).meta({ id: "PublicPaymentLink", description: "A payment link as the payer sees it (no PII, no address)." });
 
 export const getPublicPaymentLink = route({
