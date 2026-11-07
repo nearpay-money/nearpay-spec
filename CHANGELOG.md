@@ -3,7 +3,15 @@
 `@nearpay/spec` and `@nearpay-internal/spec` share one version. Within a version line changes are
 additive only (`pnpm compat` gates every release against `test/compat/baseline/`, the last release).
 
-## Unreleased
+## 0.2.0 — 2026-11-07
+
+Stage 2 contract freeze (step 2.1, `nearpay-brain/roadmap/development-plan.md` §4; owner decisions
+2026-11-07, ADR-0020). Additive over 0.1.5 by construction: no route, field or enum value was removed
+or renamed, no request field became required and no existing response type was tightened (the oasdiff
+gate against the 0.1.5 baseline runs in CI before the baseline moves). The new minor marks the
+Stage 2 freeze; every Stage 2 error code carries `since: "0.2.0"`. Totals: 102 public, 48 internal
+and 47 console routes (+39 / +12 / +47), 54 domain event subjects (+15), 21 webhook types (+9),
+77 error codes (+17), 38 ID prefixes (+5: `inv`, `aud`, `opa`, `bl`, `rcn`).
 
 ### contracts integration
 
@@ -41,6 +49,7 @@ events new in this release, so renames are safe).
   `ops_approval` and `ops_action`.
 - **Error `since`.** `ErrorDefinition.since` is any `major.minor.patch`; every Stage 2 code is
   stamped `0.2.0`.
+- `DeletedCustomer.livemode` (every merchant object carries its mode).
 - **Review webhooks deduplicated:** `review.opened` / `review.closed` carry `PublicReview`
   (payments); the bus `Review` stays in `@nearpay-internal/spec` (identity-console had moved it to
   the public package — reverted).

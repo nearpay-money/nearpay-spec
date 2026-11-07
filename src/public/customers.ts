@@ -39,6 +39,7 @@ export type Customer = z.infer<typeof Customer>;
 export const DeletedCustomer = out({
   id: id("cus"),
   object: z.literal("customer").describe("Always `customer`."),
+  livemode: Livemode,
   deleted: z.literal(true).describe("Always `true`."),
 }).meta({ id: "DeletedCustomer", description: "A deleted customer." });
 

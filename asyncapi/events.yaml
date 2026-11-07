@@ -9906,7 +9906,7 @@ info:
   license:
     name: Apache-2.0
   title: NearPay domain events
-  version: 0.1.5
+  version: 0.2.0
 operations:
   evt_agentpay_agent_payment_failed_send:
     action: send
