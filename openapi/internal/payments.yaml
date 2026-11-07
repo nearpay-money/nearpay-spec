@@ -2219,7 +2219,7 @@ info:
     identifier: Apache-2.0
     name: Apache-2.0
   title: nearpay-payments internal API
-  version: 0.2.0
+  version: 0.2.1
 openapi: 3.1.0
 paths:
   /internal/checkout_sessions/{id}/agent_attempts:
