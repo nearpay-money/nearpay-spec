@@ -68,6 +68,14 @@ components:
           type:
             - string
             - "null"
+        website:
+          anyOf:
+            - description: Absolute URL.
+              format: uri
+              maxLength: 2048
+              type: string
+            - type: "null"
+          description: Merchant website (account setting, shown in the dashboard and receipts); absent from older servers.
       required:
         - id
         - object
@@ -96,6 +104,11 @@ components:
                   type: string
                 - type: "null"
               description: Accent colour `#RRGGBB`.
+            corner_radius:
+              description: Corner radius of checkout cards and controls, px (default 8); absent from older servers.
+              maximum: 24
+              minimum: 0
+              type: integer
             logo_url:
               anyOf:
                 - description: Absolute URL.
@@ -104,6 +117,13 @@ components:
                   type: string
                 - type: "null"
               description: HTTPS URL of a square logo.
+            theme:
+              description: Checkout colour scheme (default `auto`); absent from older servers.
+              type: string
+              x-extensible-enum:
+                - auto
+                - light
+                - dark
           required:
             - accent_color
             - logo_url
@@ -218,13 +238,22 @@ components:
           description: Always `agent_payment`.
           type: string
         pay_to:
-          description: Merchant Intents account.
+          description: "Receiving Intents account: the merchant (`x402`, `checkout`) or, for a `refund`, the payer's Intents account or the 1Click deposit account of a route refund."
           pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
           type: string
         payer:
-          description: Payer Intents account (signer).
+          description: "Intents account that signed: the payer (`x402`, `checkout`) or, for a `refund`, the merchant's Intents destination sending the refund."
           pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
           type: string
+        refund:
+          anyOf:
+            - description: refund id (`re_` + 26 base32 chars).
+              examples:
+                - re_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^re_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Refund this payload pays a leg of (`refund` kind); null otherwise. Spec 0.2.1.
         resource_url:
           anyOf:
             - format: uri
@@ -754,6 +783,50 @@ components:
         - reason
         - failing_since
       type: object
+    EndpointSecretRotatedEvent:
+      additionalProperties: {}
+      description: A webhook endpoint's signing secret was rotated (never the secret).
+      properties:
+        account_id:
+          description: account id (`acct_` + 26 base32 chars).
+          examples:
+            - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        actor_user_id:
+          anyOf:
+            - description: user id (`usr_` + 26 base32 chars).
+              examples:
+                - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Dashboard user who rotated it; null for an API key.
+        endpoint_id:
+          description: webhook_endpoint id (`we_` + 26 base32 chars).
+          examples:
+            - we_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^we_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        previous_secret_expires_at:
+          anyOf:
+            - description: RFC 3339 UTC timestamp, e.g. `2026-11-05T10:00:00.000Z`.
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+              type: string
+            - type: "null"
+          description: Until when deliveries still carry a signature with the previous secret; null when it was dropped at once.
+        url:
+          description: Endpoint URL.
+          format: uri
+          type: string
+      required:
+        - endpoint_id
+        - account_id
+        - url
+        - previous_secret_expires_at
+        - actor_user_id
+      type: object
     Evidence:
       additionalProperties: {}
       description: Independent on-chain proof that a settlement reached the merchant (INV-2).
@@ -840,6 +913,19 @@ components:
       additionalProperties: {}
       description: A provider run moving value for a payment (rails owns).
       properties:
+        abandon_reason:
+          description: Reason payments gave when abandoning the leg.
+          type:
+            - string
+            - "null"
+        abandoned_at:
+          anyOf:
+            - description: RFC 3339 UTC timestamp, e.g. `2026-11-05T10:00:00.000Z`.
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+              type: string
+            - type: "null"
+          description: When payments abandoned this refund leg (`abandonExecution`); it is then `expired_unpaid` and only tracked for late money (INV-3).
         account_id:
           description: account id (`acct_` + 26 base32 chars).
           examples:
@@ -874,6 +960,13 @@ components:
             minLength: 8
             type: string
           type: array
+        deposited_amount:
+          anyOf:
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+            - type: "null"
+          description: What the payer actually deposited, base units of `origin.asset_id` (provider `depositedAmount`, or the executed Intents transfer incl. fee); null until a deposit is detected. Lets checkout and the dashboard show “received X of Y” for an incomplete deposit.
         evidence:
           anyOf:
             - $ref: "#/components/schemas/Evidence"
@@ -920,6 +1013,11 @@ components:
             - route_quote
             - intents_transfer
           type: string
+        observed_fee:
+          anyOf:
+            - $ref: "#/components/schemas/ObservedFee"
+            - type: "null"
+          description: "NearPay fee observed for this execution (reconciliation fee check): the app fee the provider reports for a route, or the fee transfer of an executed Intents payload; null until known or when the provider reports none (refund legs carry no app fee: null)."
         origin:
           additionalProperties: {}
           description: Payer side.
@@ -937,6 +1035,11 @@ components:
                 - eip155:8453
               pattern: ^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$
               type: string
+            decimals:
+              description: Decimals of the asset (display of base units; spec 0.2.1, absent from older rails).
+              maximum: 255
+              minimum: 0
+              type: integer
             refund_to:
               description: Refund address.
               maxLength: 256
@@ -1028,6 +1131,11 @@ components:
                 - eip155:8453
               pattern: ^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$
               type: string
+            decimals:
+              description: Decimals of the asset (display of base units; spec 0.2.1, absent from older rails).
+              maximum: 255
+              minimum: 0
+              type: integer
             expected:
               description: Expected output = base + tag.
               pattern: ^(0|[1-9][0-9]{0,77})$
@@ -1142,6 +1250,13 @@ components:
           format: date-time
           pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
           type: string
+        fee_amount_in:
+          anyOf:
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+            - type: "null"
+          description: "Part of `amount_in` that pays NearPay's fee, base units of the origin asset (display only): `0` when the merchant bears the fee, null when rails cannot apportion it. Absent from rails before 0.2.1."
         memo:
           description: Memo.
           type:
@@ -1446,14 +1561,24 @@ components:
           maximum: 9007199254740991
           minimum: 0
           type: integer
+        created_by:
+          anyOf:
+            - description: user id (`usr_` + 26 base32 chars).
+              examples:
+                - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Dashboard user who created the destination; null when unknown (created before Stage 2). Spec 0.2.1.
         disabled_reason:
           anyOf:
-            - description: Why it was disabled.
+            - description: "Why it was disabled (`expired`: a pending destination not approved within 7 days; spec 0.2.1)."
               type: string
               x-extensible-enum:
                 - merchant
                 - compliance
                 - replaced
+                - expired
             - type: "null"
         fingerprint:
           description: Short fingerprint shown on checkout next to the merchant name, e.g. `7KQ2-M9XA-31`.
@@ -1676,6 +1801,25 @@ components:
         - previous_role
         - actor_user_id
       type: object
+    ObservedFee:
+      additionalProperties: {}
+      description: NearPay fee as observed for an execution (provider-reported app fee or the executed Intents fee transfer).
+      properties:
+        amount:
+          description: Fee amount, base units of `asset_id`.
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        asset_id:
+          description: Asset the fee was taken in.
+          examples:
+            - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+          maxLength: 256
+          pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+          type: string
+      required:
+        - amount
+        - asset_id
+      type: object
     OpsActionEvent:
       additionalProperties: {}
       description: "A console operator action recorded by the owning service; identity copies it into `audit_events` so the console audit log is one trail. Ids only: no emails, notes or addresses."
@@ -1705,7 +1849,7 @@ components:
                 - ops_admin
               type: string
             sub:
-              description: Operator user id (`sub` of the ops principal).
+              description: Operator user id (`sub` of the ops principal). Ops CLI actions are not published as ops-action events (they stay in the owning service's own log); a CLI actor would be a breaking change to this event (spec 0.2.1 decision).
               examples:
                 - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
               pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
@@ -1724,7 +1868,7 @@ components:
             - type: "null"
           description: Two-person approval the action completed, if any.
         id:
-          description: Action id (UUIDv7); identity dedupes `audit_events` on it. Also the envelope `aggregate.id`.
+          description: Action id (UUIDv7, bare); identity dedupes `audit_events` on it and uses it as the audit event id. The envelope `aggregate.id` is the same uuid as a prefixed id, `aud_<TypeID suffix>` (the outbox keys aggregates by prefixed id; spec 0.2.1 clarification).
           format: uuid
           pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
           type: string
@@ -1934,6 +2078,13 @@ components:
           const: payment_attempt
           description: Always `payment_attempt`.
           type: string
+        origin_amount:
+          anyOf:
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+            - type: "null"
+          description: What the payer actually sent, base units of `origin_asset_id` (rails `deposited_amount`); null until a deposit is detected. Spec 0.2.1.
         origin_asset_id:
           description: Asset the payer pays with.
           examples:
@@ -1947,6 +2098,14 @@ components:
             - eip155:8453
           pattern: ^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$
           type: string
+        refund_to:
+          anyOf:
+            - description: Address in the chain's canonical text form.
+              maxLength: 256
+              minLength: 1
+              type: string
+            - type: "null"
+          description: "The payer's own address as given at checkout, where refunds go (INV-7): the refund address on the origin chain (`route_quote`; the connected wallet or a typed address, which may differ from the wallet that sent the deposit) or the payer's Intents account (`intents_transfer`). Spec 0.2.1."
         settled_amount:
           anyOf:
             - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
@@ -2944,6 +3103,13 @@ components:
           description: Binding memo the transfer must carry (agentpay matches it; the indexer attributes by it).
           pattern: ^np1:[1-9A-HJ-NP-Za-km-z]{43,44}$
           type: string
+        nonce:
+          anyOf:
+            - description: 32-byte nonce (4-byte Verifier salt ‖ 28 random bytes), standard base64.
+              pattern: ^[A-Za-z0-9+/]{43}=$
+              type: string
+            - type: "null"
+          description: Nonce to sign with (current Verifier salt ‖ 28 random bytes), issued by rails when it prepares the leg; payments copies it into `next_action` unchanged. Absent from rails before 0.2.1 (payments then derives it from the salt itself).
         receiver_id:
           description: Payer Intents account (`intents_transfer` leg) or the 1Click INTENTS deposit address (`route_quote` leg).
           pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
@@ -3150,9 +3316,44 @@ components:
         - amount
         - currency
       type: object
+    UserRecoveredEvent:
+      additionalProperties: {}
+      description: A user regained access by email recovery and registered a new passkey (platform event; ids only, notify resolves emails through identity).
+      properties:
+        account_ids:
+          description: "Accounts where the user is owner or admin: each gets the 48 h recovery lock and its owners are told."
+          items:
+            description: account id (`acct_` + 26 base32 chars).
+            examples:
+              - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+          type: array
+        lock_until:
+          description: End of the recovery lock on destination and team changes (48 h).
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+          type: string
+        recovered_at:
+          description: When the new passkey was registered.
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+          type: string
+        user_id:
+          description: user id (`usr_` + 26 base32 chars).
+          examples:
+            - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+      required:
+        - user_id
+        - account_ids
+        - recovered_at
+        - lock_until
+      type: object
 info:
   title: events (compat)
-  version: 0.2.0
+  version: 0.2.1
 openapi: 3.1.0
 paths:
   /evt.agentpay.agent_payment.failed:
@@ -6260,6 +6461,121 @@ paths:
                   - data
                 type: object
           description: evt.identity.settlement_destination.pending_approval
+  /evt.identity.user.recovered:
+    get:
+      operationId: evt_identity_user_recovered
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                description: Envelope of `evt.identity.user.recovered`.
+                properties:
+                  account_id:
+                    anyOf:
+                      - description: UUID (RFC 9562).
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                        type: string
+                      - type: "null"
+                    description: Merchant account UUID (null for platform events).
+                  aggregate:
+                    additionalProperties: {}
+                    description: The aggregate that changed.
+                    properties:
+                      id:
+                        description: Aggregate id (prefixed).
+                        type: string
+                      type:
+                        description: Aggregate type.
+                        type: string
+                      version:
+                        description: Aggregate version after the change.
+                        maximum: 9007199254740991
+                        minimum: 0
+                        type: integer
+                    required:
+                      - type
+                      - id
+                      - version
+                    type: object
+                  data:
+                    additionalProperties: {}
+                    description: Payload.
+                    properties:
+                      object:
+                        $ref: "#/components/schemas/UserRecoveredEvent"
+                      previous:
+                        additionalProperties: {}
+                        description: Changed fields with previous values.
+                        propertyNames:
+                          type: string
+                        type: object
+                    required:
+                      - object
+                    type: object
+                  id:
+                    description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+                    format: uuid
+                    pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    type: string
+                  livemode:
+                    description: Mode (null for platform events).
+                    type:
+                      - boolean
+                      - "null"
+                  occurred_at:
+                    description: When the state change committed.
+                    format: date-time
+                    pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                    type: string
+                  request:
+                    additionalProperties: {}
+                    description: Request context (copied into public events).
+                    properties:
+                      id:
+                        anyOf:
+                          - description: Request id, also returned in the `X-Request-Id` header.
+                            examples:
+                              - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                            pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                            type: string
+                          - type: "null"
+                        description: API request that caused the change.
+                      idempotency_key:
+                        description: Its Idempotency-Key.
+                        type:
+                          - string
+                          - "null"
+                    required:
+                      - id
+                      - idempotency_key
+                    type: object
+                  subject:
+                    const: evt.identity.user.recovered
+                    description: Subject.
+                    type: string
+                  trace:
+                    additionalProperties: {}
+                    description: Trace context.
+                    properties:
+                      traceparent:
+                        description: W3C traceparent.
+                        type: string
+                    required:
+                      - traceparent
+                    type: object
+                required:
+                  - id
+                  - occurred_at
+                  - account_id
+                  - livemode
+                  - aggregate
+                  - subject
+                  - data
+                type: object
+          description: evt.identity.user.recovered
   /evt.payments.checkout_session.completed:
     get:
       operationId: evt_payments_checkout_session_completed
@@ -9595,3 +9911,118 @@ paths:
                   - data
                 type: object
           description: evt.webhooks.endpoint.disabled
+  /evt.webhooks.endpoint.secret_rotated:
+    get:
+      operationId: evt_webhooks_endpoint_secret_rotated
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                description: Envelope of `evt.webhooks.endpoint.secret_rotated`.
+                properties:
+                  account_id:
+                    anyOf:
+                      - description: UUID (RFC 9562).
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                        type: string
+                      - type: "null"
+                    description: Merchant account UUID (null for platform events).
+                  aggregate:
+                    additionalProperties: {}
+                    description: The aggregate that changed.
+                    properties:
+                      id:
+                        description: Aggregate id (prefixed).
+                        type: string
+                      type:
+                        description: Aggregate type.
+                        type: string
+                      version:
+                        description: Aggregate version after the change.
+                        maximum: 9007199254740991
+                        minimum: 0
+                        type: integer
+                    required:
+                      - type
+                      - id
+                      - version
+                    type: object
+                  data:
+                    additionalProperties: {}
+                    description: Payload.
+                    properties:
+                      object:
+                        $ref: "#/components/schemas/EndpointSecretRotatedEvent"
+                      previous:
+                        additionalProperties: {}
+                        description: Changed fields with previous values.
+                        propertyNames:
+                          type: string
+                        type: object
+                    required:
+                      - object
+                    type: object
+                  id:
+                    description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+                    format: uuid
+                    pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    type: string
+                  livemode:
+                    description: Mode (null for platform events).
+                    type:
+                      - boolean
+                      - "null"
+                  occurred_at:
+                    description: When the state change committed.
+                    format: date-time
+                    pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                    type: string
+                  request:
+                    additionalProperties: {}
+                    description: Request context (copied into public events).
+                    properties:
+                      id:
+                        anyOf:
+                          - description: Request id, also returned in the `X-Request-Id` header.
+                            examples:
+                              - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                            pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                            type: string
+                          - type: "null"
+                        description: API request that caused the change.
+                      idempotency_key:
+                        description: Its Idempotency-Key.
+                        type:
+                          - string
+                          - "null"
+                    required:
+                      - id
+                      - idempotency_key
+                    type: object
+                  subject:
+                    const: evt.webhooks.endpoint.secret_rotated
+                    description: Subject.
+                    type: string
+                  trace:
+                    additionalProperties: {}
+                    description: Trace context.
+                    properties:
+                      traceparent:
+                        description: W3C traceparent.
+                        type: string
+                    required:
+                      - traceparent
+                    type: object
+                required:
+                  - id
+                  - occurred_at
+                  - account_id
+                  - livemode
+                  - aggregate
+                  - subject
+                  - data
+                type: object
+          description: evt.webhooks.endpoint.secret_rotated

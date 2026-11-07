@@ -68,6 +68,14 @@ components:
           type:
             - string
             - "null"
+        website:
+          anyOf:
+            - description: Absolute URL.
+              format: uri
+              maxLength: 2048
+              type: string
+            - type: "null"
+          description: Merchant website (account setting, shown in the dashboard and receipts); absent from older servers.
       required:
         - id
         - object
@@ -96,6 +104,11 @@ components:
                   type: string
                 - type: "null"
               description: Accent colour `#RRGGBB`.
+            corner_radius:
+              description: Corner radius of checkout cards and controls, px (default 8); absent from older servers.
+              maximum: 24
+              minimum: 0
+              type: integer
             logo_url:
               anyOf:
                 - description: Absolute URL.
@@ -104,6 +117,13 @@ components:
                   type: string
                 - type: "null"
               description: HTTPS URL of a square logo.
+            theme:
+              description: Checkout colour scheme (default `auto`); absent from older servers.
+              type: string
+              x-extensible-enum:
+                - auto
+                - light
+                - dark
           required:
             - accent_color
             - logo_url
@@ -201,13 +221,22 @@ components:
           description: Always `agent_payment`.
           type: string
         pay_to:
-          description: Merchant Intents account.
+          description: "Receiving Intents account: the merchant (`x402`, `checkout`) or, for a `refund`, the payer's Intents account or the 1Click deposit account of a route refund."
           pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
           type: string
         payer:
-          description: Payer Intents account (signer).
+          description: "Intents account that signed: the payer (`x402`, `checkout`) or, for a `refund`, the merchant's Intents destination sending the refund."
           pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
           type: string
+        refund:
+          anyOf:
+            - description: refund id (`re_` + 26 base32 chars).
+              examples:
+                - re_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^re_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Refund this payload pays a leg of (`refund` kind); null otherwise. Spec 0.2.1.
         resource_url:
           anyOf:
             - format: uri
@@ -2338,6 +2367,13 @@ components:
           const: payment_attempt
           description: Always `payment_attempt`.
           type: string
+        origin_amount:
+          anyOf:
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+            - type: "null"
+          description: What the payer actually sent, base units of `origin_asset_id` (rails `deposited_amount`); null until a deposit is detected. Spec 0.2.1.
         origin_asset_id:
           description: Asset the payer pays with.
           examples:
@@ -2351,6 +2387,14 @@ components:
             - eip155:8453
           pattern: ^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$
           type: string
+        refund_to:
+          anyOf:
+            - description: Address in the chain's canonical text form.
+              maxLength: 256
+              minLength: 1
+              type: string
+            - type: "null"
+          description: "The payer's own address as given at checkout, where refunds go (INV-7): the refund address on the origin chain (`route_quote`; the connected wallet or a typed address, which may differ from the wallet that sent the deposit) or the payer's Intents account (`intents_transfer`). Spec 0.2.1."
         settled_amount:
           anyOf:
             - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
@@ -3307,7 +3351,7 @@ components:
       type: object
 info:
   title: webhooks (compat)
-  version: 0.2.0
+  version: 0.2.1
 openapi: 3.1.0
 paths:
   /account.updated:
