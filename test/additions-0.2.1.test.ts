@@ -142,13 +142,11 @@ describe("spec 0.2.1: events", () => {
     occurred_at: T,
   };
 
-  it("accepts ops CLI actors on operator actions", () => {
+  it("keeps ops-action actors as console operators (CLI actor rejected as breaking)", () => {
     expect(OpsActionEvent.safeParse({ ...action, actor: { sub: exampleId("usr"), ops_role: "ops" } }).success).toBe(
       true,
     );
-    expect(OpsActionEvent.safeParse({ ...action, actor: { sub: "cli@ops-host-1" } }).success).toBe(true);
-    expect(OpsActionEvent.safeParse({ ...action, actor: { sub: "cli@ops-host-1:alice" } }).success).toBe(true);
-    expect(OpsActionEvent.safeParse({ ...action, actor: { sub: "alice" } }).success).toBe(false);
+    expect(OpsActionEvent.safeParse({ ...action, actor: { sub: "cli@ops-host-1" } }).success).toBe(false);
   });
 
   it("adds recovery and secret-rotation subjects for notify", () => {

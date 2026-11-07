@@ -132,23 +132,15 @@ export const KybSubmittedEvent = out({
 }).meta({ id: "KybSubmittedEvent", description: "The owner submitted self-declared business details for review." });
 
 // stage 2 — contracts integration: unified console audit trail (T-12)
-/** Ops CLI actor (`cli@<host>`, optionally `cli@<host>:<name>`; spec 0.2.1). */
-export const CliActor = z
-  .string()
-  .regex(/^cli@[A-Za-z0-9._:-]{1,200}$/)
-  .describe("In-container ops CLI actor: `cli@<host>` (`NP_OPS_ACTOR` / `--actor` may append `:<name>`).");
-
 export const OpsActionEvent = out({
   id: Uuid.describe(
     "Action id (UUIDv7, bare); identity dedupes `audit_events` on it and uses it as the audit event id. The envelope `aggregate.id` is the same uuid as a prefixed id, `aud_<TypeID suffix>` (the outbox keys aggregates by prefixed id; spec 0.2.1 clarification).",
   ),
   actor: out({
-    sub: z
-      .union([id("usr"), CliActor])
-      .describe(
-        "Operator user id (`sub` of the ops principal), or the ops CLI actor `cli@<host>` for actions taken with the in-container CLI (spec 0.2.1).",
-      ),
-    ops_role: OpsRoleSchema.optional().describe("Console role of the operator; absent for CLI actors (spec 0.2.1)."),
+    sub: id("usr").describe(
+      "Operator user id (`sub` of the ops principal). Ops CLI actions are not published as ops-action events (they stay in the owning service's own log); a CLI actor would be a breaking change to this event (spec 0.2.1 decision).",
+    ),
+    ops_role: OpsRoleSchema,
   }).describe("Operator who acted (ids only; identity resolves the email for display)."),
   action: z
     .string()

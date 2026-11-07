@@ -31,7 +31,7 @@
           "description": "Operator who acted (ids only; identity resolves the email for display).",
           "properties": {
             "ops_role": {
-              "description": "Console role of the operator; absent for CLI actors (spec 0.2.1).",
+              "description": "Role of a console operator.",
               "enum": [
                 "ops",
                 "ops_admin"
@@ -39,26 +39,17 @@
               "type": "string"
             },
             "sub": {
-              "anyOf": [
-                {
-                  "description": "user id (`usr_` + 26 base32 chars).",
-                  "examples": [
-                    "usr_01jbz9k3m4n5p6q7r8s9t0v1w2"
-                  ],
-                  "pattern": "^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
-                  "type": "string"
-                },
-                {
-                  "description": "In-container ops CLI actor: `cli@<host>` (`NP_OPS_ACTOR` / `--actor` may append `:<name>`).",
-                  "pattern": "^cli@[A-Za-z0-9._:-]{1,200}$",
-                  "type": "string"
-                }
+              "description": "Operator user id (`sub` of the ops principal). Ops CLI actions are not published as ops-action events (they stay in the owning service's own log); a CLI actor would be a breaking change to this event (spec 0.2.1 decision).",
+              "examples": [
+                "usr_01jbz9k3m4n5p6q7r8s9t0v1w2"
               ],
-              "description": "Operator user id (`sub` of the ops principal), or the ops CLI actor `cli@<host>` for actions taken with the in-container CLI (spec 0.2.1)."
+              "pattern": "^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
             }
           },
           "required": [
-            "sub"
+            "sub",
+            "ops_role"
           ],
           "type": "object"
         },
