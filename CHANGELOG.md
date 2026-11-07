@@ -5,6 +5,46 @@ additive only (`pnpm compat` gates every release against `test/compat/baseline/`
 
 ## Unreleased
 
+### contracts integration
+
+Cross-topic follow-ups applied when merging the three step 2.1 branches (all on routes, objects and
+events new in this release, so renames are safe).
+
+- **Reconciliation on the console table.** payments' `/internal/reconciliation_runs*` routes (ops
+  scopes on `/internal`, which the gateway never routes) are now ops routes served by payments:
+  `listOpsReconciliationRuns` `GET /ops/reconciliation_runs` (`account`, `livemode`, `status`,
+  `day`, `day[gte|lte]`, `unresolved`, cursor paging), `getOpsReconciliationRun`
+  `GET /ops/reconciliation_runs/{id}` (`ops:payments.read`), `createOpsReconciliationRun`
+  `POST /ops/reconciliation_runs` and `resolveOpsReconciliationRun`
+  `POST /ops/reconciliation_runs/{id}/resolution` (step-up) (`ops:payments.reconcile`); all
+  `opsRoles` `ops | ops_admin`. `getOpsRefund` `GET /ops/refunds/{id}` (`ops:payments.read`) for the
+  console; `getInternalRefund` is service-only (`service:payments.read`). Implementer:
+  **nearpay-payments**; reader: **nearpay-console**.
+- **Reconciliation diffs become compliance cases.** `createInternalCase` `POST /internal/cases`
+  (compliance, `service:compliance.cases.write`, new service scope held by payments): opens a
+  `reconciliation_diff` `ComplianceCase` for a `reconciliation_run` (`rcn_…`), idempotent on
+  `rcn:<run id>`. The case schemas (`CaseKind`, `CaseSeverity`, `CaseStatus`, `CaseResolution`,
+  `ComplianceCase`) moved to `src/internal/cases.ts` (same exports). Implementer:
+  **nearpay-compliance**; caller: **nearpay-payments**.
+- **Executions explorer** (rails, `/ops/executions…`): `listOpsExecutions` requires `livemode`
+  (INV-8) and types `state` as `AttemptStatus`; new `listOpsExecutionObservations`
+  `GET /ops/executions/{id}/observations` → `ProviderObservationPage` (`ops:rails.read`) and
+  `reverifyOpsExecution` `POST /ops/executions/{id}/reverify` (`ops:rails.verify`, new ops scope,
+  step-up; sets `verify_at = now()` for a `held`/`verifying` execution, never forces a state —
+  INV-2). `ObservationPageQuery` and `ProviderObservationPage` are exported schemas.
+  `ExecutionRefund.token` reuses `TokenContract`. Implementer: **nearpay-rails**.
+- **Unified console audit trail (T-12).** Subjects `evt.compliance.ops_action.recorded` and
+  `evt.sentinel.ops_action.recorded` (object `OpsActionEvent`: action `id`, `actor {sub, ops_role}`,
+  `action`, `target {type, id}`, `account_id`, `approval`, `occurred_at`; ids only), consumer
+  identity (copies them into `audit_events`). Producers: **nearpay-compliance**,
+  **nearpay-sentinel**; consumer: **nearpay-identity**. `AggregateType` documents `membership`,
+  `ops_approval` and `ops_action`.
+- **Error `since`.** `ErrorDefinition.since` is any `major.minor.patch`; every Stage 2 code is
+  stamped `0.2.0`.
+- **Review webhooks deduplicated:** `review.opened` / `review.closed` carry `PublicReview`
+  (payments); the bus `Review` stays in `@nearpay-internal/spec` (identity-console had moved it to
+  the public package — reverted).
+
 ### identity-console
 
 Stage 2 step 2.1 contracts for identity, compliance, webhooks, notify, sentinel and the console

@@ -306,7 +306,7 @@ describe("stage 2 payments: intents, filters, review, links", () => {
     const stage2 = [...PUBLIC_ROUTES, ...INTERNAL_ROUTES].filter((r) =>
       /(Refund|PaymentLink|Customer|Reconciliation|createPaymentIntent|reviewPaymentIntent|IntentsTransfer)/.test(r.id),
     );
-    expect(stage2.length).toBe(29);
+    expect(stage2.length).toBe(30); // + getOpsRefund (contracts integration)
     for (const r of stage2) expect(r.stage, r.id).toBe(2);
   });
 });

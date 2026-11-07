@@ -1006,6 +1006,103 @@ info:
   version: 0.1.5
 openapi: 3.1.0
 paths:
+  /internal/cases:
+    post:
+      description: "Payments calls it when a reconciliation run ends in `diff` or `error` (subject `reconciliation_run` / `rcn_…`), with `Idempotency-Key: rcn:<run id>` so a retried call opens one case. The case is never a merchant review (`review: false`, no `review.opened`). Only ids and operator-facing text: no personal data."
+      operationId: createInternalCase
+      parameters:
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                account_id:
+                  description: account id (`acct_` + 26 base32 chars).
+                  examples:
+                    - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+                  pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                  type: string
+                kind:
+                  description: "Case kind a service may open (stage 2: payments' reconciliation diffs)."
+                  enum:
+                    - reconciliation_diff
+                  type: string
+                livemode:
+                  description: Mode of the object concerned.
+                  type: boolean
+                note:
+                  description: "Opening note for operators, e.g. `2 diffs: missing_evidence ×1, amount_mismatch ×1` (no personal data)."
+                  maxLength: 2000
+                  minLength: 1
+                  type: string
+                severity:
+                  description: Default `high` (any reconciliation diff pages ops).
+                  type: string
+                  x-extensible-enum:
+                    - low
+                    - medium
+                    - high
+                    - critical
+                subject:
+                  additionalProperties: false
+                  description: What the case is about.
+                  properties:
+                    id:
+                      description: Reconciliation run with diffs.
+                      examples:
+                        - rcn_01jbz9k3m4n5p6q7r8s9t0v1w2
+                      pattern: ^rcn_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                      type: string
+                    type:
+                      description: Object type.
+                      enum:
+                        - reconciliation_run
+                      type: string
+                  required:
+                    - type
+                    - id
+                  type: object
+              required:
+                - kind
+                - account_id
+                - livemode
+                - subject
+                - note
+              type: object
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplianceCase"
+          description: "Open a compliance case on behalf of a service (payments: `reconciliation_diff`)."
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: "Open a compliance case on behalf of a service (payments: `reconciliation_diff`)."
+      tags:
+        - compliance
+      x-nearpay:
+        auth:
+          - service:compliance.cases.write
+        idempotent: true
+        service: compliance
+        stage: 2
   /internal/geo-policy:
     get:
       operationId: getGeoPolicy

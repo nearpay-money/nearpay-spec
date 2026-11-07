@@ -12,6 +12,7 @@
  */
 import {
   Account,
+  AttemptStatus,
   AuditEvent,
   AuthenticationResponseJSON,
   ChainAddress,
@@ -28,6 +29,7 @@ import {
   OpsRoleSchema,
   openEnum,
   out,
+  Refund,
   RegistrationResponseJSON,
   RequestOptionsJSON,
   route,
@@ -35,8 +37,10 @@ import {
   z,
 } from "@nearpay/spec";
 import { AuditFinding } from "../events/catalogue.js";
+import { CaseKind, CaseResolution, CaseSeverity, CaseStatus, ComplianceCase } from "./cases.js";
 import { OpsApproval } from "./ops-approval.js";
-import { Execution, ExecutionKind, Provider } from "./rails.js";
+import { ReconciliationResolution, ReconciliationRun, ReconciliationStatus } from "./payments.js";
+import { Execution, ExecutionKind, ObservationPageQuery, Provider, ProviderObservationPage } from "./rails.js";
 import { createScreening, KillSwitchState } from "./services.js";
 
 const ALL = ["ops", "ops_admin"] as const;
@@ -386,46 +390,8 @@ export const decideOpsKybCase = route({
 // compliance — cases
 // =============================================================================================
 
-export const CaseKind = openEnum(
-  ["screening_hit", "post_screen_hit", "held_execution", "audit_mismatch", "merchant_report", "reconciliation_diff"],
-  "Why the case was opened.",
-);
-export const CaseSeverity = openEnum(["low", "medium", "high", "critical"], "Severity.");
-export const CaseStatus = openEnum(["open", "investigating", "closed"], "Case status.");
-export const CaseResolution = openEnum(
-  ["no_action", "false_positive", "merchant_contacted", "destination_blocked", "account_suspended", "other"],
-  "How the case was resolved.",
-);
-
-export const ComplianceCase = out({
-  id: id("case"),
-  object: z.literal("compliance_case").describe("Always `compliance_case`."),
-  account_id: id("acct").nullable().describe("Account concerned, if any."),
-  livemode: z.boolean().describe("Mode."),
-  kind: CaseKind,
-  subject: out({
-    type: z.string().describe("Object type, e.g. `execution`, `settlement_destination`, `address`."),
-    id: z.string().describe("Object id or address."),
-  }).describe("What the case is about."),
-  severity: CaseSeverity,
-  status: CaseStatus,
-  assignee: id("usr").nullable().describe("Operator working on the case."),
-  resolution: CaseResolution.nullable(),
-  review: z.boolean().describe("Whether the merchant sees it as a review (`review.opened` was emitted)."),
-  created: UnixTime.describe("Opened."),
-  closed_at: UnixTime.nullable().describe("Closed."),
-  events: z
-    .array(
-      out({
-        actor: z.string().describe("`usr_…` (operator), `cli:<actor>` or `system`."),
-        action: openEnum(["opened", "assigned", "unassigned", "commented", "closed"], "What happened."),
-        note: z.string().nullable().describe("Comment or resolution note."),
-        at: UnixTime.describe("When."),
-      }),
-    )
-    .optional()
-    .describe("Timeline, oldest first; present on retrieve and on write responses, absent in lists."),
-}).meta({ id: "ComplianceCase", description: "A compliance case (screening hit, held execution, audit finding, …)." });
+// `CaseKind`, `CaseSeverity`, `CaseStatus`, `CaseResolution` and `ComplianceCase` live in `./cases.ts`
+// (shared with the internal `createInternalCase` route).
 
 const CaseParams = inp({ id: id("case") });
 
@@ -943,8 +909,10 @@ export const listOpsExecutions = route({
     ...listQueryShape,
     ...createdFilterShape,
     account: id("acct").optional().describe("Only this account."),
-    livemode: z.enum(["true", "false"]).optional().describe("Only live or test executions."),
-    state: z.string().max(32).optional().describe("Only this state (`AttemptStatus` value, e.g. `held`)."),
+    livemode: z
+      .enum(["true", "false"])
+      .describe("Live or test executions; required — the explorer never mixes modes (INV-8)."),
+    state: AttemptStatus.optional().describe("Only this state (e.g. `held` for Verifier holds)."),
     held_reason: openEnum(
       ["evidence_mismatch", "evidence_timeout", "failed_after_deposit", "unknown_status"],
       "Only holds with this reason.",
@@ -969,6 +937,145 @@ export const getOpsExecution = route({
   idempotent: false,
   params: inp({ id: id("ex") }),
   response: Execution,
+  status: 200,
+  errors: [],
+});
+
+// stage 2 — contracts integration (rails-fx follow-ups: observations, reverify; rails §6)
+const ExecutionParams = inp({ id: id("ex") });
+
+export const listOpsExecutionObservations = route({
+  ...rls,
+  id: "listOpsExecutionObservations",
+  method: "GET",
+  path: "/ops/executions/{id}/observations",
+  summary: "Raw provider/tracker observations of an execution, oldest first (evidence trail).",
+  auth: ["ops:rails.read"],
+  opsRoles: ALL,
+  idempotent: false,
+  params: ExecutionParams,
+  query: ObservationPageQuery,
+  response: ProviderObservationPage,
+  status: 200,
+  errors: [],
+});
+
+export const reverifyOpsExecution = route({
+  ...rls,
+  id: "reverifyOpsExecution",
+  method: "POST",
+  path: "/ops/executions/{id}/reverify",
+  summary: "Ask the Verifier to re-check a `held` or `verifying` execution now.",
+  description:
+    "Sets `verify_at = now()` and records an `operator` observation; the Verifier then applies its normal rules. It never forces a state: only evidence moves an execution to `succeeded` (INV-2). Other states answer `state_conflict`. Audited with the operator id.",
+  auth: ["ops:rails.verify"],
+  opsRoles: ALL,
+  stepUp: true,
+  idempotent: true,
+  params: ExecutionParams,
+  body: inp({ note: Note.describe("Why (audited).") }),
+  response: Execution,
+  status: 202,
+  errors: ["state_conflict"],
+});
+
+// =============================================================================================
+// payments — reconciliation runs and refund reads (payments §9, RB-05; shapes owned by payments)
+// =============================================================================================
+
+const pay = { service: "payments", visibility: "ops", stage: 2 } as const;
+const Day = z.iso.date().describe("UTC day `YYYY-MM-DD`.");
+const RunParams = inp({ id: id("rcn") });
+
+export const listOpsReconciliationRuns = route({
+  ...pay,
+  id: "listOpsReconciliationRuns",
+  method: "GET",
+  path: "/ops/reconciliation_runs",
+  summary: "List reconciliation runs, newest first.",
+  auth: ["ops:payments.read"],
+  opsRoles: ALL,
+  idempotent: false,
+  query: inp({
+    ...listQueryShape,
+    account: id("acct").optional().describe("Only runs of this account."),
+    livemode: z.enum(["true", "false"]).optional().describe("Only live or test runs."),
+    status: ReconciliationStatus.optional().describe("Only runs in this status."),
+    day: Day.optional().describe("Only runs of this day."),
+    "day[gte]": Day.optional().describe("Only runs of this day or later."),
+    "day[lte]": Day.optional().describe("Only runs of this day or earlier."),
+    unresolved: z.enum(["true", "false"]).optional().describe("`true`: only `diff`/`error` runs without a resolution."),
+  }),
+  response: listOf(ReconciliationRun, "ReconciliationRunList", "A page of reconciliation runs."),
+  status: 200,
+  errors: [],
+});
+
+export const getOpsReconciliationRun = route({
+  ...pay,
+  id: "getOpsReconciliationRun",
+  method: "GET",
+  path: "/ops/reconciliation_runs/{id}",
+  summary: "Retrieve a reconciliation run with its totals and diffs.",
+  auth: ["ops:payments.read"],
+  opsRoles: ALL,
+  idempotent: false,
+  params: RunParams,
+  response: ReconciliationRun,
+  status: 200,
+  errors: [],
+});
+
+export const createOpsReconciliationRun = route({
+  ...pay,
+  id: "createOpsReconciliationRun",
+  method: "POST",
+  path: "/ops/reconciliation_runs",
+  summary: "Run (or re-run) the reconciliation of a completed UTC day.",
+  description:
+    "Asynchronous: returns the new run in `running`. A re-run never edits an earlier run (INV-9); it records `rerun_of`. One run per account, mode and day may be running at a time (`state_conflict`).",
+  auth: ["ops:payments.reconcile"],
+  opsRoles: ALL,
+  idempotent: true,
+  body: inp({ account_id: id("acct"), livemode: z.boolean().describe("Mode."), day: Day }),
+  response: ReconciliationRun,
+  status: 202,
+  errors: ["reconciliation_day_open", "state_conflict"],
+});
+
+export const resolveOpsReconciliationRun = route({
+  ...pay,
+  id: "resolveOpsReconciliationRun",
+  method: "POST",
+  path: "/ops/reconciliation_runs/{id}/resolution",
+  summary: "Record how a `diff`/`error` run was explained (RB-05).",
+  description:
+    "Closes the run's question, not the books: corrections are new statement lines (`fee_adjustment`, backfills), never edits (INV-9). The `reconciliation_diff` compliance case is closed separately (`closeOpsCase`).",
+  auth: ["ops:payments.reconcile"],
+  opsRoles: ALL,
+  stepUp: true,
+  idempotent: true,
+  params: RunParams,
+  body: inp({
+    classification: ReconciliationResolution.shape.classification,
+    note: Note.describe("What was found and done (audited)."),
+  }),
+  response: ReconciliationRun,
+  status: 200,
+  errors: ["state_conflict"],
+});
+
+export const getOpsRefund = route({
+  ...pay,
+  id: "getOpsRefund",
+  method: "GET",
+  path: "/ops/refunds/{id}",
+  summary: "Retrieve a refund with its legs (console payment view).",
+  auth: ["ops:payments.read"],
+  opsRoles: ALL,
+  idempotent: false,
+  params: inp({ id: id("re") }),
+  response: Refund,
   status: 200,
   errors: [],
 });

@@ -92,6 +92,8 @@ export const SERVICE_SCOPES = [
   "notify.send",
   "sandbox.use",
   "billing.read",
+  // stage 2 — contracts integration
+  "compliance.cases.write",
 ] as const;
 export type ServiceScope = (typeof SERVICE_SCOPES)[number];
 
@@ -114,6 +116,8 @@ export const OPS_SCOPES = [
   "sentinel.findings.write",
   // stage 2 — payments
   "payments.reconcile",
+  // stage 2 — rails-fx / contracts integration (console reverify, rails §6)
+  "rails.verify",
 ] as const;
 export type OpsScope = (typeof OPS_SCOPES)[number];
 
@@ -165,6 +169,7 @@ export const SERVICE_CLIENT_SCOPES: Record<ServiceName, readonly ServiceScope[]>
     "agentpay.relay",
     "compliance.read",
     "sandbox.use",
+    "compliance.cases.write" /* stage 2 — reconciliation_diff cases */,
   ],
   rails: ["compliance.screen", "sandbox.use"],
   agentpay: [

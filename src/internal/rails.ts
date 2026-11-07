@@ -72,12 +72,9 @@ export const ExecutionRefund = out({
     "What the payer should receive, base units of the recipient asset (quote `amountOut`).",
   ),
   min_amount_out: BaseUnits.nullable().describe("Quote `minAmountOut` (route legs)."),
-  token: out({
-    standard: openEnum(["native", "erc20", "nep141", "spl", "other"], "Token standard on the source chain."),
-    address: z.string().nullable().describe("Contract / mint / NEP-141 account; null for native assets."),
-  })
-    .nullable()
-    .describe("How to transfer the source asset on its chain (`sign_and_send` legs); null for Intents sources."),
+  token: TokenContract.nullable().describe(
+    "How to transfer the source asset on its chain (`sign_and_send` legs); null for Intents sources.",
+  ),
   transfer: RefundTransfer.nullable().describe(
     "Set when the source is an Intents account: the transfer to sign (to the payer, or to the 1Click deposit address).",
   ),
@@ -699,6 +696,17 @@ export const ProviderObservation = out({
 });
 export type ProviderObservation = z.infer<typeof ProviderObservation>;
 
+/** Paging of an execution's observations (also used by the console's `/ops/executions/{id}/observations`). */
+export const ObservationPageQuery = inp({
+  starting_after: id("obs").optional().describe("Cursor: last observation of the previous page."),
+  limit: z.coerce.number().int().min(1).max(500).default(100).describe("Page size."),
+});
+
+export const ProviderObservationPage = out({
+  data: z.array(ProviderObservation).describe("Observations, oldest first."),
+  has_more: z.boolean().describe("More pages."),
+}).meta({ id: "ProviderObservationPage", description: "Observations of an execution." });
+
 export const listExecutionObservations = route({
   id: "listExecutionObservations",
   method: "GET",
@@ -709,14 +717,8 @@ export const listExecutionObservations = route({
   auth: ["service:rails.read", "ops:rails.read"],
   idempotent: false,
   params: ExecParams,
-  query: inp({
-    starting_after: id("obs").optional().describe("Cursor: last observation of the previous page."),
-    limit: z.coerce.number().int().min(1).max(500).default(100).describe("Page size."),
-  }),
-  response: out({
-    data: z.array(ProviderObservation).describe("Observations, oldest first."),
-    has_more: z.boolean().describe("More pages."),
-  }).meta({ id: "ProviderObservationPage", description: "Observations of an execution." }),
+  query: ObservationPageQuery,
+  response: ProviderObservationPage,
   status: 200,
   errors: [],
   stage: 2,

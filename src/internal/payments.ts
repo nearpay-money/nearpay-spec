@@ -3,15 +3,15 @@
  *
  * - Refund receipt data for notify (`refund.receipt`, notify §4) and a full refund read.
  * - Daily reconciliation runs (domain-model §6, RB-05): payments compares its statement with rails
- *   evidence per account, mode, UTC day and asset. The ops console reads and drives runs through
- *   these `ops:` routes (console pages "Reconciliation runs"); a run with diffs is the ops case.
+ *   evidence per account, mode, UTC day and asset. The console reads and drives runs through the
+ *   `/ops/reconciliation_runs…` routes (`./ops.ts`); a run with diffs opens a `reconciliation_diff`
+ *   compliance case (`createInternalCase`).
  */
 import {
   AssetId,
   BaseUnits,
   id,
   inp,
-  listOf,
   openEnum,
   out,
   PricingAmount,
@@ -35,8 +35,8 @@ export const getInternalRefund = route({
   path: "/internal/refunds/{id}",
   service: "payments",
   visibility: "internal",
-  summary: "Full refund (console, services).",
-  auth: ["service:payments.read", "ops:payments.read"],
+  summary: "Full refund (services; the console reads `GET /ops/refunds/{id}`).",
+  auth: ["service:payments.read"],
   idempotent: false,
   params: RefundParams,
   response: Refund,
@@ -83,10 +83,6 @@ export const getRefundReceiptContext = route({
 // =============================================================================================
 
 const Day = z.iso.date().describe("UTC day `YYYY-MM-DD`.");
-const ModeQuery = z
-  .enum(["true", "false"])
-  .transform((v) => v === "true")
-  .describe("Mode.");
 
 export const ReconciliationStatus = openEnum(
   ["running", "ok", "diff", "error"],
@@ -164,88 +160,5 @@ export const ReconciliationRun = out({
 });
 export type ReconciliationRun = z.infer<typeof ReconciliationRun>;
 
-const RunParams = inp({ id: id("rcn") });
-
-export const listReconciliationRuns = route({
-  id: "listReconciliationRuns",
-  method: "GET",
-  path: "/internal/reconciliation_runs",
-  service: "payments",
-  visibility: "internal",
-  summary: "List reconciliation runs, newest first (ops console).",
-  auth: ["ops:payments.read"],
-  idempotent: false,
-  query: inp({
-    account_id: id("acct").optional().describe("Only runs of this account."),
-    livemode: ModeQuery.optional(),
-    status: ReconciliationStatus.optional().describe("Only runs in this status."),
-    day: Day.optional().describe("Only runs of this day."),
-    "day[gte]": Day.optional().describe("Only runs of this day or later."),
-    "day[lte]": Day.optional().describe("Only runs of this day or earlier."),
-    unresolved: z
-      .enum(["true", "false"])
-      .transform((v) => v === "true")
-      .optional()
-      .describe("`true`: only `diff`/`error` runs without a resolution."),
-    limit: z.coerce.number().int().min(1).max(100).default(20).describe("Page size."),
-    starting_after: id("rcn").optional().describe("Cursor."),
-  }),
-  response: listOf(ReconciliationRun, "ReconciliationRunList", "A page of reconciliation runs."),
-  status: 200,
-  errors: [],
-  stage: 2,
-});
-
-export const getReconciliationRun = route({
-  id: "getReconciliationRun",
-  method: "GET",
-  path: "/internal/reconciliation_runs/{id}",
-  service: "payments",
-  visibility: "internal",
-  summary: "A reconciliation run with its diffs.",
-  auth: ["ops:payments.read"],
-  idempotent: false,
-  params: RunParams,
-  response: ReconciliationRun,
-  status: 200,
-  errors: [],
-  stage: 2,
-});
-
-export const createReconciliationRun = route({
-  id: "createReconciliationRun",
-  method: "POST",
-  path: "/internal/reconciliation_runs",
-  service: "payments",
-  visibility: "internal",
-  summary: "Run (or re-run) the reconciliation of a completed UTC day.",
-  description:
-    "Asynchronous: returns the new run in `running`. A re-run never edits an earlier run (INV-9); it records `rerun_of`. One run per account, mode and day may be running at a time.",
-  auth: ["ops:payments.reconcile"],
-  idempotent: true,
-  body: inp({ account_id: id("acct"), livemode: z.boolean().describe("Mode."), day: Day }),
-  response: ReconciliationRun,
-  status: 202,
-  errors: ["reconciliation_day_open", "state_conflict"],
-  stage: 2,
-});
-
-export const resolveReconciliationRun = route({
-  id: "resolveReconciliationRun",
-  method: "POST",
-  path: "/internal/reconciliation_runs/{id}/resolution",
-  service: "payments",
-  visibility: "internal",
-  summary: "Record how a `diff`/`error` run was explained (RB-05).",
-  auth: ["ops:payments.reconcile"],
-  idempotent: true,
-  params: RunParams,
-  body: inp({
-    classification: ReconciliationResolution.shape.classification,
-    note: z.string().min(1).max(2000).describe("What was found and done."),
-  }),
-  response: ReconciliationRun,
-  status: 200,
-  errors: ["state_conflict"],
-  stage: 2,
-});
+// The console reads and drives runs through the `/ops/reconciliation_runs…` routes in `./ops.ts`
+// (visibility `ops`, served by payments).

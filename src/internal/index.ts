@@ -1,5 +1,6 @@
 /** Internal route table (`/internal/*` and the sandbox mirror). */
 import type { AnyRoute } from "@nearpay/spec";
+import * as cases from "./cases.js"; // stage 2 — contracts integration
 import * as identity from "./identity.js";
 // stage 2 — identity-console
 import * as ops from "./ops.js";
@@ -8,6 +9,7 @@ import * as rails from "./rails.js";
 import * as sandbox from "./sandbox.js";
 import * as services from "./services.js";
 
+export * from "./cases.js"; // stage 2 — contracts integration
 // stage 2 — rails-fx
 export * from "./explorer.js";
 export * from "./identity.js";
@@ -48,4 +50,6 @@ export const INTERNAL_ROUTES: readonly AnyRoute[] = Object.freeze([
   ...OPS_ROUTES,
   // stage 2 — payments
   ...routesOf(payments),
+  // stage 2 — contracts integration
+  ...routesOf(cases),
 ]);

@@ -14,6 +14,7 @@ import {
   closedEnum,
   id,
   KybStatus,
+  OpsRoleSchema,
   openEnum,
   out,
   PaymentIntent,
@@ -129,6 +130,33 @@ export const KybSubmittedEvent = out({
   status: KybStatus,
   submitted_at: Timestamp.describe("Submission time."),
 }).meta({ id: "KybSubmittedEvent", description: "The owner submitted self-declared business details for review." });
+
+// stage 2 — contracts integration: unified console audit trail (T-12)
+export const OpsActionEvent = out({
+  id: Uuid.describe("Action id (UUIDv7); identity dedupes `audit_events` on it. Also the envelope `aggregate.id`."),
+  actor: out({
+    sub: id("usr").describe("Operator user id (`sub` of the ops principal)."),
+    ops_role: OpsRoleSchema,
+  }).describe("Operator who acted (ids only; identity resolves the email for display)."),
+  action: z
+    .string()
+    .min(1)
+    .max(100)
+    .describe(
+      "Action, `<object>.<verb>`, e.g. `case.closed`, `blocklist_entry.added`, `kill_switch.engaged`, `kill_switch.release_approved`, `finding.acknowledged`.",
+    ),
+  target: out({
+    type: z.string().min(1).max(64).describe("Object type, e.g. `compliance_case`, `blocklist_entry`, `kill_switch`."),
+    id: z.string().min(1).max(128).describe("Object id (prefixed id, or a fixed name such as `global`)."),
+  }).describe("Object acted on."),
+  account_id: id("acct").nullable().describe("Merchant account concerned, if any (the `audit_events.account`)."),
+  approval: id("opa").nullable().describe("Two-person approval the action completed, if any."),
+  occurred_at: Timestamp.describe("When the action committed."),
+}).meta({
+  id: "OpsActionEvent",
+  description:
+    "A console operator action recorded by the owning service; identity copies it into `audit_events` so the console audit log is one trail. Ids only: no emails, notes or addresses.",
+});
 
 export const ApiKeyEvent = ApiKey.omit({ secret: true }).meta({
   id: "ApiKeyEvent",
@@ -539,6 +567,22 @@ export const SUBJECTS = {
     consumers: ["notify"],
     stage: 2,
   }),
+
+  // stage 2 — contracts integration: operator actions for the unified audit trail (T-12)
+  "evt.compliance.ops_action.recorded": s({
+    object: OpsActionEvent,
+    aggregate: "ops_action",
+    producer: "compliance",
+    consumers: ["identity"],
+    stage: 2,
+  }),
+  "evt.sentinel.ops_action.recorded": s({
+    object: OpsActionEvent,
+    aggregate: "ops_action",
+    producer: "sentinel",
+    consumers: ["identity"],
+    stage: 2,
+  }),
 } as const satisfies Record<string, SubjectDefinition>;
 
 export type Subject = keyof typeof SUBJECTS;
@@ -686,6 +730,10 @@ export const AggregateType = closedEnum(
     "webhook_endpoint",
     // stage 2 — payments
     "refund",
+    // stage 2 — contracts integration (aggregates used by stage 2 subjects)
+    "membership",
+    "ops_approval",
+    "ops_action",
   ],
   "Aggregate type.",
 );
