@@ -583,6 +583,20 @@ export const SUBJECTS = {
     consumers: ["identity"],
     stage: 2,
   }),
+  "evt.payments.ops_action.recorded": s({
+    object: OpsActionEvent,
+    aggregate: "ops_action",
+    producer: "payments",
+    consumers: ["identity"],
+    stage: 2,
+  }),
+  "evt.rails.ops_action.recorded": s({
+    object: OpsActionEvent,
+    aggregate: "ops_action",
+    producer: "rails",
+    consumers: ["identity"],
+    stage: 2,
+  }),
 } as const satisfies Record<string, SubjectDefinition>;
 
 export type Subject = keyof typeof SUBJECTS;

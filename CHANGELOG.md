@@ -41,8 +41,9 @@ events new in this release, so renames are safe).
   step-up; sets `verify_at = now()` for a `held`/`verifying` execution, never forces a state —
   INV-2). `ObservationPageQuery` and `ProviderObservationPage` are exported schemas.
   `ExecutionRefund.token` reuses `TokenContract`. Implementer: **nearpay-rails**.
-- **Unified console audit trail (T-12).** Subjects `evt.compliance.ops_action.recorded` and
-  `evt.sentinel.ops_action.recorded` (object `OpsActionEvent`: action `id`, `actor {sub, ops_role}`,
+- **Unified console audit trail (T-12).** Subjects `evt.compliance.ops_action.recorded`,
+  `evt.sentinel.ops_action.recorded`, `evt.payments.ops_action.recorded` (reconciliation) and
+  `evt.rails.ops_action.recorded` (reverify) (object `OpsActionEvent`: action `id`, `actor {sub, ops_role}`,
   `action`, `target {type, id}`, `account_id`, `approval`, `occurred_at`; ids only), consumer
   identity (copies them into `audit_events`). Producers: **nearpay-compliance**,
   **nearpay-sentinel**; consumer: **nearpay-identity**. `AggregateType` documents `membership`,

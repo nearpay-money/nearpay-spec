@@ -112,7 +112,12 @@ describe("contracts integration: payments → compliance cases", () => {
 
 describe("contracts integration: unified audit trail", () => {
   it("publishes operator actions from compliance and sentinel to identity, ids only", () => {
-    for (const subject of ["evt.compliance.ops_action.recorded", "evt.sentinel.ops_action.recorded"] as const) {
+    for (const subject of [
+      "evt.compliance.ops_action.recorded",
+      "evt.sentinel.ops_action.recorded",
+      "evt.payments.ops_action.recorded",
+      "evt.rails.ops_action.recorded",
+    ] as const) {
       expect(SUBJECTS[subject]).toMatchObject({ object: OpsActionEvent, consumers: ["identity"], stage: 2 });
     }
     const ok = OpsActionEvent.safeParse({
