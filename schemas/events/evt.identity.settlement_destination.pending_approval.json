@@ -192,15 +192,32 @@
           "minimum": 0,
           "type": "integer"
         },
+        "created_by": {
+          "anyOf": [
+            {
+              "description": "user id (`usr_` + 26 base32 chars).",
+              "examples": [
+                "usr_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Dashboard user who created the destination; null when unknown (created before Stage 2). Spec 0.2.1."
+        },
         "disabled_reason": {
           "anyOf": [
             {
-              "description": "Why it was disabled.",
+              "description": "Why it was disabled (`expired`: a pending destination not approved within 7 days; spec 0.2.1).",
               "type": "string",
               "x-extensible-enum": [
                 "merchant",
                 "compliance",
-                "replaced"
+                "replaced",
+                "expired"
               ]
             },
             {

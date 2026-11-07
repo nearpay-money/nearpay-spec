@@ -94,6 +94,9 @@ export const SERVICE_SCOPES = [
   "billing.read",
   // stage 2 — contracts integration
   "compliance.cases.write",
+  // spec 0.2.1 — stage 2 change requests
+  "sentinel.read",
+  "identity.operators.read",
 ] as const;
 export type ServiceScope = (typeof SERVICE_SCOPES)[number];
 
@@ -170,8 +173,9 @@ export const SERVICE_CLIENT_SCOPES: Record<ServiceName, readonly ServiceScope[]>
     "compliance.read",
     "sandbox.use",
     "compliance.cases.write" /* stage 2 — reconciliation_diff cases */,
+    "sentinel.read" /* spec 0.2.1 — kill-switch state at boot */,
   ],
-  rails: ["compliance.screen", "sandbox.use"],
+  rails: ["compliance.screen", "sandbox.use", "sentinel.read" /* spec 0.2.1 — kill-switch state at boot */],
   agentpay: [
     "payments.attempts.create",
     "payments.read",
@@ -179,11 +183,12 @@ export const SERVICE_CLIENT_SCOPES: Record<ServiceName, readonly ServiceScope[]>
     "identity.context.read",
     "compliance.screen",
     "sandbox.use",
+    "sentinel.read" /* spec 0.2.1 — kill-switch state at boot */,
   ],
   sentinel: ["rails.read", "sandbox.use"],
   billing: ["payments.sessions.create", "payments.read", "notify.send"],
   notify: ["identity.recipients.read", "payments.receipts.read", "billing.read"],
-  compliance: [],
+  compliance: ["identity.operators.read" /* spec 0.2.1 — active-operator check on case assignment */],
   webhooks: [],
   sandbox: [],
 };

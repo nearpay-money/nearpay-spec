@@ -68,6 +68,14 @@ components:
           type:
             - string
             - "null"
+        website:
+          anyOf:
+            - description: Absolute URL.
+              format: uri
+              maxLength: 2048
+              type: string
+            - type: "null"
+          description: Merchant website (account setting, shown in the dashboard and receipts); absent from older servers.
       required:
         - id
         - object
@@ -96,6 +104,11 @@ components:
                   type: string
                 - type: "null"
               description: Accent colour `#RRGGBB`.
+            corner_radius:
+              description: Corner radius of checkout cards and controls, px (default 8); absent from older servers.
+              maximum: 24
+              minimum: 0
+              type: integer
             logo_url:
               anyOf:
                 - description: Absolute URL.
@@ -104,6 +117,13 @@ components:
                   type: string
                 - type: "null"
               description: HTTPS URL of a square logo.
+            theme:
+              description: Checkout colour scheme (default `auto`); absent from older servers.
+              type: string
+              x-extensible-enum:
+                - auto
+                - light
+                - dark
           required:
             - accent_color
             - logo_url
@@ -521,6 +541,45 @@ components:
         - rules
         - provider_split
       type: object
+    InternalOpsOperator:
+      additionalProperties: {}
+      description: A console operator (`ops_operators` row); ids only, no email.
+      properties:
+        active:
+          description: The operator may sign in to the console (not revoked).
+          type: boolean
+        created_at:
+          description: When the operator was added.
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+          type: string
+        revoked_at:
+          anyOf:
+            - description: RFC 3339 UTC timestamp, e.g. `2026-11-05T10:00:00.000Z`.
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+              type: string
+            - type: "null"
+          description: When console access was revoked, if it was.
+        role:
+          description: Role of a console operator.
+          enum:
+            - ops
+            - ops_admin
+          type: string
+        user_id:
+          description: user id (`usr_` + 26 base32 chars).
+          examples:
+            - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+      required:
+        - user_id
+        - role
+        - active
+        - created_at
+        - revoked_at
+      type: object
     InternalSettlementDestination:
       additionalProperties: {}
       description: Settlement destination with internal fields.
@@ -610,14 +669,24 @@ components:
           maximum: 9007199254740991
           minimum: 0
           type: integer
+        created_by:
+          anyOf:
+            - description: user id (`usr_` + 26 base32 chars).
+              examples:
+                - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Dashboard user who created the destination; null when unknown (created before Stage 2). Spec 0.2.1.
         disabled_reason:
           anyOf:
-            - description: Why it was disabled.
+            - description: "Why it was disabled (`expired`: a pending destination not approved within 7 days; spec 0.2.1)."
               type: string
               x-extensible-enum:
                 - merchant
                 - compliance
                 - replaced
+                - expired
             - type: "null"
         fingerprint:
           description: Short fingerprint shown on checkout next to the merchant name, e.g. `7KQ2-M9XA-31`.
@@ -920,6 +989,14 @@ components:
           type:
             - string
             - "null"
+        website:
+          anyOf:
+            - description: Absolute URL.
+              format: uri
+              maxLength: 2048
+              type: string
+            - type: "null"
+          description: Merchant website (account setting, shown in the dashboard and receipts); absent from older servers.
       required:
         - id
         - object
@@ -1457,6 +1534,15 @@ paths:
               - billing
               - developer
             type: string
+        - description: Only this user, if they are currently a member of the account in any role (`kind` is then not applied); an empty list otherwise. For mails to the affected user (member added or role changed, account recovery). Spec 0.2.1.
+          in: query
+          name: user
+          schema:
+            description: Only this user, if they are currently a member of the account in any role (`kind` is then not applied); an empty list otherwise. For mails to the affected user (member added or role changed, account recovery). Spec 0.2.1.
+            examples:
+              - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
       responses:
         "200":
           content:
@@ -1593,6 +1679,45 @@ paths:
         idempotent: false
         service: identity
         stage: 1
+  /internal/ops_operators/{id}:
+    get:
+      description: "A user who never was an operator is `404 resource_missing`; a revoked operator answers with `active: false`. Compliance calls it in `assignOpsCase` before assigning (spec 0.2.1)."
+      operationId: getInternalOpsOperator
+      parameters:
+        - description: user id (`usr_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: user id (`usr_` + 26 base32 chars).
+            examples:
+              - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalOpsOperator"
+          description: A console operator by user id (compliance checks a case assignee is active).
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: A console operator by user id (compliance checks a case assignee is active).
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - service:identity.operators.read
+        idempotent: false
+        service: identity
+        stage: 2
   /internal/service-tokens:
     post:
       operationId: mintServiceToken

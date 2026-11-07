@@ -13,6 +13,7 @@ import {
   closedEnum,
   Evidence,
   FiatAmount,
+  IntentNonce,
   IntentsRequirement,
   id,
   inp,
@@ -57,6 +58,12 @@ export const RefundTransfer = out({
   amount: BaseUnits.describe("Amount, base units."),
   memo: Binding.describe("Binding memo the transfer must carry (agentpay matches it; the indexer attributes by it)."),
   deadline: Timestamp.describe("Latest acceptable payload deadline."),
+  // spec 0.2.1 — payments CR: payments no longer reads the Verifier salt over NEAR RPC
+  nonce: IntentNonce.nullable()
+    .optional()
+    .describe(
+      "Nonce to sign with (current Verifier salt ‖ 28 random bytes), issued by rails when it prepares the leg; payments copies it into `next_action` unchanged. Absent from rails before 0.2.1 (payments then derives it from the salt itself).",
+    ),
 }).meta({
   id: "RefundTransfer",
   description: "What a merchant signs for a refund leg from an Intents account: exactly one transfer, memo = binding.",
@@ -107,7 +114,30 @@ export const ExecutionDeposit = out({
   min_amount_in: BaseUnits.describe("Provider minimum."),
   chain: ChainId.describe("Origin chain."),
   deadline: Timestamp.describe("Deposit deadline."),
+  // spec 0.2.1 — checkout CR (payer-visible fee breakdown)
+  fee_amount_in: BaseUnits.nullable()
+    .optional()
+    .describe(
+      "Part of `amount_in` that pays NearPay's fee, base units of the origin asset (display only): `0` when the merchant bears the fee, null when rails cannot apportion it. Absent from rails before 0.2.1.",
+    ),
 }).meta({ id: "ExecutionDeposit", description: "Deposit instructions of a `route_quote` execution." });
+
+// spec 0.2.1 — console CR: decimals for display next to base units
+const Decimals = z
+  .int()
+  .min(0)
+  .max(255)
+  .optional()
+  .describe("Decimals of the asset (display of base units; spec 0.2.1, absent from older rails).");
+
+export const ObservedFee = out({
+  amount: BaseUnits.describe("Fee amount, base units of `asset_id`."),
+  asset_id: AssetId.describe("Asset the fee was taken in."),
+}).meta({
+  id: "ObservedFee",
+  description:
+    "NearPay fee as observed for an execution (provider-reported app fee or the executed Intents fee transfer).",
+});
 
 /** Execution view returned by the API and carried by `evt.rails.execution.*` (domain-model §4.3). */
 export const Execution = out({
@@ -127,6 +157,7 @@ export const Execution = out({
     chain: ChainId.describe("Origin chain."),
     refund_to: ChainAddress.describe("Refund address."),
     refund_type: closedEnum(["origin_chain", "intents"], "Refund address type."),
+    decimals: Decimals,
   }).describe("Payer side."),
   settlement: out({
     asset_id: AssetId.describe("Settlement asset."),
@@ -136,6 +167,7 @@ export const Execution = out({
     recipient: ChainAddress.describe("Merchant destination."),
     recipient_type: closedEnum(["destination_chain", "intents"], "Recipient type."),
     chain: ChainId.describe("Settlement chain."),
+    decimals: Decimals,
   }).describe("Merchant side."),
   price_snapshot: PriceSnapshot.nullable(),
   deposit: ExecutionDeposit.nullable().describe("`route_quote` deposit instructions."),
@@ -163,6 +195,23 @@ export const Execution = out({
     .describe(
       "Refund legs: `origin` is the merchant side (asset, chain, `refund_to` = the merchant destination) and `settlement` the payer side (`recipient` = the payer's refund address, `tag` 0).",
     ),
+  // spec 0.2.1 — stage 2 change requests (optional; rails 0.2.1+ sends them)
+  observed_fee: ObservedFee.nullable()
+    .optional()
+    .describe(
+      "NearPay fee observed for this execution (reconciliation fee check): the app fee the provider reports for a route, or the fee transfer of an executed Intents payload; null until known or when the provider reports none (refund legs carry no app fee: null).",
+    ),
+  deposited_amount: BaseUnits.nullable()
+    .optional()
+    .describe(
+      "What the payer actually deposited, base units of `origin.asset_id` (provider `depositedAmount`, or the executed Intents transfer incl. fee); null until a deposit is detected. Lets checkout and the dashboard show “received X of Y” for an incomplete deposit.",
+    ),
+  abandoned_at: Timestamp.nullable()
+    .optional()
+    .describe(
+      "When payments abandoned this refund leg (`abandonExecution`); it is then `expired_unpaid` and only tracked for late money (INV-3).",
+    ),
+  abandon_reason: z.string().nullable().optional().describe("Reason payments gave when abandoning the leg."),
 }).meta({ id: "Execution", description: "A provider run moving value for a payment (rails owns)." });
 export type Execution = z.infer<typeof Execution>;
 
@@ -563,7 +612,38 @@ export const createRefundExecution = route({
     "quote_rejected",
     "quote_integrity_failed",
     "rail_unavailable",
+    // spec 0.2.1 — CR-22-RL-02 (EXACT_OUTPUT legs convert through rails pricing)
+    "fx_rate_unavailable",
+    "currency_unsupported",
   ],
+  stage: 2,
+});
+
+// spec 0.2.1 — payments CR: orphaned refund legs (payments §19 item 5)
+export const AbandonReason = openEnum(
+  ["leg_failed", "execution_mismatch", "superseded", "refund_canceled"],
+  "Why payments no longer uses the leg: its preparation failed after rails created the execution, the execution did not match the leg (payments `execution_mismatch`), a newer leg replaced it, or the refund was canceled.",
+);
+
+export const abandonExecution = route({
+  id: "abandonExecution",
+  method: "POST",
+  path: "/internal/executions/{id}/abandon",
+  service: "rails",
+  visibility: "internal",
+  summary: "Abandon a refund leg payments no longer uses (orphaned before any deposit).",
+  description:
+    "Only for `kind: refund` executions with no deposit yet (`quoting`, `awaiting_deposit`, `expired_unpaid`); anything else — a payment execution, or a leg where money moved (`deposit_detected` and later, `held`, terminal) — is `409 state_conflict`, because truth wins (INV-3). Rails sets `abandoned_at`/`abandon_reason`, moves a pre-deposit leg to `expired_unpaid` at once (deadline = now; agentpay then refuses a relay for it) and keeps tracking it for the usual 24 h, so a late deposit still settles and reaches payments as an ordinary execution event (payments counts it as `extra_amount_sent`). Emits `evt.rails.execution.updated`. Repeating the call returns the execution unchanged.",
+  auth: ["service:rails.executions.write"],
+  idempotent: true,
+  params: ExecParams,
+  body: inp({
+    reason: AbandonReason,
+    note: z.string().max(500).optional().describe("Detail for operators (no personal data)."),
+  }),
+  response: Execution,
+  status: 200,
+  errors: ["state_conflict"],
   stage: 2,
 });
 

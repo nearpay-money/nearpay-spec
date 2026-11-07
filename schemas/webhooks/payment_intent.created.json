@@ -371,6 +371,19 @@
           "description": "Always `payment_attempt`.",
           "type": "string"
         },
+        "origin_amount": {
+          "anyOf": [
+            {
+              "description": "Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).",
+              "pattern": "^(0|[1-9][0-9]{0,77})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "What the payer actually sent, base units of `origin_asset_id` (rails `deposited_amount`); null until a deposit is detected. Spec 0.2.1."
+        },
         "origin_asset_id": {
           "description": "Asset the payer pays with.",
           "examples": [
@@ -387,6 +400,20 @@
           ],
           "pattern": "^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$",
           "type": "string"
+        },
+        "refund_to": {
+          "anyOf": [
+            {
+              "description": "Address in the chain's canonical text form.",
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The payer's own address as given at checkout, where refunds go (INV-7): the refund address on the origin chain (`route_quote`; the connected wallet or a typed address, which may differ from the wallet that sent the deposit) or the payer's Intents account (`intents_transfer`). Spec 0.2.1."
         },
         "settled_amount": {
           "anyOf": [

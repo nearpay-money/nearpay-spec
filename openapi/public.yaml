@@ -68,6 +68,14 @@ components:
           type:
             - string
             - "null"
+        website:
+          anyOf:
+            - description: Absolute URL.
+              format: uri
+              maxLength: 2048
+              type: string
+            - type: "null"
+          description: Merchant website (account setting, shown in the dashboard and receipts); absent from older servers.
       required:
         - id
         - object
@@ -122,6 +130,11 @@ components:
                   type: string
                 - type: "null"
               description: Accent colour `#RRGGBB`.
+            corner_radius:
+              description: Corner radius of checkout cards and controls, px (default 8); absent from older servers.
+              maximum: 24
+              minimum: 0
+              type: integer
             logo_url:
               anyOf:
                 - description: Absolute URL.
@@ -130,6 +143,13 @@ components:
                   type: string
                 - type: "null"
               description: HTTPS URL of a square logo.
+            theme:
+              description: Checkout colour scheme (default `auto`); absent from older servers.
+              type: string
+              x-extensible-enum:
+                - auto
+                - light
+                - dark
           required:
             - accent_color
             - logo_url
@@ -283,13 +303,22 @@ components:
           description: Always `agent_payment`.
           type: string
         pay_to:
-          description: Merchant Intents account.
+          description: "Receiving Intents account: the merchant (`x402`, `checkout`) or, for a `refund`, the payer's Intents account or the 1Click deposit account of a route refund."
           pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
           type: string
         payer:
-          description: Payer Intents account (signer).
+          description: "Intents account that signed: the payer (`x402`, `checkout`) or, for a `refund`, the merchant's Intents destination sending the refund."
           pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
           type: string
+        refund:
+          anyOf:
+            - description: refund id (`re_` + 26 base32 chars).
+              examples:
+                - re_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^re_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Refund this payload pays a leg of (`refund` kind); null otherwise. Spec 0.2.1.
         resource_url:
           anyOf:
             - format: uri
@@ -576,6 +605,11 @@ components:
               maxLength: 32
               minLength: 1
               type: string
+            token:
+              anyOf:
+                - $ref: "#/components/schemas/TokenContract"
+                - type: "null"
+              description: Token contract from sentinel's own registry read (signed, so the wallet path transfers the attested contract); null when the registry has none (manual path). Spec 0.2.1.
           required:
             - asset_id
             - symbol
@@ -1746,6 +1780,14 @@ components:
             - cus_01jbz9k3m4n5p6q7r8s9t0v1w2
           pattern: ^cus_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
           type: string
+        last_payment_at:
+          anyOf:
+            - description: Unix time in seconds.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: When the customer's latest payment intent succeeded; null when none. Spec 0.2.1.
         livemode:
           description: "`true` for live mode, `false` for test mode."
           type: boolean
@@ -1768,6 +1810,52 @@ components:
           const: customer
           description: Always `customer`.
           type: string
+        total_paid:
+          description: Totals of succeeded payments per pricing currency (amounts in different currencies are never added); refunds are not subtracted. Spec 0.2.1.
+          items:
+            additionalProperties: {}
+            description: Total for one pricing currency (or pricing asset).
+            properties:
+              amount:
+                anyOf:
+                  - description: Fiat amount in minor units (e.g. cents), integer.
+                    maximum: 9007199254740991
+                    minimum: 0
+                    type: integer
+                  - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+                    pattern: ^(0|[1-9][0-9]{0,77})$
+                    type: string
+                description: Sum of the priced amounts of the customer's succeeded payment intents.
+              asset_id:
+                anyOf:
+                  - description: NEAR Intents asset id, e.g. `nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1`.
+                    examples:
+                      - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+                    maxLength: 256
+                    pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+                    type: string
+                  - type: "null"
+                description: Pricing asset when `currency` is `asset`.
+              count:
+                description: Succeeded payment intents counted.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+              currency:
+                anyOf:
+                  - description: ISO 4217 currency code, lower-case (e.g. `usd`).
+                    pattern: ^[a-z]{3}$
+                    type: string
+                  - const: asset
+                    type: string
+                description: ISO 4217 code for fiat pricing, or `asset` when priced in an asset (then `asset_id` is set).
+            required:
+              - currency
+              - asset_id
+              - amount
+              - count
+            type: object
+          type: array
         wallets:
           description: Known wallets (informational; refunds always use the payment's refund address).
           items:
@@ -2060,6 +2148,13 @@ components:
           format: date-time
           pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
           type: string
+        fee_amount:
+          anyOf:
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+            - type: "null"
+          description: "Part of `amount_in` that pays NearPay's fee, base units of the origin asset — display only (not attested): `0` when the merchant bears the fee, null when unknown. Absent from older servers."
         memo:
           description: Memo the deposit must carry, if any.
           type:
@@ -4739,6 +4834,27 @@ components:
             - support
             - viewer
           type: string
+        security:
+          additionalProperties: {}
+          description: Sign-in security summary of the member (no credential details). Spec 0.2.1.
+          properties:
+            passkeys:
+              description: Passkeys registered by the user.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            recovered_at:
+              anyOf:
+                - description: Unix time in seconds.
+                  maximum: 9007199254740991
+                  minimum: 0
+                  type: integer
+                - type: "null"
+              description: Last email recovery of the user (a new passkey); within 48 h their destination and team changes are locked.
+          required:
+            - passkeys
+            - recovered_at
+          type: object
         user:
           additionalProperties: {}
           description: The member's user.
@@ -4916,6 +5032,13 @@ components:
       additionalProperties: {}
       description: A payment attempt as the payer sees it.
       properties:
+        amount_received:
+          anyOf:
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+            - type: "null"
+          description: What the payer's deposit actually delivered, base units of the origin asset; null until a deposit is detected. Shows “received X of Y” for an `incomplete_deposit`. Absent from older servers.
         attestation_ticket:
           anyOf:
             - description: "`base64url(JCS payload).base64url(Ed25519 signature)` issued by payments; pass it to sentinel unchanged."
@@ -5049,6 +5172,13 @@ components:
           const: payment_attempt
           description: Always `payment_attempt`.
           type: string
+        origin_amount:
+          anyOf:
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+            - type: "null"
+          description: What the payer actually sent, base units of `origin_asset_id` (rails `deposited_amount`); null until a deposit is detected. Spec 0.2.1.
         origin_asset_id:
           description: Asset the payer pays with.
           examples:
@@ -5062,6 +5192,14 @@ components:
             - eip155:8453
           pattern: ^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$
           type: string
+        refund_to:
+          anyOf:
+            - description: Address in the chain's canonical text form.
+              maxLength: 256
+              minLength: 1
+              type: string
+            - type: "null"
+          description: "The payer's own address as given at checkout, where refunds go (INV-7): the refund address on the origin chain (`route_quote`; the connected wallet or a typed address, which may differ from the wallet that sent the deposit) or the payer's Intents account (`intents_transfer`). Spec 0.2.1."
         settled_amount:
           anyOf:
             - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
@@ -5553,6 +5691,11 @@ components:
             minLength: 1
             type: string
           type: object
+        name:
+          description: Internal name in the dashboard (never shown to payers); null when unset. Spec 0.2.1.
+          type:
+            - string
+            - "null"
         object:
           const: payment_link
           description: Always `payment_link`.
@@ -5660,6 +5803,11 @@ components:
             minLength: 1
             type: string
           type: object
+        name:
+          description: Internal name (never shown to payers). Spec 0.2.1.
+          maxLength: 100
+          minLength: 1
+          type: string
         session_expires_in:
           description: Session lifetime, seconds (default 3600).
           maximum: 86400
@@ -5857,6 +6005,32 @@ components:
         - object
         - webhook_endpoint
       type: object
+    PricingAssetDisplay:
+      additionalProperties: {}
+      description: Display data of a pricing asset (rails registry).
+      properties:
+        asset_id:
+          description: Pricing asset.
+          examples:
+            - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+          maxLength: 256
+          pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+          type: string
+        decimals:
+          description: Token decimals (format `amount` with them).
+          maximum: 255
+          minimum: 0
+          type: integer
+        symbol:
+          description: Token symbol.
+          maxLength: 32
+          minLength: 1
+          type: string
+      required:
+        - asset_id
+        - symbol
+        - decimals
+      type: object
     PublicCheckoutSession:
       additionalProperties: {}
       description: A checkout session as the payer sees it.
@@ -5957,6 +6131,11 @@ components:
             - pi_01jbz9k3m4n5p6q7r8s9t0v1w2
           pattern: ^pi_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
           type: string
+        pricing_asset:
+          anyOf:
+            - $ref: "#/components/schemas/PricingAssetDisplay"
+            - type: "null"
+          description: Display data of the pricing asset when `currency` is `asset`; null for fiat pricing. Spec 0.2.1.
         settlement:
           additionalProperties: {}
           description: How the merchant is paid (never the raw address).
@@ -6088,6 +6267,11 @@ components:
           const: payment_link
           description: Always `payment_link`.
           type: string
+        pricing_asset:
+          anyOf:
+            - $ref: "#/components/schemas/PricingAssetDisplay"
+            - type: "null"
+          description: Display data of the pricing asset when `currency` is `asset`; null for fiat pricing. Spec 0.2.1.
         settlement:
           anyOf:
             - additionalProperties: {}
@@ -7008,14 +7192,24 @@ components:
           maximum: 9007199254740991
           minimum: 0
           type: integer
+        created_by:
+          anyOf:
+            - description: user id (`usr_` + 26 base32 chars).
+              examples:
+                - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Dashboard user who created the destination; null when unknown (created before Stage 2). Spec 0.2.1.
         disabled_reason:
           anyOf:
-            - description: Why it was disabled.
+            - description: "Why it was disabled (`expired`: a pending destination not approved within 7 days; spec 0.2.1)."
               type: string
               x-extensible-enum:
                 - merchant
                 - compliance
                 - replaced
+                - expired
             - type: "null"
         fingerprint:
           description: Short fingerprint shown on checkout next to the merchant name, e.g. `7KQ2-M9XA-31`.
@@ -8303,6 +8497,11 @@ paths:
                               type: string
                             - type: "null"
                           description: Accent colour.
+                        corner_radius:
+                          description: Corner radius, px. Spec 0.2.1.
+                          maximum: 24
+                          minimum: 0
+                          type: integer
                         logo_url:
                           anyOf:
                             - description: Absolute URL.
@@ -8311,6 +8510,13 @@ paths:
                               type: string
                             - type: "null"
                           description: HTTPS logo URL.
+                        theme:
+                          description: Checkout colour scheme. Spec 0.2.1.
+                          type: string
+                          x-extensible-enum:
+                            - auto
+                            - light
+                            - dark
                       type: object
                     email_receipts:
                       description: Email receipts to customers.
@@ -8329,6 +8535,14 @@ paths:
                       minimum: 0
                       type: integer
                   type: object
+                website:
+                  anyOf:
+                    - description: Absolute URL.
+                      format: uri
+                      maxLength: 2048
+                      type: string
+                    - type: "null"
+                  description: Merchant website, HTTPS (`null` clears it). Spec 0.2.1.
               type: object
         required: true
       responses:
@@ -8575,6 +8789,14 @@ paths:
               schema:
                 $ref: "#/components/schemas/Invitation"
           description: Invite a user by email; the email carries a single-use link (7 days).
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `recovery_lock`."
+          x-error-codes:
+            - recovery_lock
         "409":
           content:
             application/json:
@@ -8961,6 +9183,14 @@ paths:
       responses:
         "204":
           description: Remove a member; their sessions for this account end at once.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `recovery_lock`."
+          x-error-codes:
+            - recovery_lock
         "409":
           content:
             application/json:
@@ -9045,6 +9275,14 @@ paths:
               schema:
                 $ref: "#/components/schemas/Member"
           description: Change a member's role.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `recovery_lock`."
+          x-error-codes:
+            - recovery_lock
         "409":
           content:
             application/json:
@@ -13083,6 +13321,13 @@ paths:
                     minLength: 1
                     type: string
                   type: object
+                name:
+                  anyOf:
+                    - maxLength: 100
+                      minLength: 1
+                      type: string
+                    - type: "null"
+                  description: Internal name (`null` clears it). Spec 0.2.1.
                 success_url:
                   anyOf:
                     - description: Absolute URL.
@@ -14223,9 +14468,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-          description: "Error: `approver_conflict`."
+          description: "Error: `approver_conflict`, `recovery_lock`."
           x-error-codes:
             - approver_conflict
+            - recovery_lock
         "409":
           content:
             application/json:

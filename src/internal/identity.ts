@@ -7,6 +7,7 @@ import {
   closedEnum,
   id,
   inp,
+  OpsRoleSchema,
   out,
   ROLES,
   route,
@@ -185,7 +186,15 @@ export const getNotificationRecipients = route({
   auth: ["service:identity.recipients.read"],
   idempotent: false,
   params: inp({ id: id("acct") }),
-  query: inp({ kind: RecipientKind }),
+  query: inp({
+    kind: RecipientKind,
+    // spec 0.2.1 — notify CR
+    user: id("usr")
+      .optional()
+      .describe(
+        "Only this user, if they are currently a member of the account in any role (`kind` is then not applied); an empty list otherwise. For mails to the affected user (member added or role changed, account recovery). Spec 0.2.1.",
+      ),
+  }),
   response: out({
     recipients: z
       .array(
@@ -200,4 +209,31 @@ export const getNotificationRecipients = route({
   status: 200,
   errors: [],
   stage: 1,
+});
+
+// spec 0.2.1 — compliance CR: server-side "active operator" check for case assignment
+export const InternalOpsOperator = out({
+  user_id: id("usr"),
+  role: OpsRoleSchema,
+  active: z.boolean().describe("The operator may sign in to the console (not revoked)."),
+  created_at: Timestamp.describe("When the operator was added."),
+  revoked_at: Timestamp.nullable().describe("When console access was revoked, if it was."),
+}).meta({ id: "InternalOpsOperator", description: "A console operator (`ops_operators` row); ids only, no email." });
+
+export const getInternalOpsOperator = route({
+  id: "getInternalOpsOperator",
+  method: "GET",
+  path: "/internal/ops_operators/{id}",
+  service: "identity",
+  visibility: "internal",
+  summary: "A console operator by user id (compliance checks a case assignee is active).",
+  description:
+    "A user who never was an operator is `404 resource_missing`; a revoked operator answers with `active: false`. Compliance calls it in `assignOpsCase` before assigning (spec 0.2.1).",
+  auth: ["service:identity.operators.read"],
+  idempotent: false,
+  params: inp({ id: id("usr") }),
+  response: InternalOpsOperator,
+  status: 200,
+  errors: [],
+  stage: 2,
 });

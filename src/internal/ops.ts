@@ -413,6 +413,15 @@ export const listOpsCases = route({
     account: id("acct").optional().describe("Only this account."),
     assignee: id("usr").optional().describe("Only cases assigned to this operator."),
     livemode: z.enum(["true", "false"]).optional().describe("Only live or test cases."),
+    // spec 0.2.1 — console CR
+    subject: z
+      .string()
+      .min(1)
+      .max(256)
+      .optional()
+      .describe(
+        "Only cases about this object (exact `subject.id`: a prefixed id such as `ex_…`/`sd_…`, or an address). Spec 0.2.1.",
+      ),
   }),
   response: listOf(ComplianceCase, "ComplianceCaseList", "A page of compliance cases."),
   status: 200,
@@ -440,7 +449,8 @@ export const assignOpsCase = route({
   method: "POST",
   path: "/ops/cases/{id}/assign",
   summary: "Assign a case to an operator (or unassign); an `open` case becomes `investigating`.",
-  description: "The assignee must be an active operator. Closed cases are `409 state_conflict`.",
+  description:
+    "The assignee must be an active operator: compliance checks it with identity `getInternalOpsOperator` (spec 0.2.1; an unknown or revoked operator is `400 invalid_request` on `assignee`; fail closed when identity cannot answer). Closed cases are `409 state_conflict`.",
   auth: ["ops:compliance.cases.write"],
   opsRoles: ALL,
   idempotent: true,
@@ -831,6 +841,14 @@ export const OpsAuditFinding = AuditFinding.extend({
   acknowledged_at: UnixTime.nullable().describe("When an operator acknowledged it."),
   acknowledged_by: z.string().nullable().describe("Operator (`usr_…`) or CLI actor."),
   acknowledgement_note: z.string().nullable().describe("Acknowledgement note."),
+  // spec 0.2.1 — console CR
+  account_display_name: z
+    .string()
+    .nullable()
+    .optional()
+    .describe(
+      "Display name of `account_id` (sentinel keeps it from `evt.identity.account.*`); null when unknown (spec 0.2.1).",
+    ),
 }).meta({ id: "OpsAuditFinding", description: "A sentinel audit finding as operators see it." });
 
 const FindingParams = inp({ id: id("fnd") });

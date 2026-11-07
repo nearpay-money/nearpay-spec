@@ -150,7 +150,7 @@ export const relaySignedIntent = route({
   summary:
     "Queue an owner-signed payload: a checkout `intents_transfer` attempt, or a refund leg from an Intents account.",
   description:
-    "Checkout (`kind` absent or `checkout`): the execution is a `payment` `intents_transfer` in `awaiting_deposit` and the payload holds exactly the two requirement transfers. Refund (`kind: refund`, Stage 2): the execution is a `refund` execution whose `refund.transfer` is set, still awaiting its deposit; the payload is signed by `refund.transfer.signer_id` (the merchant) and holds exactly that one transfer (receiver, token, amount, memo = binding) with a deadline ≤ `refund.transfer.deadline`. Account and mode come from the execution; the payload is relayed exactly as signed (INV-1).",
+    "Checkout (`kind` absent or `checkout`): the execution is a `payment` `intents_transfer` in `awaiting_deposit` and the payload holds exactly the two requirement transfers. Refund (`kind: refund`, Stage 2): the execution is a `refund` execution whose `refund.transfer` is set, still awaiting its deposit; the payload is signed by `refund.transfer.signer_id` (the merchant) and holds exactly that one transfer (receiver, token, amount, memo = binding) with a deadline ≤ `refund.transfer.deadline`. Account and mode come from the execution; the payload is relayed exactly as signed (INV-1). Every error answer is a refusal **before anything is queued or published** (no agent payment, nothing relayed), so the caller may treat the payload as unsent; a timeout or `5xx` is an unknown outcome (the payload may be queued — retry the same payload, which is idempotent on its hash) (spec 0.2.1).",
   auth: ["service:agentpay.relay"],
   idempotent: true,
   body: inp({
@@ -166,7 +166,13 @@ export const relaySignedIntent = route({
   }),
   response: out({ agent_payment_id: id("ap") }).meta({ id: "RelayAccepted", description: "Queued for relay." }),
   status: 202,
-  errors: ["intent_invalid", "insufficient_balance", "rail_unavailable"],
+  errors: [
+    "intent_invalid",
+    "insufficient_balance",
+    "rail_unavailable",
+    // spec 0.2.1 — CR-22-AP-01: a refund payload that is not exactly the issued `next_action`
+    "signed_intent_mismatch",
+  ],
   stage: 1,
 });
 
@@ -193,6 +199,13 @@ export const createScreening = route({
     account_id: id("acct").optional().describe("Merchant account."),
     livemode: z.boolean().describe("Mode (test mode uses magic addresses)."),
     amount_usd_micros: z.int().min(0).optional().describe("Payment size for the fail-closed threshold."),
+    // spec 0.2.1 — CR-22-RL-01
+    fresh: z
+      .boolean()
+      .optional()
+      .describe(
+        "Bypass the screening cache and decide now (rails sends it for an owner-overridden refund recipient, `CreateRefundExecution.screen`). Default false (spec 0.2.1).",
+      ),
   }),
   response: out({
     screening_id: id("scr"),
@@ -296,7 +309,33 @@ export const KillSwitchState = out({
   reason: z.string().describe("Reason."),
   actor: z.string().describe("Who changed it (`sentinel` or an ops principal)."),
   updated_at: Timestamp.describe("When."),
+  // spec 0.2.1
+  version: z
+    .int()
+    .min(0)
+    .optional()
+    .describe(
+      "Version of the switch row: equals the envelope `aggregate.version` of the latest `evt.sentinel.kill_switch.*`, so a reader applies later events only (spec 0.2.1; sentinel 0.2.1+ sends it).",
+    ),
 }).meta({ id: "KillSwitchState", description: "Global quoting kill switch." });
+
+// spec 0.2.1 — services read the switch at boot (payments/rails/agentpay fail closed until known)
+export const getKillSwitch = route({
+  id: "getKillSwitch",
+  method: "GET",
+  path: "/internal/kill-switch",
+  service: "sentinel",
+  visibility: "internal",
+  summary: "Current kill-switch state (services read it at boot and when their stored state is unknown).",
+  description:
+    "For consumers of `evt.sentinel.kill_switch.*` whose local state is unknown (fresh database, or the last event aged out of the stream before their durable consumer existed): payments, rails and agentpay read it at boot and store it with `version`, then apply only events with a higher `aggregate.version`. Until either the read or an event succeeds the state stays unknown and live refunds/relays fail closed. Never cached by sentinel; ops use `getOpsKillSwitch`.",
+  auth: ["service:sentinel.read"],
+  idempotent: false,
+  response: KillSwitchState,
+  status: 200,
+  errors: [],
+  stage: 2,
+});
 
 export const setKillSwitch = route({
   id: "setKillSwitch",

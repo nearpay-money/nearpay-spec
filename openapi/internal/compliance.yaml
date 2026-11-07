@@ -126,6 +126,11 @@ components:
       additionalProperties: {}
       description: A compliance case (screening hit, held execution, audit finding, …).
       properties:
+        account_display_name:
+          description: Display name of `account_id` (kept current from `evt.identity.account.*`); null for platform cases or when unknown (spec 0.2.1).
+          type:
+            - string
+            - "null"
         account_id:
           anyOf:
             - description: account id (`acct_` + 26 base32 chars).
@@ -1284,6 +1289,9 @@ paths:
                     - destination
                     - x402
                     - agent
+                fresh:
+                  description: Bypass the screening cache and decide now (rails sends it for an owner-overridden refund recipient, `CreateRefundExecution.screen`). Default false (spec 0.2.1).
+                  type: boolean
                 livemode:
                   description: Mode (test mode uses magic addresses).
                   type: boolean
@@ -1661,6 +1669,14 @@ paths:
               - "true"
               - "false"
             type: string
+        - description: "Only cases about this object (exact `subject.id`: a prefixed id such as `ex_…`/`sd_…`, or an address). Spec 0.2.1."
+          in: query
+          name: subject
+          schema:
+            description: "Only cases about this object (exact `subject.id`: a prefixed id such as `ex_…`/`sd_…`, or an address). Spec 0.2.1."
+            maxLength: 256
+            minLength: 1
+            type: string
       responses:
         "200":
           content:
@@ -1733,7 +1749,7 @@ paths:
         visibility: ops
   /ops/cases/{id}/assign:
     post:
-      description: The assignee must be an active operator. Closed cases are `409 state_conflict`.
+      description: "The assignee must be an active operator: compliance checks it with identity `getInternalOpsOperator` (spec 0.2.1; an unknown or revoked operator is `400 invalid_request` on `assignee`; fail closed when identity cannot answer). Closed cases are `409 state_conflict`."
       operationId: assignOpsCase
       parameters:
         - description: compliance_case id (`case_` + 26 base32 chars).

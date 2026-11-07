@@ -122,7 +122,7 @@ export type TypedEvent = {
 
 /** Any object an event can carry (union of the per-type object schemas). */
 export const EventDataObject = z
-  .union([CheckoutSession, PaymentIntent, AgentPayment, Ping])
+  .union([CheckoutSession, PaymentIntent, AgentPayment, Ping, Refund, Account, PublicReview /* spec 0.2.1 — node CR */])
   .describe("Object snapshot carried by an event (`data.object`).");
 export type EventDataObject = z.infer<typeof EventDataObject>;
 // end stage 2 — rails-fx

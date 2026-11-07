@@ -63,6 +63,13 @@ components:
           format: date-time
           pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
           type: string
+        fee_amount:
+          anyOf:
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+            - type: "null"
+          description: "Part of `amount_in` that pays NearPay's fee, base units of the origin asset — display only (not attested): `0` when the merchant bears the fee, null when unknown. Absent from older servers."
         memo:
           description: Memo the deposit must carry, if any.
           type:
@@ -459,6 +466,13 @@ components:
       additionalProperties: {}
       description: A payment attempt as the payer sees it.
       properties:
+        amount_received:
+          anyOf:
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+            - type: "null"
+          description: What the payer's deposit actually delivered, base units of the origin asset; null until a deposit is detected. Shows “received X of Y” for an `incomplete_deposit`. Absent from older servers.
         attestation_ticket:
           anyOf:
             - description: "`base64url(JCS payload).base64url(Ed25519 signature)` issued by payments; pass it to sentinel unchanged."
@@ -612,6 +626,13 @@ components:
           const: payment_attempt
           description: Always `payment_attempt`.
           type: string
+        origin_amount:
+          anyOf:
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+            - type: "null"
+          description: What the payer actually sent, base units of `origin_asset_id` (rails `deposited_amount`); null until a deposit is detected. Spec 0.2.1.
         origin_asset_id:
           description: Asset the payer pays with.
           examples:
@@ -625,6 +646,14 @@ components:
             - eip155:8453
           pattern: ^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$
           type: string
+        refund_to:
+          anyOf:
+            - description: Address in the chain's canonical text form.
+              maxLength: 256
+              minLength: 1
+              type: string
+            - type: "null"
+          description: "The payer's own address as given at checkout, where refunds go (INV-7): the refund address on the origin chain (`route_quote`; the connected wallet or a typed address, which may differ from the wallet that sent the deposit) or the payer's Intents account (`intents_transfer`). Spec 0.2.1."
         settled_amount:
           anyOf:
             - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
@@ -940,6 +969,32 @@ components:
         - sequence
         - metadata
       type: object
+    PricingAssetDisplay:
+      additionalProperties: {}
+      description: Display data of a pricing asset (rails registry).
+      properties:
+        asset_id:
+          description: Pricing asset.
+          examples:
+            - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+          maxLength: 256
+          pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+          type: string
+        decimals:
+          description: Token decimals (format `amount` with them).
+          maximum: 255
+          minimum: 0
+          type: integer
+        symbol:
+          description: Token symbol.
+          maxLength: 32
+          minLength: 1
+          type: string
+      required:
+        - asset_id
+        - symbol
+        - decimals
+      type: object
     PublicCheckoutSession:
       additionalProperties: {}
       description: A checkout session as the payer sees it.
@@ -1040,6 +1095,11 @@ components:
             - pi_01jbz9k3m4n5p6q7r8s9t0v1w2
           pattern: ^pi_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
           type: string
+        pricing_asset:
+          anyOf:
+            - $ref: "#/components/schemas/PricingAssetDisplay"
+            - type: "null"
+          description: Display data of the pricing asset when `currency` is `asset`; null for fiat pricing. Spec 0.2.1.
         settlement:
           additionalProperties: {}
           description: How the merchant is paid (never the raw address).
@@ -1305,6 +1365,11 @@ components:
       additionalProperties: {}
       description: "Daily reconciliation of one account, mode and UTC day: Σ statement = Σ verified evidence per asset."
       properties:
+        account_display_name:
+          description: Account display name at read time (console lists); null when unknown (spec 0.2.1).
+          type:
+            - string
+            - "null"
         account_id:
           description: account id (`acct_` + 26 base32 chars).
           examples:
@@ -1443,6 +1508,11 @@ components:
           maxLength: 256
           pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
           type: string
+        decimals:
+          description: Decimals of `asset_id` for display (from rails `getInternalAsset`; spec 0.2.1).
+          maximum: 255
+          minimum: 0
+          type: integer
         fees:
           additionalProperties: {}
           description: Fee reconciliation.

@@ -8,7 +8,7 @@ import { AssetId, Base64Url, BaseUnits, ChainAddress, ChainId, Livemode, Timesta
 import { route } from "../common/route.js";
 import { closedEnum, inp, out, z } from "../common/schema.js";
 import { IntentsRequirement } from "../intents/payloads.js";
-import { AttestationTicket } from "./payer.js";
+import { AttestationTicket, TokenContract } from "./payer.js";
 
 export const AttestationKind = closedEnum(["route_quote", "intents_transfer"], "What is being attested.");
 
@@ -85,6 +85,12 @@ export const Attestation = out({
     asset_id: AssetId.describe("Asset the payer sends (`deposit.origin_asset_id` or `requirement.token`)."),
     symbol: z.string().min(1).max(32).describe("Token symbol from sentinel's own registry read."),
     decimals: z.int().min(0).max(255).describe("Token decimals from sentinel's own registry read."),
+    // spec 0.2.1 — checkout CR
+    token: TokenContract.nullable()
+      .optional()
+      .describe(
+        "Token contract from sentinel's own registry read (signed, so the wallet path transfers the attested contract); null when the registry has none (manual path). Spec 0.2.1.",
+      ),
   })
     .optional()
     .describe(

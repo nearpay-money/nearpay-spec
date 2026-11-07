@@ -239,8 +239,8 @@ errors:
     type: permission_error
     retryable: false
     generic: false
-    message: Settlement destinations cannot change until {until} after account recovery.
-    example: Settlement destinations cannot change until 2026-11-07T10:00:00Z after account recovery.
+    message: Settlement destinations and team roles cannot change until {until} after account recovery.
+    example: Settlement destinations and team roles cannot change until 2026-11-07T10:00:00Z after account recovery.
     doc_url: https://docs.nearpay.money/errors/recovery_lock
     since: 0.1.0
   - code: screening_blocked

@@ -132,11 +132,23 @@ export const KybSubmittedEvent = out({
 }).meta({ id: "KybSubmittedEvent", description: "The owner submitted self-declared business details for review." });
 
 // stage 2 — contracts integration: unified console audit trail (T-12)
+/** Ops CLI actor (`cli@<host>`, optionally `cli@<host>:<name>`; spec 0.2.1). */
+export const CliActor = z
+  .string()
+  .regex(/^cli@[A-Za-z0-9._:-]{1,200}$/)
+  .describe("In-container ops CLI actor: `cli@<host>` (`NP_OPS_ACTOR` / `--actor` may append `:<name>`).");
+
 export const OpsActionEvent = out({
-  id: Uuid.describe("Action id (UUIDv7); identity dedupes `audit_events` on it. Also the envelope `aggregate.id`."),
+  id: Uuid.describe(
+    "Action id (UUIDv7, bare); identity dedupes `audit_events` on it and uses it as the audit event id. The envelope `aggregate.id` is the same uuid as a prefixed id, `aud_<TypeID suffix>` (the outbox keys aggregates by prefixed id; spec 0.2.1 clarification).",
+  ),
   actor: out({
-    sub: id("usr").describe("Operator user id (`sub` of the ops principal)."),
-    ops_role: OpsRoleSchema,
+    sub: z
+      .union([id("usr"), CliActor])
+      .describe(
+        "Operator user id (`sub` of the ops principal), or the ops CLI actor `cli@<host>` for actions taken with the in-container CLI (spec 0.2.1).",
+      ),
+    ops_role: OpsRoleSchema.optional().describe("Console role of the operator; absent for CLI actors (spec 0.2.1)."),
   }).describe("Operator who acted (ids only; identity resolves the email for display)."),
   action: z
     .string()
@@ -156,6 +168,34 @@ export const OpsActionEvent = out({
   id: "OpsActionEvent",
   description:
     "A console operator action recorded by the owning service; identity copies it into `audit_events` so the console audit log is one trail. Ids only: no emails, notes or addresses.",
+});
+
+// spec 0.2.1 — identity CR: account recovery (notify `security.recovery`)
+export const UserRecoveredEvent = out({
+  user_id: id("usr"),
+  account_ids: z
+    .array(id("acct"))
+    .describe("Accounts where the user is owner or admin: each gets the 48 h recovery lock and its owners are told."),
+  recovered_at: Timestamp.describe("When the new passkey was registered."),
+  lock_until: Timestamp.describe("End of the recovery lock on destination and team changes (48 h)."),
+}).meta({
+  id: "UserRecoveredEvent",
+  description:
+    "A user regained access by email recovery and registered a new passkey (platform event; ids only, notify resolves emails through identity).",
+});
+
+// spec 0.2.1 — webhooks CR: signing-secret rotation (notify tells developers/owners)
+export const EndpointSecretRotatedEvent = out({
+  endpoint_id: id("we"),
+  account_id: id("acct"),
+  url: z.url().describe("Endpoint URL."),
+  previous_secret_expires_at: Timestamp.nullable().describe(
+    "Until when deliveries still carry a signature with the previous secret; null when it was dropped at once.",
+  ),
+  actor_user_id: id("usr").nullable().describe("Dashboard user who rotated it; null for an API key."),
+}).meta({
+  id: "EndpointSecretRotatedEvent",
+  description: "A webhook endpoint's signing secret was rotated (never the secret).",
 });
 
 export const ApiKeyEvent = ApiKey.omit({ secret: true }).meta({
@@ -192,14 +232,19 @@ export const SUBJECTS = {
     object: Account,
     aggregate: "account",
     producer: "identity",
-    consumers: ["notify", "compliance"],
+    consumers: ["notify", "compliance", "sentinel" /* spec 0.2.1 — finding display names */],
     stage: 1,
   }),
   "evt.identity.account.updated": s({
     object: Account,
     aggregate: "account",
     producer: "identity",
-    consumers: ["payments", "webhooks" /* stage 2 — identity-console: `account.updated` */],
+    consumers: [
+      "payments",
+      "webhooks" /* stage 2 — identity-console: `account.updated` */,
+      "compliance" /* spec 0.2.1 — case display names */,
+      "sentinel" /* spec 0.2.1 — finding display names */,
+    ],
     stage: 1,
   }),
   "evt.identity.settlement_destination.created": s({
@@ -597,6 +642,22 @@ export const SUBJECTS = {
     consumers: ["identity"],
     stage: 2,
   }),
+
+  // spec 0.2.1 — stage 2 change requests
+  "evt.identity.user.recovered": s({
+    object: UserRecoveredEvent,
+    aggregate: "user",
+    producer: "identity",
+    consumers: ["notify"],
+    stage: 2,
+  }),
+  "evt.webhooks.endpoint.secret_rotated": s({
+    object: EndpointSecretRotatedEvent,
+    aggregate: "webhook_endpoint",
+    producer: "webhooks",
+    consumers: ["notify"],
+    stage: 2,
+  }),
 } as const satisfies Record<string, SubjectDefinition>;
 
 export type Subject = keyof typeof SUBJECTS;
@@ -748,6 +809,8 @@ export const AggregateType = closedEnum(
     "membership",
     "ops_approval",
     "ops_action",
+    // spec 0.2.1
+    "user",
   ],
   "Aggregate type.",
 );

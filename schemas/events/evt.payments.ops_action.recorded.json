@@ -31,7 +31,7 @@
           "description": "Operator who acted (ids only; identity resolves the email for display).",
           "properties": {
             "ops_role": {
-              "description": "Role of a console operator.",
+              "description": "Console role of the operator; absent for CLI actors (spec 0.2.1).",
               "enum": [
                 "ops",
                 "ops_admin"
@@ -39,17 +39,26 @@
               "type": "string"
             },
             "sub": {
-              "description": "Operator user id (`sub` of the ops principal).",
-              "examples": [
-                "usr_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              "anyOf": [
+                {
+                  "description": "user id (`usr_` + 26 base32 chars).",
+                  "examples": [
+                    "usr_01jbz9k3m4n5p6q7r8s9t0v1w2"
+                  ],
+                  "pattern": "^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+                  "type": "string"
+                },
+                {
+                  "description": "In-container ops CLI actor: `cli@<host>` (`NP_OPS_ACTOR` / `--actor` may append `:<name>`).",
+                  "pattern": "^cli@[A-Za-z0-9._:-]{1,200}$",
+                  "type": "string"
+                }
               ],
-              "pattern": "^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
-              "type": "string"
+              "description": "Operator user id (`sub` of the ops principal), or the ops CLI actor `cli@<host>` for actions taken with the in-container CLI (spec 0.2.1)."
             }
           },
           "required": [
-            "sub",
-            "ops_role"
+            "sub"
           ],
           "type": "object"
         },
@@ -70,7 +79,7 @@
           "description": "Two-person approval the action completed, if any."
         },
         "id": {
-          "description": "Action id (UUIDv7); identity dedupes `audit_events` on it. Also the envelope `aggregate.id`.",
+          "description": "Action id (UUIDv7, bare); identity dedupes `audit_events` on it and uses it as the audit event id. The envelope `aggregate.id` is the same uuid as a prefixed id, `aud_<TypeID suffix>` (the outbox keys aggregates by prefixed id; spec 0.2.1 clarification).",
           "format": "uuid",
           "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
           "type": "string"
