@@ -50,6 +50,8 @@ events new in this release, so renames are safe).
 - **Error `since`.** `ErrorDefinition.since` is any `major.minor.patch`; every Stage 2 code is
   stamped `0.2.0`.
 - `DeletedCustomer.livemode` (every merchant object carries its mode).
+- payments consumes `evt.sentinel.kill_switch.engaged` / `.released` (lead decision: the kill switch
+  blocks new live refund legs and live refund relays, fail closed; refunds resume on release).
 - **Review webhooks deduplicated:** `review.opened` / `review.closed` carry `PublicReview`
   (payments); the bus `Review` stays in `@nearpay-internal/spec` (identity-console had moved it to
   the public package — reverted).

@@ -296,7 +296,7 @@ channels:
         $ref: "#/components/messages/evt_sentinel_audit_finding_created"
   evt_sentinel_kill_switch_engaged:
     address: evt.sentinel.kill_switch.engaged
-    description: "Stream `EVT_SENTINEL`. Producer: sentinel. Consumers: rails, agentpay, notify."
+    description: "Stream `EVT_SENTINEL`. Producer: sentinel. Consumers: rails, agentpay, notify, payments."
     messages:
       evt_sentinel_kill_switch_engaged:
         $ref: "#/components/messages/evt_sentinel_kill_switch_engaged"
@@ -308,7 +308,7 @@ channels:
         $ref: "#/components/messages/evt_sentinel_kill_switch_release_requested"
   evt_sentinel_kill_switch_released:
     address: evt.sentinel.kill_switch.released
-    description: "Stream `EVT_SENTINEL`. Producer: sentinel. Consumers: rails, agentpay, notify."
+    description: "Stream `EVT_SENTINEL`. Producer: sentinel. Consumers: rails, agentpay, notify, payments."
     messages:
       evt_sentinel_kill_switch_released:
         $ref: "#/components/messages/evt_sentinel_kill_switch_released"
@@ -10386,6 +10386,7 @@ operations:
       - rails
       - agentpay
       - notify
+      - payments
     x-producer: sentinel
     x-stage: 1
   evt_sentinel_kill_switch_release_requested_send:
@@ -10406,6 +10407,7 @@ operations:
       - rails
       - agentpay
       - notify
+      - payments
     x-producer: sentinel
     x-stage: 1
   evt_sentinel_ops_action_recorded_send:

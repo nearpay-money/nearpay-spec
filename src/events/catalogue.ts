@@ -490,14 +490,14 @@ export const SUBJECTS = {
     object: KillSwitchEvent,
     aggregate: "kill_switch",
     producer: "sentinel",
-    consumers: ["rails", "agentpay", "notify"],
+    consumers: ["rails", "agentpay", "notify", "payments" /* stage 2 — kill switch blocks live refund legs */],
     stage: 1,
   }),
   "evt.sentinel.kill_switch.released": s({
     object: KillSwitchEvent,
     aggregate: "kill_switch",
     producer: "sentinel",
-    consumers: ["rails", "agentpay", "notify"],
+    consumers: ["rails", "agentpay", "notify", "payments" /* stage 2 — kill switch blocks live refund legs */],
     stage: 1,
   }),
   "evt.sentinel.audit_finding.created": s({
