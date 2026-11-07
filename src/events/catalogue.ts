@@ -18,12 +18,15 @@ import {
   out,
   PaymentIntent,
   RequestId,
+  Review,
+  RoleSchema,
   type ServiceName,
   Timestamp,
   Uuid,
   z,
 } from "@nearpay/spec";
 import { InternalSettlementDestination } from "../internal/identity.js";
+import { OpsApproval } from "../internal/ops-approval.js";
 import { Execution } from "../internal/rails.js";
 
 // ---------------------------------------------------------------------------------------------
@@ -33,7 +36,15 @@ import { Execution } from "../internal/rails.js";
 export const KybDecisionEvent = out({
   account_id: id("acct"),
   status: KybStatus,
-  reason: z.string().nullable().describe("Decision reason."),
+  reason: z.string().nullable().describe("Decision reason (internal: never shown to merchants)."),
+  // stage 2 — identity-console
+  requested_info: z
+    .string()
+    .nullable()
+    .optional()
+    .describe(
+      "What ops asked the merchant for (`needs_info`; shown in the `kyb.decision` mail). Absent before Stage 2.",
+    ),
 }).meta({ id: "KybDecisionEvent", description: "A KYB decision." });
 
 export const DestinationBlockedEvent = out({
@@ -47,22 +58,8 @@ export const AccountStatusEvent = out({
   reason: z.string().describe("Reason."),
 }).meta({ id: "AccountStatusEvent", description: "Compliance suspended or reinstated an account." });
 
-export const Review = out({
-  id: id("case"),
-  object: z.literal("review").describe("Always `review`."),
-  account_id: id("acct"),
-  subject: out({
-    type: openEnum(
-      ["payment_intent", "agent_payment", "settlement_destination", "execution"],
-      "Reviewed object type (`execution`: a rails execution; payments maps it to its payment intent).",
-    ),
-    id: z.string().describe("Reviewed object id."),
-  }).describe("What is under review."),
-  reason: openEnum(["post_screen_hit", "held_execution", "audit_mismatch", "screening_hit"], "Why."),
-  status: openEnum(["open", "closed"], "Review status."),
-  opened_at: Timestamp.describe("Opened."),
-  closed_at: Timestamp.nullable().describe("Closed."),
-}).meta({ id: "Review", description: "A compliance review of a payment (payment stands; INV-1)." });
+/** `Review` lives in `@nearpay/spec` since stage 2 (public webhook payload); re-exported for consumers. */
+export { Review };
 
 export const PolicyUpdatedEvent = out({
   version: z.string().describe("Policy version."),
@@ -93,6 +90,23 @@ export const EndpointDisabledEvent = out({
   reason: openEnum(["failing"], "Why."),
   failing_since: Timestamp.describe("First failure of the streak."),
 }).meta({ id: "EndpointDisabledEvent", description: "A webhook endpoint was disabled after 72 h of failures." });
+
+// stage 2 — identity-console
+export const MemberEvent = out({
+  account_id: id("acct"),
+  user_id: id("usr"),
+  role: RoleSchema,
+  previous_role: RoleSchema.nullable().describe("Role before a change (`role_changed`); null otherwise."),
+  actor_user_id: id("usr")
+    .nullable()
+    .describe("Owner/admin who made the change; null when the user accepted an invitation."),
+}).meta({ id: "MemberEvent", description: "A team change (ids only; notify resolves emails through identity)." });
+
+export const KybSubmittedEvent = out({
+  account_id: id("acct"),
+  status: KybStatus,
+  submitted_at: Timestamp.describe("Submission time."),
+}).meta({ id: "KybSubmittedEvent", description: "The owner submitted self-declared business details for review." });
 
 export const ApiKeyEvent = ApiKey.omit({ secret: true }).meta({
   id: "ApiKeyEvent",
@@ -135,7 +149,7 @@ export const SUBJECTS = {
     object: Account,
     aggregate: "account",
     producer: "identity",
-    consumers: ["payments"],
+    consumers: ["payments", "webhooks" /* stage 2 — identity-console: `account.updated` */],
     stage: 1,
   }),
   "evt.identity.settlement_destination.created": s({
@@ -360,14 +374,14 @@ export const SUBJECTS = {
     object: Review,
     aggregate: "case",
     producer: "compliance",
-    consumers: ["payments", "notify"],
+    consumers: ["payments", "notify", "webhooks" /* stage 2 — identity-console: `review.opened` */],
     stage: 1,
   }),
   "evt.compliance.review.closed": s({
     object: Review,
     aggregate: "case",
     producer: "compliance",
-    consumers: ["payments", "notify"],
+    consumers: ["payments", "notify", "webhooks" /* stage 2 — identity-console: `review.closed` */],
     stage: 1,
   }),
   "evt.compliance.policy.updated": s({
@@ -408,6 +422,57 @@ export const SUBJECTS = {
     producer: "webhooks",
     consumers: ["notify"],
     stage: 1,
+  }),
+
+  // stage 2 — identity-console
+  "evt.identity.member.added": s({
+    object: MemberEvent,
+    aggregate: "membership",
+    producer: "identity",
+    consumers: ["notify"],
+    stage: 2,
+  }),
+  "evt.identity.member.removed": s({
+    object: MemberEvent,
+    aggregate: "membership",
+    producer: "identity",
+    consumers: ["notify"],
+    stage: 2,
+  }),
+  "evt.identity.member.role_changed": s({
+    object: MemberEvent,
+    aggregate: "membership",
+    producer: "identity",
+    consumers: ["notify"],
+    stage: 2,
+  }),
+  "evt.identity.settlement_destination.pending_approval": s({
+    object: InternalSettlementDestination,
+    aggregate: "settlement_destination",
+    producer: "identity",
+    consumers: ["notify"],
+    stage: 2,
+  }),
+  "evt.compliance.kyb.submitted": s({
+    object: KybSubmittedEvent,
+    aggregate: "kyb_case",
+    producer: "compliance",
+    consumers: ["identity", "notify"],
+    stage: 2,
+  }),
+  "evt.compliance.account.action_requested": s({
+    object: OpsApproval,
+    aggregate: "ops_approval",
+    producer: "compliance",
+    consumers: ["notify"],
+    stage: 2,
+  }),
+  "evt.sentinel.kill_switch.release_requested": s({
+    object: OpsApproval,
+    aggregate: "ops_approval",
+    producer: "sentinel",
+    consumers: ["notify"],
+    stage: 2,
   }),
 } as const satisfies Record<string, SubjectDefinition>;
 

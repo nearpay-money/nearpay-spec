@@ -64,7 +64,7 @@ components:
             - suspended
             - closed
         verified_legal_name:
-          description: Legal name verified by KYB, shown on checkout once set.
+          description: Legal name approved by NearPay's KYB review (self-declared business details reviewed by ops), shown on checkout once set.
           type:
             - string
             - "null"
@@ -729,6 +729,114 @@ components:
         - amount_in
         - deadline
       type: object
+    AuditEvent:
+      additionalProperties: {}
+      description: An append-only audit record (identity §12).
+      properties:
+        account:
+          anyOf:
+            - description: account id (`acct_` + 26 base32 chars).
+              examples:
+                - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Account the action concerns; null for platform actions.
+        action:
+          description: Action, e.g. `destination.created`, `member.invited`, `api_key.rolled`.
+          type: string
+        actor:
+          additionalProperties: {}
+          description: Who performed the action.
+          properties:
+            id:
+              description: "`usr_…` (user or operator), `key_…`, a service name or `system`."
+              type: string
+            type:
+              description: Who acted.
+              type: string
+              x-extensible-enum:
+                - user
+                - api_key
+                - operator
+                - service
+                - system
+          required:
+            - type
+            - id
+          type: object
+        created:
+          description: Unix time in seconds.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        details:
+          additionalProperties: {}
+          description: Action details (no secrets, no personal data beyond ids).
+          propertyNames:
+            type: string
+          type: object
+        id:
+          description: audit_event id (`aud_` + 26 base32 chars).
+          examples:
+            - aud_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^aud_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        object:
+          const: audit_event
+          description: Always `audit_event`.
+          type: string
+        target:
+          anyOf:
+            - additionalProperties: {}
+              properties:
+                id:
+                  description: Object id.
+                  type: string
+                type:
+                  description: Object type.
+                  type: string
+              required:
+                - type
+                - id
+              type: object
+            - type: "null"
+          description: Object acted on.
+      required:
+        - id
+        - object
+        - created
+        - account
+        - actor
+        - action
+        - target
+        - details
+      type: object
+    AuditEventList:
+      additionalProperties: {}
+      description: A page of audit events.
+      properties:
+        data:
+          description: Objects on this page.
+          items:
+            $ref: "#/components/schemas/AuditEvent"
+          type: array
+        has_more:
+          description: Whether more objects exist after this page.
+          type: boolean
+        object:
+          const: list
+          description: Always `list`.
+          type: string
+        url:
+          description: Path of this list endpoint.
+          type: string
+      required:
+        - object
+        - data
+        - has_more
+        - url
+      type: object
     BalanceTransaction:
       additionalProperties: {}
       description: "A statement line: what settled where, with its evidence."
@@ -866,6 +974,50 @@ components:
         - data
         - has_more
         - url
+      type: object
+    BusinessAddress:
+      additionalProperties: {}
+      description: Registered business address.
+      properties:
+        city:
+          description: City.
+          maxLength: 100
+          minLength: 1
+          type: string
+        country:
+          description: Country of the address.
+          pattern: ^[A-Z]{2}$
+          type: string
+        line1:
+          description: Street and number.
+          maxLength: 200
+          minLength: 1
+          type: string
+        line2:
+          anyOf:
+            - maxLength: 200
+              type: string
+            - type: "null"
+          description: Additional address line.
+        postal_code:
+          anyOf:
+            - maxLength: 20
+              type: string
+            - type: "null"
+          description: Postal code (if the country uses one).
+        region:
+          anyOf:
+            - maxLength: 100
+              type: string
+            - type: "null"
+          description: State, province or region.
+      required:
+        - line1
+        - line2
+        - city
+        - postal_code
+        - region
+        - country
       type: object
     CheckoutSession:
       additionalProperties: {}
@@ -1543,6 +1695,13 @@ components:
             - screening_unavailable
             - url_invalid
             - event_type_unknown
+            - last_owner
+            - member_exists
+            - invitation_invalid
+            - approver_conflict
+            - two_person_required
+            - authenticator_not_allowed
+            - kyb_profile_incomplete
         doc_url:
           description: Documentation page for this error code.
           format: uri
@@ -1583,6 +1742,7 @@ components:
       description: A public event; also the body of every webhook delivery.
       discriminator:
         mapping:
+          account.updated: "#/components/schemas/EventAccountUpdated"
           agent_payment.failed: "#/components/schemas/EventAgentPaymentFailed"
           agent_payment.settled: "#/components/schemas/EventAgentPaymentSettled"
           checkout.session.completed: "#/components/schemas/EventCheckoutSessionCompleted"
@@ -1595,6 +1755,8 @@ components:
           payment_intent.requires_review: "#/components/schemas/EventPaymentIntentRequiresReview"
           payment_intent.succeeded: "#/components/schemas/EventPaymentIntentSucceeded"
           ping: "#/components/schemas/EventPing"
+          review.closed: "#/components/schemas/EventReviewClosed"
+          review.opened: "#/components/schemas/EventReviewOpened"
         propertyName: type
       oneOf:
         - $ref: "#/components/schemas/EventCheckoutSessionCompleted"
@@ -1609,6 +1771,87 @@ components:
         - $ref: "#/components/schemas/EventAgentPaymentSettled"
         - $ref: "#/components/schemas/EventAgentPaymentFailed"
         - $ref: "#/components/schemas/EventPing"
+        - $ref: "#/components/schemas/EventAccountUpdated"
+        - $ref: "#/components/schemas/EventReviewOpened"
+        - $ref: "#/components/schemas/EventReviewClosed"
+      type: object
+    EventAccountUpdated:
+      additionalProperties: {}
+      description: "`account.updated` event."
+      properties:
+        api_version:
+          description: API version the payload is rendered in.
+          enum:
+            - 2026-11-01
+          type: string
+        created:
+          description: Unix time in seconds.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        data:
+          additionalProperties: {}
+          description: Event data.
+          properties:
+            object:
+              $ref: "#/components/schemas/Account"
+            previous_attributes:
+              additionalProperties: {}
+              description: Changed fields with their previous values (update events).
+              propertyNames:
+                type: string
+              type: object
+          required:
+            - object
+          type: object
+        id:
+          description: event id (`evt_` + 26 base32 chars).
+          examples:
+            - evt_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^evt_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        livemode:
+          description: "`true` for live mode, `false` for test mode."
+          type: boolean
+        object:
+          const: event
+          description: Always `event`.
+          type: string
+        request:
+          additionalProperties: {}
+          description: Request that caused the event.
+          properties:
+            id:
+              anyOf:
+                - description: request id (`req_` + 26 base32 chars).
+                  examples:
+                    - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                  pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                  type: string
+                - type: "null"
+              description: API request that caused the event, if any.
+            idempotency_key:
+              description: Idempotency-Key of that request, if any.
+              type:
+                - string
+                - "null"
+          required:
+            - id
+            - idempotency_key
+          type: object
+        type:
+          const: account.updated
+          description: Event type.
+          type: string
+      required:
+        - id
+        - object
+        - type
+        - api_version
+        - created
+        - livemode
+        - data
+        - request
       type: object
     EventAgentPaymentFailed:
       additionalProperties: {}
@@ -2571,6 +2814,186 @@ components:
         - data
         - request
       type: object
+    EventResend:
+      additionalProperties: {}
+      description: Deliveries queued by a resend.
+      properties:
+        deliveries:
+          description: New deliveries, one per endpoint (status `pending`).
+          items:
+            $ref: "#/components/schemas/WebhookDelivery"
+          type: array
+        event:
+          description: event id (`evt_` + 26 base32 chars).
+          examples:
+            - evt_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^evt_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        object:
+          const: event_resend
+          description: Always `event_resend`.
+          type: string
+      required:
+        - object
+        - event
+        - deliveries
+      type: object
+    EventReviewClosed:
+      additionalProperties: {}
+      description: "`review.closed` event."
+      properties:
+        api_version:
+          description: API version the payload is rendered in.
+          enum:
+            - 2026-11-01
+          type: string
+        created:
+          description: Unix time in seconds.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        data:
+          additionalProperties: {}
+          description: Event data.
+          properties:
+            object:
+              $ref: "#/components/schemas/Review"
+            previous_attributes:
+              additionalProperties: {}
+              description: Changed fields with their previous values (update events).
+              propertyNames:
+                type: string
+              type: object
+          required:
+            - object
+          type: object
+        id:
+          description: event id (`evt_` + 26 base32 chars).
+          examples:
+            - evt_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^evt_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        livemode:
+          description: "`true` for live mode, `false` for test mode."
+          type: boolean
+        object:
+          const: event
+          description: Always `event`.
+          type: string
+        request:
+          additionalProperties: {}
+          description: Request that caused the event.
+          properties:
+            id:
+              anyOf:
+                - description: request id (`req_` + 26 base32 chars).
+                  examples:
+                    - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                  pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                  type: string
+                - type: "null"
+              description: API request that caused the event, if any.
+            idempotency_key:
+              description: Idempotency-Key of that request, if any.
+              type:
+                - string
+                - "null"
+          required:
+            - id
+            - idempotency_key
+          type: object
+        type:
+          const: review.closed
+          description: Event type.
+          type: string
+      required:
+        - id
+        - object
+        - type
+        - api_version
+        - created
+        - livemode
+        - data
+        - request
+      type: object
+    EventReviewOpened:
+      additionalProperties: {}
+      description: "`review.opened` event."
+      properties:
+        api_version:
+          description: API version the payload is rendered in.
+          enum:
+            - 2026-11-01
+          type: string
+        created:
+          description: Unix time in seconds.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        data:
+          additionalProperties: {}
+          description: Event data.
+          properties:
+            object:
+              $ref: "#/components/schemas/Review"
+            previous_attributes:
+              additionalProperties: {}
+              description: Changed fields with their previous values (update events).
+              propertyNames:
+                type: string
+              type: object
+          required:
+            - object
+          type: object
+        id:
+          description: event id (`evt_` + 26 base32 chars).
+          examples:
+            - evt_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^evt_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        livemode:
+          description: "`true` for live mode, `false` for test mode."
+          type: boolean
+        object:
+          const: event
+          description: Always `event`.
+          type: string
+        request:
+          additionalProperties: {}
+          description: Request that caused the event.
+          properties:
+            id:
+              anyOf:
+                - description: request id (`req_` + 26 base32 chars).
+                  examples:
+                    - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                  pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                  type: string
+                - type: "null"
+              description: API request that caused the event, if any.
+            idempotency_key:
+              description: Idempotency-Key of that request, if any.
+              type:
+                - string
+                - "null"
+          required:
+            - id
+            - idempotency_key
+          type: object
+        type:
+          const: review.opened
+          description: Event type.
+          type: string
+      required:
+        - id
+        - object
+        - type
+        - api_version
+        - created
+        - livemode
+        - data
+        - request
+      type: object
     Evidence:
       additionalProperties: {}
       description: Independent on-chain proof that a settlement reached the merchant (INV-2).
@@ -2750,14 +3173,130 @@ components:
         - binding
         - deadline
       type: object
+    Invitation:
+      additionalProperties: {}
+      description: An invitation to join the account with a role.
+      properties:
+        accepted_at:
+          anyOf:
+            - description: Unix time in seconds.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: When it was accepted.
+        created:
+          description: Unix time in seconds.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        email:
+          description: Invited address; only a user with this email can accept.
+          format: email
+          pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+          type: string
+        expires_at:
+          description: Expiry (7 days after sending).
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        id:
+          description: invitation id (`inv_` + 26 base32 chars).
+          examples:
+            - inv_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^inv_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        invited_by:
+          description: user id (`usr_` + 26 base32 chars).
+          examples:
+            - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        object:
+          const: invitation
+          description: Always `invitation`.
+          type: string
+        role:
+          description: Role of a user in a merchant account.
+          enum:
+            - owner
+            - admin
+            - developer
+            - finance
+            - support
+            - viewer
+          type: string
+        status:
+          description: Invitation status.
+          type: string
+          x-extensible-enum:
+            - pending
+            - accepted
+            - revoked
+            - expired
+      required:
+        - id
+        - object
+        - created
+        - email
+        - role
+        - status
+        - invited_by
+        - expires_at
+        - accepted_at
+      type: object
+    InvitationList:
+      additionalProperties: {}
+      description: A page of invitations.
+      properties:
+        data:
+          description: Objects on this page.
+          items:
+            $ref: "#/components/schemas/Invitation"
+          type: array
+        has_more:
+          description: Whether more objects exist after this page.
+          type: boolean
+        object:
+          const: list
+          description: Always `list`.
+          type: string
+        url:
+          description: Path of this list endpoint.
+          type: string
+      required:
+        - object
+        - data
+        - has_more
+        - url
+      type: object
     KybCase:
       additionalProperties: {}
       description: The account's KYB case.
       properties:
+        decided_at:
+          anyOf:
+            - description: Unix time in seconds.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: Last ops decision.
+        editable:
+          description: Whether the profile can be updated and submitted now (`not_started` or `needs_info`).
+          type: boolean
         object:
           const: kyb_case
           description: Always `kyb_case`.
           type: string
+        profile:
+          $ref: "#/components/schemas/KybProfile"
+          description: Declared business details (all null before the first update).
+        requested_info:
+          description: What ops asked for (`needs_info` only). Internal decision reasons are never shown.
+          type:
+            - string
+            - "null"
         status:
           description: KYB case status.
           type: string
@@ -2767,16 +3306,366 @@ components:
             - needs_info
             - approved
             - rejected
+        submitted_at:
+          anyOf:
+            - description: Unix time in seconds.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: Last submission for review.
         vendor_flow_url:
           anyOf:
             - format: uri
               type: string
             - type: "null"
-          description: Vendor-hosted verification flow (Stage 2); null while KYB is decided manually.
+          description: "Always null: KYB is self-declared and decided by NearPay ops; there is no vendor flow (ADR-0020)."
       required:
         - object
         - status
         - vendor_flow_url
+      type: object
+    KybProfile:
+      additionalProperties: {}
+      description: Self-declared minimum business details (KYB).
+      properties:
+        business_address:
+          anyOf:
+            - $ref: "#/components/schemas/BusinessAddress"
+            - type: "null"
+          description: Registered address.
+        business_type:
+          anyOf:
+            - description: Legal form of the business.
+              type: string
+              x-extensible-enum:
+                - sole_proprietorship
+                - partnership
+                - company
+                - non_profit
+                - other
+            - type: "null"
+        country_of_incorporation:
+          anyOf:
+            - description: ISO 3166-1 alpha-2 country code, upper-case.
+              pattern: ^[A-Z]{2}$
+              type: string
+            - type: "null"
+          description: Country where the business is registered.
+        expected_monthly_volume:
+          anyOf:
+            - description: Expected monthly payment volume in USD.
+              type: string
+              x-extensible-enum:
+                - under_10k
+                - 10k_to_100k
+                - 100k_to_1m
+                - over_1m
+            - type: "null"
+        legal_name:
+          description: Registered legal name (or the owner's full name for a sole proprietor).
+          type:
+            - string
+            - "null"
+        registration_number:
+          description: Company or trade register number (tax id if none).
+          type:
+            - string
+            - "null"
+        representative:
+          anyOf:
+            - additionalProperties: {}
+              properties:
+                name:
+                  description: Full name of the person declaring the details.
+                  type: string
+                title:
+                  description: Their role, e.g. `Director`, `Founder`.
+                  type: string
+              required:
+                - name
+                - title
+              type: object
+            - type: "null"
+          description: Who declares the details on behalf of the business.
+        website:
+          anyOf:
+            - description: Absolute URL.
+              format: uri
+              maxLength: 2048
+              type: string
+            - type: "null"
+          description: Public website or store front, if any.
+      required:
+        - legal_name
+        - country_of_incorporation
+        - registration_number
+        - business_type
+        - website
+        - business_address
+        - representative
+        - expected_monthly_volume
+      type: object
+    KybProfileUpdate:
+      additionalProperties: false
+      description: Changes to the draft business details.
+      properties:
+        business_address:
+          anyOf:
+            - additionalProperties: false
+              properties:
+                city:
+                  description: City.
+                  maxLength: 100
+                  minLength: 1
+                  type: string
+                country:
+                  description: Country of the address.
+                  pattern: ^[A-Z]{2}$
+                  type: string
+                line1:
+                  description: Street and number.
+                  maxLength: 200
+                  minLength: 1
+                  type: string
+                line2:
+                  anyOf:
+                    - maxLength: 200
+                      type: string
+                    - type: "null"
+                  description: Additional address line.
+                postal_code:
+                  anyOf:
+                    - maxLength: 20
+                      type: string
+                    - type: "null"
+                  description: Postal code (if the country uses one).
+                region:
+                  anyOf:
+                    - maxLength: 100
+                      type: string
+                    - type: "null"
+                  description: State, province or region.
+              required:
+                - line1
+                - city
+                - country
+              type: object
+            - type: "null"
+          description: Registered address (replaces the stored one).
+        business_type:
+          anyOf:
+            - description: Legal form of the business.
+              type: string
+              x-extensible-enum:
+                - sole_proprietorship
+                - partnership
+                - company
+                - non_profit
+                - other
+            - type: "null"
+        country_of_incorporation:
+          anyOf:
+            - description: ISO 3166-1 alpha-2 country code, upper-case.
+              pattern: ^[A-Z]{2}$
+              type: string
+            - type: "null"
+          description: Country of incorporation.
+        expected_monthly_volume:
+          anyOf:
+            - description: Expected monthly payment volume in USD.
+              type: string
+              x-extensible-enum:
+                - under_10k
+                - 10k_to_100k
+                - 100k_to_1m
+                - over_1m
+            - type: "null"
+        legal_name:
+          anyOf:
+            - maxLength: 200
+              minLength: 1
+              type: string
+            - type: "null"
+          description: Registered legal name.
+        registration_number:
+          anyOf:
+            - maxLength: 64
+              minLength: 1
+              type: string
+            - type: "null"
+          description: Register number.
+        representative:
+          anyOf:
+            - additionalProperties: false
+              properties:
+                name:
+                  description: Full name.
+                  maxLength: 200
+                  minLength: 1
+                  type: string
+                title:
+                  description: Role in the business.
+                  maxLength: 100
+                  minLength: 1
+                  type: string
+              required:
+                - name
+                - title
+              type: object
+            - type: "null"
+          description: Declaring representative.
+        website:
+          anyOf:
+            - description: Absolute URL.
+              format: uri
+              maxLength: 2048
+              type: string
+            - type: "null"
+          description: Website (https).
+      type: object
+    Member:
+      additionalProperties: {}
+      description: A user's membership in the account (FR-ACC-01).
+      properties:
+        created:
+          description: When the user joined the account.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        last_login_at:
+          anyOf:
+            - description: Unix time in seconds.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: Last sign-in of the user.
+        object:
+          const: member
+          description: Always `member`.
+          type: string
+        role:
+          description: Role of a user in a merchant account.
+          enum:
+            - owner
+            - admin
+            - developer
+            - finance
+            - support
+            - viewer
+          type: string
+        user:
+          additionalProperties: {}
+          description: The member's user.
+          properties:
+            email:
+              description: Email of the member.
+              format: email
+              pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+              type: string
+            id:
+              description: user id (`usr_` + 26 base32 chars).
+              examples:
+                - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+          required:
+            - id
+            - email
+          type: object
+      required:
+        - object
+        - user
+        - role
+        - created
+        - last_login_at
+      type: object
+    MemberList:
+      additionalProperties: {}
+      description: A page of members.
+      properties:
+        data:
+          description: Objects on this page.
+          items:
+            $ref: "#/components/schemas/Member"
+          type: array
+        has_more:
+          description: Whether more objects exist after this page.
+          type: boolean
+        object:
+          const: list
+          description: Always `list`.
+          type: string
+        url:
+          description: Path of this list endpoint.
+          type: string
+      required:
+        - object
+        - data
+        - has_more
+        - url
+      type: object
+    Membership:
+      additionalProperties: {}
+      description: An account the signed-in user belongs to.
+      properties:
+        account:
+          additionalProperties: {}
+          description: Account.
+          properties:
+            display_name:
+              description: Account display name.
+              type: string
+            id:
+              description: account id (`acct_` + 26 base32 chars).
+              examples:
+                - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+          required:
+            - id
+            - display_name
+          type: object
+        current:
+          description: Whether the current session acts for this account.
+          type: boolean
+        object:
+          const: membership
+          description: Always `membership`.
+          type: string
+        role:
+          description: Role of a user in a merchant account.
+          enum:
+            - owner
+            - admin
+            - developer
+            - finance
+            - support
+            - viewer
+          type: string
+      required:
+        - object
+        - account
+        - role
+        - current
+      type: object
+    MembershipList:
+      additionalProperties: {}
+      description: The signed-in user's memberships.
+      properties:
+        data:
+          description: Memberships, most recently used first.
+          items:
+            $ref: "#/components/schemas/Membership"
+          type: array
+        object:
+          const: list
+          description: Always `list`.
+          type: string
+      required:
+        - object
+        - data
       type: object
     MultiPayload:
       description: A signed Verifier payload (`MultiPayload`).
@@ -3584,10 +4473,38 @@ components:
           maximum: 9007199254740991
           minimum: 0
           type: integer
+        invitation:
+          additionalProperties: {}
+          description: "Present for `invite`: what passkey registration will join."
+          properties:
+            account_display_name:
+              description: Account the invitation joins.
+              type: string
+            role:
+              description: Role of a user in a merchant account.
+              enum:
+                - owner
+                - admin
+                - developer
+                - finance
+                - support
+                - viewer
+              type: string
+          required:
+            - account_display_name
+            - role
+          type: object
         object:
           const: registration
           description: Always `registration`.
           type: string
+        purpose:
+          description: "Why the magic link was sent: `signup` creates an account, `recovery` adds a passkey to the existing user (locks destination changes 48 h), `invite` joins the inviting account. Absent from Stage 1 servers (= `signup`)."
+          type: string
+          x-extensible-enum:
+            - signup
+            - recovery
+            - invite
         registration_token:
           description: Single-use token for passkey registration (5 minutes).
           minLength: 32
@@ -3597,6 +4514,82 @@ components:
         - registration_token
         - email
         - expires_at
+      type: object
+    Review:
+      additionalProperties: {}
+      description: A compliance review of a payment (payment stands; INV-1).
+      properties:
+        account_id:
+          description: account id (`acct_` + 26 base32 chars).
+          examples:
+            - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        closed_at:
+          anyOf:
+            - description: RFC 3339 UTC timestamp, e.g. `2026-11-05T10:00:00.000Z`.
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+              type: string
+            - type: "null"
+          description: Closed.
+        id:
+          description: compliance_case id (`case_` + 26 base32 chars).
+          examples:
+            - case_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^case_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        object:
+          const: review
+          description: Always `review`.
+          type: string
+        opened_at:
+          description: Opened.
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+          type: string
+        reason:
+          description: Why.
+          type: string
+          x-extensible-enum:
+            - post_screen_hit
+            - held_execution
+            - audit_mismatch
+            - screening_hit
+        status:
+          description: Review status.
+          type: string
+          x-extensible-enum:
+            - open
+            - closed
+        subject:
+          additionalProperties: {}
+          description: What is under review.
+          properties:
+            id:
+              description: Reviewed object id.
+              type: string
+            type:
+              description: "Reviewed object type (`execution`: a rails execution; payments maps it to its payment intent)."
+              type: string
+              x-extensible-enum:
+                - payment_intent
+                - agent_payment
+                - settlement_destination
+                - execution
+          required:
+            - type
+            - id
+          type: object
+      required:
+        - id
+        - object
+        - account_id
+        - subject
+        - reason
+        - status
+        - opened_at
+        - closed_at
       type: object
     SentinelKey:
       additionalProperties: {}
@@ -3653,6 +4646,40 @@ components:
           maxLength: 256
           minLength: 1
           type: string
+        approval:
+          anyOf:
+            - additionalProperties: {}
+              properties:
+                approved_by:
+                  description: Users who approved, in order (the creator counts when 1 is required).
+                  items:
+                    description: user id (`usr_` + 26 base32 chars).
+                    examples:
+                      - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+                    pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                    type: string
+                  type: array
+                rejected_by:
+                  anyOf:
+                    - description: user id (`usr_` + 26 base32 chars).
+                      examples:
+                        - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+                      pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                      type: string
+                    - type: "null"
+                  description: User who rejected the destination, if any (it is then disabled).
+                required:
+                  description: "Approvals needed: 2 when the account has ≥ 2 owner/admin members, else 1."
+                  maximum: 2
+                  minimum: 1
+                  type: integer
+              required:
+                - required
+                - approved_by
+                - rejected_by
+              type: object
+            - type: "null"
+          description: Approval state; null for test-mode destinations. Absent from Stage 1 servers.
         asset_id:
           description: Asset the merchant receives.
           examples:
@@ -4175,6 +5202,9 @@ components:
             - agent_payment.settled
             - agent_payment.failed
             - ping
+            - account.updated
+            - review.opened
+            - review.closed
         id:
           description: webhook_delivery id (`whd_` + 26 base32 chars).
           examples:
@@ -4315,8 +5345,16 @@ components:
           const: webhook_endpoint
           description: Always `webhook_endpoint`.
           type: string
+        previous_secret_expires_at:
+          anyOf:
+            - description: Unix time in seconds.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: "While a rotated-out secret is still used: until when deliveries carry a second `v1=` signature made with it. Absent from Stage 1 servers."
         secret:
-          description: Signing secret; returned only when the endpoint is created.
+          description: Signing secret; returned only when the endpoint is created or its secret is rotated.
           pattern: ^whsec_[0-9A-Za-z]{32,64}$
           type: string
         status:
@@ -4934,7 +5972,390 @@ paths:
           - admin
         service: identity
         stage: 1
+  /v1/account/audit_events:
+    get:
+      description: Cursor list over the whole retention period; the dashboard's export walks it with `created[…]` filters and writes CSV client-side.
+      operationId: listAccountAuditEvents
+      parameters:
+        - description: Number of objects to return, 1–100 (default 10).
+          in: query
+          name: limit
+          schema:
+            default: 10
+            description: Number of objects to return, 1–100 (default 10).
+            maximum: 100
+            minimum: 1
+            type: integer
+        - description: "Cursor: id of the last object of the previous page."
+          in: query
+          name: starting_after
+          schema:
+            description: "Cursor: id of the last object of the previous page."
+            maxLength: 64
+            type: string
+        - description: "Cursor: id of the first object of the next page."
+          in: query
+          name: ending_before
+          schema:
+            description: "Cursor: id of the first object of the next page."
+            maxLength: 64
+            type: string
+        - description: Only objects created at or after this time.
+          in: query
+          name: created[gte]
+          schema:
+            description: Only objects created at or after this time.
+            type: number
+        - description: Only objects created at or before this time.
+          in: query
+          name: created[lte]
+          schema:
+            description: Only objects created at or before this time.
+            type: number
+        - description: Only this action.
+          in: query
+          name: action
+          schema:
+            description: Only this action.
+            maxLength: 100
+            type: string
+        - description: Only this actor id.
+          in: query
+          name: actor
+          schema:
+            description: Only this actor id.
+            maxLength: 64
+            type: string
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditEventList"
+          description: The account's audit log, newest first (audit export).
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - session: []
+      summary: The account's audit log, newest first (audit export).
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - session
+        idempotent: false
+        roles:
+          - owner
+          - admin
+        service: identity
+        stage: 2
+  /v1/account/invitations:
+    get:
+      operationId: listInvitations
+      parameters:
+        - description: Number of objects to return, 1–100 (default 10).
+          in: query
+          name: limit
+          schema:
+            default: 10
+            description: Number of objects to return, 1–100 (default 10).
+            maximum: 100
+            minimum: 1
+            type: integer
+        - description: "Cursor: id of the last object of the previous page."
+          in: query
+          name: starting_after
+          schema:
+            description: "Cursor: id of the last object of the previous page."
+            maxLength: 64
+            type: string
+        - description: "Cursor: id of the first object of the next page."
+          in: query
+          name: ending_before
+          schema:
+            description: "Cursor: id of the first object of the next page."
+            maxLength: 64
+            type: string
+        - in: query
+          name: status
+          schema:
+            description: Only invitations with this status.
+            type: string
+            x-extensible-enum:
+              - pending
+              - accepted
+              - revoked
+              - expired
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationList"
+          description: List invitations.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - session: []
+      summary: List invitations.
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - session
+        idempotent: false
+        roles:
+          - owner
+          - admin
+        service: identity
+        stage: 2
+    post:
+      description: Only owners invite owners. The link (`<dashboard>/auth/invite#token=…`) goes through `verifyMagicLink` for a new user, or `acceptInvitation` for a signed-in existing user. Emits `evt.identity.member.added` when accepted.
+      operationId: createInvitation
+      parameters:
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                email:
+                  description: Address to invite.
+                  format: email
+                  maxLength: 254
+                  pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+                  type: string
+                role:
+                  description: Role of a user in a merchant account.
+                  enum:
+                    - owner
+                    - admin
+                    - developer
+                    - finance
+                    - support
+                    - viewer
+                  type: string
+              required:
+                - email
+                - role
+              type: object
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invitation"
+          description: Invite a user by email; the email carries a single-use link (7 days).
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `member_exists`."
+          x-error-codes:
+            - member_exists
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - session: []
+      summary: Invite a user by email; the email carries a single-use link (7 days).
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - session
+        idempotent: true
+        roles:
+          - owner
+          - admin
+        service: identity
+        stage: 2
+        step_up: true
+  /v1/account/invitations/{id}:
+    delete:
+      operationId: revokeInvitation
+      parameters:
+        - description: invitation id (`inv_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: invitation id (`inv_` + 26 base32 chars).
+            examples:
+              - inv_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^inv_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      responses:
+        "204":
+          description: Revoke a pending invitation; its link stops working.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `state_conflict`."
+          x-error-codes:
+            - state_conflict
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - session: []
+      summary: Revoke a pending invitation; its link stops working.
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - session
+        idempotent: false
+        roles:
+          - owner
+          - admin
+        service: identity
+        stage: 2
   /v1/account/kyb:
+    get:
+      operationId: getKyb
+      parameters:
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KybCase"
+          description: Retrieve the KYB case with the declared business details.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - session: []
+      summary: Retrieve the KYB case with the declared business details.
+      tags:
+        - compliance
+      x-nearpay:
+        auth:
+          - session
+        idempotent: false
+        roles:
+          - owner
+          - admin
+        service: compliance
+        stage: 2
+    patch:
+      description: Allowed while the case is `not_started` or `needs_info` (`409 state_conflict` otherwise; after a decision only ops can reopen the case by asking for information). Creates the case if missing.
+      operationId: updateKybProfile
+      parameters:
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KybProfileUpdate"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KybCase"
+          description: Update the draft business details.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `state_conflict`."
+          x-error-codes:
+            - state_conflict
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - session: []
+      summary: Update the draft business details.
+      tags:
+        - compliance
+      x-nearpay:
+        auth:
+          - session
+        idempotent: true
+        roles:
+          - owner
+        service: compliance
+        stage: 2
     post:
       operationId: startKyb
       parameters:
@@ -4986,6 +6407,279 @@ paths:
           - owner
         service: compliance
         stage: 1
+  /v1/account/kyb/submit:
+    post:
+      description: "The owner declares the details true and complete. Missing required fields are `400 kyb_profile_incomplete`; a case not in `not_started`/`needs_info` is `409 state_conflict`. Emits `evt.compliance.kyb.submitted` (identity shows `kyb_status: pending`, notify confirms to the owners, the console queues the case)."
+      operationId: submitKyb
+      parameters:
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                declaration:
+                  const: true
+                  description: The owner confirms the details are true and complete (self-declaration, recorded with the user id).
+                  type: boolean
+              required:
+                - declaration
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KybCase"
+          description: Submit the business details for ops review (`pending`).
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `kyb_profile_incomplete`."
+          x-error-codes:
+            - kyb_profile_incomplete
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `state_conflict`."
+          x-error-codes:
+            - state_conflict
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - session: []
+      summary: Submit the business details for ops review (`pending`).
+      tags:
+        - compliance
+      x-nearpay:
+        auth:
+          - session
+        idempotent: true
+        roles:
+          - owner
+        service: compliance
+        stage: 2
+        step_up: true
+  /v1/account/members:
+    get:
+      operationId: listMembers
+      parameters:
+        - description: Number of objects to return, 1–100 (default 10).
+          in: query
+          name: limit
+          schema:
+            default: 10
+            description: Number of objects to return, 1–100 (default 10).
+            maximum: 100
+            minimum: 1
+            type: integer
+        - description: "Cursor: id of the last object of the previous page."
+          in: query
+          name: starting_after
+          schema:
+            description: "Cursor: id of the last object of the previous page."
+            maxLength: 64
+            type: string
+        - description: "Cursor: id of the first object of the next page."
+          in: query
+          name: ending_before
+          schema:
+            description: "Cursor: id of the first object of the next page."
+            maxLength: 64
+            type: string
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberList"
+          description: List the account's members.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - session: []
+      summary: List the account's members.
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - session
+        idempotent: false
+        roles:
+          - owner
+          - admin
+        service: identity
+        stage: 2
+  /v1/account/members/{user}:
+    delete:
+      description: Only owners remove an owner. Removing the last owner is `409 last_owner`.
+      operationId: removeMember
+      parameters:
+        - description: user id (`usr_` + 26 base32 chars).
+          in: path
+          name: user
+          required: true
+          schema:
+            description: user id (`usr_` + 26 base32 chars).
+            examples:
+              - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      responses:
+        "204":
+          description: Remove a member; their sessions for this account end at once.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `last_owner`."
+          x-error-codes:
+            - last_owner
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - session: []
+      summary: Remove a member; their sessions for this account end at once.
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - session
+        idempotent: false
+        roles:
+          - owner
+          - admin
+        service: identity
+        stage: 2
+        step_up: true
+    patch:
+      description: Only owners grant or take away `owner` (`403 permission_denied` for admins). Taking away the last owner is `409 last_owner`.
+      operationId: updateMember
+      parameters:
+        - description: user id (`usr_` + 26 base32 chars).
+          in: path
+          name: user
+          required: true
+          schema:
+            description: user id (`usr_` + 26 base32 chars).
+            examples:
+              - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                role:
+                  description: Role of a user in a merchant account.
+                  enum:
+                    - owner
+                    - admin
+                    - developer
+                    - finance
+                    - support
+                    - viewer
+                  type: string
+              required:
+                - role
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+          description: Change a member's role.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `last_owner`."
+          x-error-codes:
+            - last_owner
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - session: []
+      summary: Change a member's role.
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - session
+        idempotent: true
+        roles:
+          - owner
+          - admin
+        service: identity
+        stage: 2
+        step_up: true
   /v1/account/requirements:
     get:
       operationId: getAccountRequirements
@@ -5245,11 +6939,22 @@ paths:
                   maxLength: 64
                   minLength: 1
                   type: string
+                scopes:
+                  description: Required for `restricted` keys (at least one), refused for the other types. An unknown scope is `400 scope_unknown`.
+                  items:
+                    description: "A scope: `checkout_sessions.read`, `checkout_sessions.write`, `payment_intents.read`, `payment_intents.write`, `refunds.read`, `refunds.write`, `payment_links.read`, `payment_links.write`, `customers.read`, `customers.write`, `invoices.read`, `invoices.write`, `subscriptions.read`, `subscriptions.write`, `products.read`, `products.write`, `webhook_endpoints.read`, `webhook_endpoints.write`, `events.read`, `destinations.read`, `balance_transactions.read`, `agentpay.facilitate`."
+                    maxLength: 64
+                    minLength: 1
+                    type: string
+                  maxItems: 22
+                  minItems: 1
+                  type: array
                 type:
-                  description: Key type (restricted keys arrive in Stage 2).
+                  description: Key type. `restricted` (`rk_…`, Stage 2) holds only the `scopes` given.
                   enum:
                     - secret
                     - publishable
+                    - restricted
                   type: string
               required:
                 - type
@@ -5338,6 +7043,114 @@ paths:
           - developer
         service: identity
         stage: 1
+        step_up: true
+    patch:
+      description: "`scopes` only on restricted keys (`409 state_conflict` otherwise). Changes apply within 30 s."
+      operationId: updateApiKey
+      parameters:
+        - description: api_key id (`key_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: api_key id (`key_` + 26 base32 chars).
+            examples:
+              - key_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^key_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                ip_allowlist:
+                  description: Allowed CIDR ranges (replaces the list; empty = any).
+                  items:
+                    anyOf:
+                      - format: cidrv4
+                        pattern: ^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\/([0-9]|[1-2][0-9]|3[0-2])$
+                        type: string
+                      - format: cidrv6
+                        pattern: ^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))\/(12[0-8]|1[01][0-9]|[1-9]?[0-9])$
+                        type: string
+                  maxItems: 20
+                  type: array
+                name:
+                  description: Label.
+                  maxLength: 64
+                  minLength: 1
+                  type: string
+                scopes:
+                  description: New scopes of a restricted key (replaces the list).
+                  items:
+                    description: "A scope: `checkout_sessions.read`, `checkout_sessions.write`, `payment_intents.read`, `payment_intents.write`, `refunds.read`, `refunds.write`, `payment_links.read`, `payment_links.write`, `customers.read`, `customers.write`, `invoices.read`, `invoices.write`, `subscriptions.read`, `subscriptions.write`, `products.read`, `products.write`, `webhook_endpoints.read`, `webhook_endpoints.write`, `events.read`, `destinations.read`, `balance_transactions.read`, `agentpay.facilitate`."
+                    maxLength: 64
+                    minLength: 1
+                    type: string
+                  maxItems: 22
+                  minItems: 1
+                  type: array
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiKey"
+          description: Rename a key or change a restricted key's scopes or IP allow-list.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `scope_unknown`."
+          x-error-codes:
+            - scope_unknown
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `state_conflict`."
+          x-error-codes:
+            - state_conflict
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - session: []
+      summary: Rename a key or change a restricted key's scopes or IP allow-list.
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - session
+        idempotent: true
+        roles:
+          - owner
+          - admin
+          - developer
+        service: identity
+        stage: 2
         step_up: true
   /v1/api_keys/{id}/roll:
     post:
@@ -5552,6 +7365,98 @@ paths:
         idempotent: false
         service: sentinel
         stage: 1
+  /v1/auth/accounts:
+    get:
+      operationId: listMemberships
+      parameters:
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MembershipList"
+          description: Accounts the signed-in user belongs to.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - session: []
+      summary: Accounts the signed-in user belongs to.
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - session
+        idempotent: false
+        service: identity
+        stage: 2
+  /v1/auth/invitations/accept:
+    post:
+      description: The invitation's email must equal the user's email. Returns the re-issued session (same cookie, new account and role, step-up cleared).
+      operationId: acceptInvitation
+      parameters:
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                token:
+                  description: Token from the invitation link.
+                  maxLength: 256
+                  minLength: 16
+                  type: string
+              required:
+                - token
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSession"
+          description: Accept an invitation as the signed-in user; the session switches to the joined account.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `invitation_invalid`."
+          x-error-codes:
+            - invitation_invalid
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - session: []
+      summary: Accept an invitation as the signed-in user; the session switches to the joined account.
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - session
+        idempotent: false
+        service: identity
+        stage: 2
   /v1/auth/logout:
     post:
       operationId: logout
@@ -5884,6 +7789,67 @@ paths:
         idempotent: false
         service: identity
         stage: 1
+  /v1/auth/recovery:
+    post:
+      description: "Always `202` (no enumeration): only an address with a user gets a link (15 min, single use, at most 5 per hour). The link goes through `verifyMagicLink` (`purpose: recovery`) and passkey registration; completing it sets the account's `recovered_at`, which blocks destination changes for 48 h (`recovery_lock`), and notifies every owner."
+      operationId: startRecovery
+      parameters:
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                email:
+                  description: Email address of the user who lost their passkeys.
+                  format: email
+                  maxLength: 254
+                  pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+                  type: string
+                turnstile_token:
+                  description: Cloudflare Turnstile token.
+                  maxLength: 4096
+                  minLength: 1
+                  type: string
+              required:
+                - email
+                - turnstile_token
+              type: object
+        required: true
+      responses:
+        "202":
+          description: "Start account recovery: email a magic link that adds a new passkey."
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `turnstile_failed`."
+          x-error-codes:
+            - turnstile_failed
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - {}
+      summary: "Start account recovery: email a magic link that adds a new passkey."
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - anonymous
+        idempotent: false
+        service: identity
+        stage: 2
   /v1/auth/session:
     get:
       description: Lets a reload or a new tab recover the session (and `csrf_token`) from the session cookie. Sets no cookie (the sliding TTL applies as for any session request); an expired or missing session is `401 authentication_required`.
@@ -5919,6 +7885,57 @@ paths:
         idempotent: false
         service: identity
         stage: 1
+  /v1/auth/session/account:
+    post:
+      description: Returns the re-issued session (same cookie, new account and role, step-up cleared). Sign-in picks the most recently used account.
+      operationId: switchSessionAccount
+      parameters:
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                account:
+                  description: account id (`acct_` + 26 base32 chars).
+                  examples:
+                    - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+                  pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                  type: string
+              required:
+                - account
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSession"
+          description: Make the session act for another account of the user.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - session: []
+      summary: Make the session act for another account of the user.
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - session
+        idempotent: false
+        service: identity
+        stage: 2
   /v1/auth/signup:
     post:
       operationId: signup
@@ -7532,6 +9549,88 @@ paths:
         idempotent: false
         service: webhooks
         stage: 1
+  /v1/events/{id}/resend:
+    post:
+      description: Creates a new delivery per endpoint (fresh retry schedule; the event keeps its id, so receivers dedupe on `NearPay-Event-Id`). With `endpoint`, the endpoint must be the caller's, in the event's mode and enabled (`409 state_conflict` if disabled); subscriptions are ignored (like `test`). Events older than 30 days are `404`.
+      operationId: resendEvent
+      parameters:
+        - description: event id (`evt_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: event id (`evt_` + 26 base32 chars).
+            examples:
+              - evt_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^evt_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                endpoint:
+                  description: webhook_endpoint id (`we_` + 26 base32 chars).
+                  examples:
+                    - we_01jbz9k3m4n5p6q7r8s9t0v1w2
+                  pattern: ^we_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                  type: string
+              type: object
+        required: true
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventResend"
+          description: Deliver an event again, to one endpoint or to every enabled endpoint subscribed to its type.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `state_conflict`."
+          x-error-codes:
+            - state_conflict
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - apiKey: []
+        - session: []
+      summary: Deliver an event again, to one endpoint or to every enabled endpoint subscribed to its type.
+      tags:
+        - webhooks
+      x-nearpay:
+        auth:
+          - secret_key
+          - restricted_key:webhook_endpoints.write
+          - session
+        idempotent: true
+        roles:
+          - owner
+          - admin
+          - developer
+        service: webhooks
+        stage: 2
   /v1/payment_intents:
     get:
       operationId: listPaymentIntents
@@ -7986,6 +10085,95 @@ paths:
         idempotent: false
         service: identity
         stage: 1
+  /v1/settlement_destinations/{id}/approve:
+    post:
+      description: When two approvals are required the approver must be an owner/admin other than the creator and other than any earlier approver; identity enforces it server-side on the session's user id (`403 approver_conflict`). Approval starts the 24 h cool-off; `reject` disables the destination. Only `pending_approval` destinations (`409 state_conflict`).
+      operationId: approveSettlementDestination
+      parameters:
+        - description: settlement_destination id (`sd_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: settlement_destination id (`sd_` + 26 base32 chars).
+            examples:
+              - sd_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^sd_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                decision:
+                  description: Decision.
+                  enum:
+                    - approve
+                    - reject
+                  type: string
+              required:
+                - decision
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettlementDestination"
+          description: Approve or reject a destination awaiting approval (two-approver rule).
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `approver_conflict`."
+          x-error-codes:
+            - approver_conflict
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `state_conflict`."
+          x-error-codes:
+            - state_conflict
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - session: []
+      summary: Approve or reject a destination awaiting approval (two-approver rule).
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - session
+        idempotent: true
+        roles:
+          - owner
+          - admin
+        service: identity
+        stage: 2
+        step_up: true
   /v1/settlement_destinations/{id}/attest:
     post:
       operationId: attestSettlementDestination
@@ -8523,6 +10711,9 @@ paths:
                           - agent_payment.settled
                           - agent_payment.failed
                           - ping
+                          - account.updated
+                          - review.opened
+                          - review.closed
                       - description: Any other type string; the service answers `event_type_unknown`.
                         maxLength: 100
                         minLength: 1
@@ -8741,6 +10932,9 @@ paths:
                           - agent_payment.settled
                           - agent_payment.failed
                           - ping
+                          - account.updated
+                          - review.opened
+                          - review.closed
                       - description: Any other type string; the service answers `event_type_unknown`.
                         maxLength: 100
                         minLength: 1
@@ -8870,6 +11064,80 @@ paths:
           - developer
         service: webhooks
         stage: 1
+  /v1/webhook_endpoints/{id}/rotate_secret:
+    post:
+      description: "Returns the endpoint with the new `secret` (shown once) and `previous_secret_expires_at`. During the overlap every delivery carries two `v1=` signatures (new and previous secret); `expire_previous_in_seconds: 0` drops the previous secret at once. Rotating again during an overlap replaces the previous secret with the current one. The idempotent response (it carries the secret) is stored encrypted."
+      operationId: rotateWebhookEndpointSecret
+      parameters:
+        - description: webhook_endpoint id (`we_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: webhook_endpoint id (`we_` + 26 base32 chars).
+            examples:
+              - we_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^we_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                expire_previous_in_seconds:
+                  default: 86400
+                  description: Overlap during which the previous secret still signs (0–86 400 s, default 24 h).
+                  maximum: 86400
+                  minimum: 0
+                  type: integer
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookEndpoint"
+          description: Replace the signing secret; the old one keeps signing during an overlap window.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - apiKey: []
+        - session: []
+      summary: Replace the signing secret; the old one keeps signing during an overlap window.
+      tags:
+        - webhooks
+      x-nearpay:
+        auth:
+          - secret_key
+          - restricted_key:webhook_endpoints.write
+          - session
+        idempotent: true
+        roles:
+          - owner
+          - admin
+          - developer
+        service: webhooks
+        stage: 2
   /v1/webhook_endpoints/{id}/test:
     post:
       operationId: testWebhookEndpoint

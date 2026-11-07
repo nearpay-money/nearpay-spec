@@ -134,6 +134,9 @@ function operationFor(r: AnyRoute, visibility: "public" | "internal"): Doc {
       auth: r.auth,
       ...(r.roles ? { roles: r.roles } : {}),
       ...(r.stepUp ? { step_up: true } : {}),
+      // stage 2 — identity-console: console routes
+      ...(r.opsRoles ? { ops_roles: r.opsRoles } : {}),
+      ...(r.visibility === "ops" ? { visibility: "ops" } : {}),
       idempotent: r.idempotent,
       ...(r.testModeOnly ? { test_mode_only: true } : {}),
       stage: r.stage,

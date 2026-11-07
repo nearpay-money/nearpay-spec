@@ -1,5 +1,303 @@
 components:
   schemas:
+    BlocklistEntry:
+      additionalProperties: {}
+      description: A NearPay blocklist entry (screened like a sanctions hit).
+      properties:
+        chain:
+          anyOf:
+            - description: CAIP-2 chain id, e.g. `eip155:8453` or `near:mainnet`.
+              examples:
+                - eip155:8453
+              pattern: ^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$
+              type: string
+            - type: "null"
+          description: Chain of an address; null = every chain family the address form fits.
+        created:
+          description: Added.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        created_by:
+          description: Operator (`usr_…`) or CLI actor.
+          type: string
+        id:
+          description: blocklist_entry id (`bl_` + 26 base32 chars).
+          examples:
+            - bl_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^bl_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        object:
+          const: blocklist_entry
+          description: Always `blocklist_entry`.
+          type: string
+        reason:
+          description: Why (internal).
+          type: string
+        subject:
+          description: Normalised address or NEAR account.
+          type: string
+        subject_type:
+          description: What is blocked.
+          type: string
+          x-extensible-enum:
+            - address
+            - near_account
+      required:
+        - id
+        - object
+        - subject_type
+        - chain
+        - subject
+        - reason
+        - created_by
+        - created
+      type: object
+    BlocklistEntryList:
+      additionalProperties: {}
+      description: A page of blocklist entries.
+      properties:
+        data:
+          description: Objects on this page.
+          items:
+            $ref: "#/components/schemas/BlocklistEntry"
+          type: array
+        has_more:
+          description: Whether more objects exist after this page.
+          type: boolean
+        object:
+          const: list
+          description: Always `list`.
+          type: string
+        url:
+          description: Path of this list endpoint.
+          type: string
+      required:
+        - object
+        - data
+        - has_more
+        - url
+      type: object
+    BusinessAddress:
+      additionalProperties: {}
+      description: Registered business address.
+      properties:
+        city:
+          description: City.
+          maxLength: 100
+          minLength: 1
+          type: string
+        country:
+          description: Country of the address.
+          pattern: ^[A-Z]{2}$
+          type: string
+        line1:
+          description: Street and number.
+          maxLength: 200
+          minLength: 1
+          type: string
+        line2:
+          anyOf:
+            - maxLength: 200
+              type: string
+            - type: "null"
+          description: Additional address line.
+        postal_code:
+          anyOf:
+            - maxLength: 20
+              type: string
+            - type: "null"
+          description: Postal code (if the country uses one).
+        region:
+          anyOf:
+            - maxLength: 100
+              type: string
+            - type: "null"
+          description: State, province or region.
+      required:
+        - line1
+        - line2
+        - city
+        - postal_code
+        - region
+        - country
+      type: object
+    ComplianceCase:
+      additionalProperties: {}
+      description: A compliance case (screening hit, held execution, audit finding, …).
+      properties:
+        account_id:
+          anyOf:
+            - description: account id (`acct_` + 26 base32 chars).
+              examples:
+                - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Account concerned, if any.
+        assignee:
+          anyOf:
+            - description: user id (`usr_` + 26 base32 chars).
+              examples:
+                - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Operator working on the case.
+        closed_at:
+          anyOf:
+            - description: Unix time in seconds.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: Closed.
+        created:
+          description: Opened.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        events:
+          description: Timeline, oldest first; present on retrieve and on write responses, absent in lists.
+          items:
+            additionalProperties: {}
+            properties:
+              action:
+                description: What happened.
+                type: string
+                x-extensible-enum:
+                  - opened
+                  - assigned
+                  - unassigned
+                  - commented
+                  - closed
+              actor:
+                description: "`usr_…` (operator), `cli:<actor>` or `system`."
+                type: string
+              at:
+                description: When.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+              note:
+                description: Comment or resolution note.
+                type:
+                  - string
+                  - "null"
+            required:
+              - actor
+              - action
+              - note
+              - at
+            type: object
+          type: array
+        id:
+          description: compliance_case id (`case_` + 26 base32 chars).
+          examples:
+            - case_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^case_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        kind:
+          description: Why the case was opened.
+          type: string
+          x-extensible-enum:
+            - screening_hit
+            - post_screen_hit
+            - held_execution
+            - audit_mismatch
+            - merchant_report
+            - reconciliation_diff
+        livemode:
+          description: Mode.
+          type: boolean
+        object:
+          const: compliance_case
+          description: Always `compliance_case`.
+          type: string
+        resolution:
+          anyOf:
+            - description: How the case was resolved.
+              type: string
+              x-extensible-enum:
+                - no_action
+                - false_positive
+                - merchant_contacted
+                - destination_blocked
+                - account_suspended
+                - other
+            - type: "null"
+        review:
+          description: Whether the merchant sees it as a review (`review.opened` was emitted).
+          type: boolean
+        severity:
+          description: Severity.
+          type: string
+          x-extensible-enum:
+            - low
+            - medium
+            - high
+            - critical
+        status:
+          description: Case status.
+          type: string
+          x-extensible-enum:
+            - open
+            - investigating
+            - closed
+        subject:
+          additionalProperties: {}
+          description: What the case is about.
+          properties:
+            id:
+              description: Object id or address.
+              type: string
+            type:
+              description: Object type, e.g. `execution`, `settlement_destination`, `address`.
+              type: string
+          required:
+            - type
+            - id
+          type: object
+      required:
+        - id
+        - object
+        - account_id
+        - livemode
+        - kind
+        - subject
+        - severity
+        - status
+        - assignee
+        - resolution
+        - review
+        - created
+        - closed_at
+      type: object
+    ComplianceCaseList:
+      additionalProperties: {}
+      description: A page of compliance cases.
+      properties:
+        data:
+          description: Objects on this page.
+          items:
+            $ref: "#/components/schemas/ComplianceCase"
+          type: array
+        has_more:
+          description: Whether more objects exist after this page.
+          type: boolean
+        object:
+          const: list
+          description: Always `list`.
+          type: string
+        url:
+          description: Path of this list endpoint.
+          type: string
+      required:
+        - object
+        - data
+        - has_more
+        - url
+      type: object
     Error:
       additionalProperties: {}
       description: Envelope returned with every non-2xx response.
@@ -77,6 +375,13 @@ components:
             - screening_unavailable
             - url_invalid
             - event_type_unknown
+            - last_owner
+            - member_exists
+            - invitation_invalid
+            - approver_conflict
+            - two_person_required
+            - authenticator_not_allowed
+            - kyb_profile_incomplete
         doc_url:
           description: Documentation page for this error code.
           format: uri
@@ -137,6 +442,41 @@ components:
         - blocked_regions
         - version
       type: object
+    InternalKybCase:
+      additionalProperties: {}
+      description: A KYB case with its declared details (identity reads it).
+      properties:
+        account_id:
+          description: account id (`acct_` + 26 base32 chars).
+          examples:
+            - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        decided_at:
+          anyOf:
+            - description: RFC 3339 UTC timestamp, e.g. `2026-11-05T10:00:00.000Z`.
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+              type: string
+            - type: "null"
+          description: Last decision.
+        profile:
+          $ref: "#/components/schemas/KybProfile"
+        status:
+          description: KYB case status.
+          type: string
+          x-extensible-enum:
+            - not_started
+            - pending
+            - needs_info
+            - approved
+            - rejected
+      required:
+        - account_id
+        - status
+        - profile
+        - decided_at
+      type: object
     KybDecision:
       additionalProperties: {}
       description: Recorded KYB decision.
@@ -166,6 +506,430 @@ components:
         - status
         - decided_at
       type: object
+    KybProfile:
+      additionalProperties: {}
+      description: Self-declared minimum business details (KYB).
+      properties:
+        business_address:
+          anyOf:
+            - $ref: "#/components/schemas/BusinessAddress"
+            - type: "null"
+          description: Registered address.
+        business_type:
+          anyOf:
+            - description: Legal form of the business.
+              type: string
+              x-extensible-enum:
+                - sole_proprietorship
+                - partnership
+                - company
+                - non_profit
+                - other
+            - type: "null"
+        country_of_incorporation:
+          anyOf:
+            - description: ISO 3166-1 alpha-2 country code, upper-case.
+              pattern: ^[A-Z]{2}$
+              type: string
+            - type: "null"
+          description: Country where the business is registered.
+        expected_monthly_volume:
+          anyOf:
+            - description: Expected monthly payment volume in USD.
+              type: string
+              x-extensible-enum:
+                - under_10k
+                - 10k_to_100k
+                - 100k_to_1m
+                - over_1m
+            - type: "null"
+        legal_name:
+          description: Registered legal name (or the owner's full name for a sole proprietor).
+          type:
+            - string
+            - "null"
+        registration_number:
+          description: Company or trade register number (tax id if none).
+          type:
+            - string
+            - "null"
+        representative:
+          anyOf:
+            - additionalProperties: {}
+              properties:
+                name:
+                  description: Full name of the person declaring the details.
+                  type: string
+                title:
+                  description: Their role, e.g. `Director`, `Founder`.
+                  type: string
+              required:
+                - name
+                - title
+              type: object
+            - type: "null"
+          description: Who declares the details on behalf of the business.
+        website:
+          anyOf:
+            - description: Absolute URL.
+              format: uri
+              maxLength: 2048
+              type: string
+            - type: "null"
+          description: Public website or store front, if any.
+      required:
+        - legal_name
+        - country_of_incorporation
+        - registration_number
+        - business_type
+        - website
+        - business_address
+        - representative
+        - expected_monthly_volume
+      type: object
+    MerchantSuspension:
+      additionalProperties: {}
+      description: Suspension state of a merchant account.
+      properties:
+        account_id:
+          description: account id (`acct_` + 26 base32 chars).
+          examples:
+            - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        actor:
+          description: Who made the last change (`usr_…` pair `a+b`, or a CLI actor).
+          type:
+            - string
+            - "null"
+        object:
+          const: merchant_suspension
+          description: Always `merchant_suspension`.
+          type: string
+        pending_request:
+          anyOf:
+            - $ref: "#/components/schemas/OpsApproval"
+            - type: "null"
+          description: Suspend/reinstate request waiting for a second operator.
+        reason:
+          description: Reason of the last change (internal).
+          type:
+            - string
+            - "null"
+        suspended:
+          description: "Whether the account is suspended (identity sets `status: suspended`)."
+          type: boolean
+        updated_at:
+          anyOf:
+            - description: Unix time in seconds.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: Last change.
+      required:
+        - object
+        - account_id
+        - suspended
+        - reason
+        - actor
+        - updated_at
+        - pending_request
+      type: object
+    OpsApproval:
+      additionalProperties: {}
+      description: A console action waiting for (or decided by) a second operator.
+      properties:
+        action:
+          description: Action that needs a second approver.
+          type: string
+          x-extensible-enum:
+            - account.suspend
+            - account.reinstate
+            - kill_switch.release
+        decided_at:
+          anyOf:
+            - description: Unix time in seconds.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: When it was decided.
+        decided_by:
+          anyOf:
+            - additionalProperties: {}
+              properties:
+                id:
+                  description: user id (`usr_` + 26 base32 chars).
+                  examples:
+                    - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+                  pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                  type: string
+                role:
+                  description: Role of a console operator.
+                  enum:
+                    - ops
+                    - ops_admin
+                  type: string
+              required:
+                - id
+                - role
+              type: object
+            - type: "null"
+          description: Approving or rejecting operator.
+        decision_note:
+          description: Note of the deciding operator.
+          type:
+            - string
+            - "null"
+        expires_at:
+          description: A pending request expires at this time.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        id:
+          description: ops_approval id (`opa_` + 26 base32 chars).
+          examples:
+            - opa_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^opa_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        object:
+          const: ops_approval
+          description: Always `ops_approval`.
+          type: string
+        reason:
+          description: Requester's reason (audited; never shown to merchants).
+          type: string
+        requested_at:
+          description: When it was requested.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        requested_by:
+          additionalProperties: {}
+          description: Requesting operator.
+          properties:
+            id:
+              description: user id (`usr_` + 26 base32 chars).
+              examples:
+                - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            role:
+              description: Role of a console operator.
+              enum:
+                - ops
+                - ops_admin
+              type: string
+          required:
+            - id
+            - role
+          type: object
+        status:
+          description: "`approved` means the action was executed in the same transaction."
+          type: string
+          x-extensible-enum:
+            - pending
+            - approved
+            - rejected
+            - expired
+        target:
+          additionalProperties: {}
+          description: What the action applies to.
+          properties:
+            id:
+              description: "`acct_…` or `ks_…`."
+              type: string
+            type:
+              description: Target type.
+              type: string
+              x-extensible-enum:
+                - account
+                - kill_switch
+          required:
+            - type
+            - id
+          type: object
+      required:
+        - id
+        - object
+        - action
+        - target
+        - reason
+        - status
+        - requested_by
+        - requested_at
+        - decided_by
+        - decided_at
+        - decision_note
+        - expires_at
+      type: object
+    OpsKybCase:
+      additionalProperties: {}
+      description: A KYB case with its self-declared details, for review.
+      properties:
+        account_display_name:
+          description: Account display name (from identity, cached).
+          type: string
+        account_id:
+          description: account id (`acct_` + 26 base32 chars).
+          examples:
+            - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        created:
+          description: Case created.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        decided_at:
+          anyOf:
+            - description: Unix time in seconds.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: Last decision.
+        decided_by:
+          description: Operator (`usr_…`) or CLI actor of the last decision.
+          type:
+            - string
+            - "null"
+        decision_reason:
+          description: Internal reason of the last decision (never shown to merchants).
+          type:
+            - string
+            - "null"
+        declared_by:
+          anyOf:
+            - description: user id (`usr_` + 26 base32 chars).
+              examples:
+                - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Owner who submitted the declaration.
+        history:
+          description: Transitions, oldest first.
+          items:
+            additionalProperties: {}
+            properties:
+              actor:
+                description: "`usr_…` (owner or operator), `cli:<actor>` or `system`."
+                type: string
+              at:
+                description: When.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+              reason:
+                description: Reason or note.
+                type:
+                  - string
+                  - "null"
+              status:
+                description: KYB case status.
+                type: string
+                x-extensible-enum:
+                  - not_started
+                  - pending
+                  - needs_info
+                  - approved
+                  - rejected
+            required:
+              - status
+              - actor
+              - reason
+              - at
+            type: object
+          type: array
+        object:
+          const: ops_kyb_case
+          description: Always `ops_kyb_case`.
+          type: string
+        profile:
+          $ref: "#/components/schemas/KybProfile"
+        requested_info:
+          description: What was asked of the merchant (`needs_info`).
+          type:
+            - string
+            - "null"
+        status:
+          description: KYB case status.
+          type: string
+          x-extensible-enum:
+            - not_started
+            - pending
+            - needs_info
+            - approved
+            - rejected
+        submitted_at:
+          anyOf:
+            - description: Unix time in seconds.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: Last submission.
+      required:
+        - object
+        - account_id
+        - account_display_name
+        - status
+        - profile
+        - declared_by
+        - requested_info
+        - decision_reason
+        - decided_by
+        - created
+        - submitted_at
+        - decided_at
+        - history
+      type: object
+    OpsKybCaseList:
+      additionalProperties: {}
+      description: A page of KYB cases.
+      properties:
+        data:
+          description: Objects on this page.
+          items:
+            $ref: "#/components/schemas/OpsKybCase"
+          type: array
+        has_more:
+          description: Whether more objects exist after this page.
+          type: boolean
+        object:
+          const: list
+          description: Always `list`.
+          type: string
+        url:
+          description: Path of this list endpoint.
+          type: string
+      required:
+        - object
+        - data
+        - has_more
+        - url
+      type: object
+    RescreenQueued:
+      additionalProperties: {}
+      description: A queued re-screening job.
+      properties:
+        destinations:
+          description: Destinations queued.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        job_id:
+          description: job id (`job_` + 26 base32 chars).
+          examples:
+            - job_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^job_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+      required:
+        - job_id
+        - destinations
+      type: object
     Screening:
       additionalProperties: {}
       description: A screening decision.
@@ -183,13 +947,19 @@ components:
         post_screen_required:
           description: Screen again after settlement (vendor was unavailable).
           type: boolean
+        provider:
+          description: "Which provider decided: `local` (OFAC digital-currency list + NearPay blocklist; the only live provider in v1) or `sandbox` (test-mode magic rule). Absent from Stage 1 servers."
+          type: string
+          x-extensible-enum:
+            - local
+            - sandbox
         reasons:
           description: Reasons (`sanctions`, `blocklist`, `vendor_unavailable`, …).
           items:
             type: string
           type: array
         risk:
-          description: Vendor risk level.
+          description: Provider risk level; null for the v1 `local` provider (list hits only).
           type:
             - string
             - "null"
@@ -253,6 +1023,45 @@ paths:
         idempotent: false
         service: compliance
         stage: 1
+  /internal/kyb_cases/{id}:
+    get:
+      description: Identity calls it when it consumes `evt.compliance.kyb.approved` and copies `profile.legal_name` / `profile.country_of_incorporation` into `verified_legal_name` / `country`.
+      operationId: getInternalKybCase
+      parameters:
+        - description: account id (`acct_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: account id (`acct_` + 26 base32 chars).
+            examples:
+              - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalKybCase"
+          description: An account's KYB case with the declared details.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: An account's KYB case with the declared details.
+      tags:
+        - compliance
+      x-nearpay:
+        auth:
+          - service:compliance.read
+        idempotent: false
+        service: compliance
+        stage: 2
   /internal/kyb_cases/{id}/decision:
     post:
       operationId: decideKyb
@@ -304,7 +1113,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/KybDecision"
-          description: Manual KYB decision (ops CLI in Stage 1, console in Stage 2).
+          description: Manual KYB decision (in-container ops CLI; the console uses `decideOpsKybCase`).
         "409":
           content:
             application/json:
@@ -321,13 +1130,16 @@ paths:
           description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
       security:
         - internalToken: []
-      summary: Manual KYB decision (ops CLI in Stage 1, console in Stage 2).
+      summary: Manual KYB decision (in-container ops CLI; the console uses `decideOpsKybCase`).
       tags:
         - compliance
       x-nearpay:
         auth:
           - ops:compliance.kyb.decide
         idempotent: true
+        ops_roles:
+          - ops
+          - ops_admin
         service: compliance
         stage: 1
   /internal/screenings:
@@ -419,5 +1231,1263 @@ paths:
         idempotent: false
         service: compliance
         stage: 1
+  /ops/blocklist:
+    get:
+      operationId: listOpsBlocklist
+      parameters:
+        - description: Number of objects to return, 1–100 (default 10).
+          in: query
+          name: limit
+          schema:
+            default: 10
+            description: Number of objects to return, 1–100 (default 10).
+            maximum: 100
+            minimum: 1
+            type: integer
+        - description: "Cursor: id of the last object of the previous page."
+          in: query
+          name: starting_after
+          schema:
+            description: "Cursor: id of the last object of the previous page."
+            maxLength: 64
+            type: string
+        - description: "Cursor: id of the first object of the next page."
+          in: query
+          name: ending_before
+          schema:
+            description: "Cursor: id of the first object of the next page."
+            maxLength: 64
+            type: string
+        - in: query
+          name: subject_type
+          schema:
+            description: Only this subject type.
+            type: string
+            x-extensible-enum:
+              - address
+              - near_account
+        - description: Only this subject (normalised before matching).
+          in: query
+          name: subject
+          schema:
+            description: Only this subject (normalised before matching).
+            maxLength: 256
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlocklistEntryList"
+          description: List blocklist entries.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: List blocklist entries.
+      tags:
+        - compliance
+      x-nearpay:
+        auth:
+          - ops:compliance.read
+        idempotent: false
+        ops_roles:
+          - ops
+          - ops_admin
+        service: compliance
+        stage: 2
+        visibility: ops
+    post:
+      description: Takes effect for new screenings at once (cached `allow` screenings of the subject are invalidated) and queues a re-screen of monitored destinations matching it. An existing entry is `409 state_conflict`.
+      operationId: addOpsBlocklistEntry
+      parameters:
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                chain:
+                  description: Chain of an address (omit to match every family the form fits).
+                  examples:
+                    - eip155:8453
+                  pattern: ^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$
+                  type: string
+                reason:
+                  description: Why (internal).
+                  maxLength: 500
+                  minLength: 1
+                  type: string
+                subject:
+                  description: Address or NEAR account.
+                  maxLength: 256
+                  minLength: 1
+                  type: string
+                subject_type:
+                  description: What to block.
+                  enum:
+                    - address
+                    - near_account
+                  type: string
+              required:
+                - subject_type
+                - subject
+                - reason
+              type: object
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlocklistEntry"
+          description: Block an address or NEAR account.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `address_invalid`."
+          x-error-codes:
+            - address_invalid
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `state_conflict`."
+          x-error-codes:
+            - state_conflict
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Block an address or NEAR account.
+      tags:
+        - compliance
+      x-nearpay:
+        auth:
+          - ops:compliance.blocklist.write
+        idempotent: true
+        ops_roles:
+          - ops
+          - ops_admin
+        service: compliance
+        stage: 2
+        step_up: true
+        visibility: ops
+  /ops/blocklist/{id}/remove:
+    post:
+      description: Does not unblock destinations already disabled by a hit; sanctions-list entries cannot be removed here.
+      operationId: removeOpsBlocklistEntry
+      parameters:
+        - description: blocklist_entry id (`bl_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: blocklist_entry id (`bl_` + 26 base32 chars).
+            examples:
+              - bl_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^bl_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                reason:
+                  description: Why (audited).
+                  maxLength: 500
+                  minLength: 1
+                  type: string
+              required:
+                - reason
+              type: object
+        required: true
+      responses:
+        "204":
+          description: Remove a blocklist entry (ops_admin).
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Remove a blocklist entry (ops_admin).
+      tags:
+        - compliance
+      x-nearpay:
+        auth:
+          - ops:compliance.blocklist.write
+        idempotent: true
+        ops_roles:
+          - ops_admin
+        service: compliance
+        stage: 2
+        step_up: true
+        visibility: ops
+  /ops/cases:
+    get:
+      operationId: listOpsCases
+      parameters:
+        - description: Number of objects to return, 1–100 (default 10).
+          in: query
+          name: limit
+          schema:
+            default: 10
+            description: Number of objects to return, 1–100 (default 10).
+            maximum: 100
+            minimum: 1
+            type: integer
+        - description: "Cursor: id of the last object of the previous page."
+          in: query
+          name: starting_after
+          schema:
+            description: "Cursor: id of the last object of the previous page."
+            maxLength: 64
+            type: string
+        - description: "Cursor: id of the first object of the next page."
+          in: query
+          name: ending_before
+          schema:
+            description: "Cursor: id of the first object of the next page."
+            maxLength: 64
+            type: string
+        - description: Only objects created at or after this time.
+          in: query
+          name: created[gte]
+          schema:
+            description: Only objects created at or after this time.
+            type: number
+        - description: Only objects created at or before this time.
+          in: query
+          name: created[lte]
+          schema:
+            description: Only objects created at or before this time.
+            type: number
+        - description: "Only this status (default: open and investigating)."
+          in: query
+          name: status
+          schema:
+            description: "Only this status (default: open and investigating)."
+            type: string
+            x-extensible-enum:
+              - open
+              - investigating
+              - closed
+        - description: Only this kind.
+          in: query
+          name: kind
+          schema:
+            description: Only this kind.
+            type: string
+            x-extensible-enum:
+              - screening_hit
+              - post_screen_hit
+              - held_execution
+              - audit_mismatch
+              - merchant_report
+              - reconciliation_diff
+        - description: Only this severity.
+          in: query
+          name: severity
+          schema:
+            description: Only this severity.
+            type: string
+            x-extensible-enum:
+              - low
+              - medium
+              - high
+              - critical
+        - description: Only this account.
+          in: query
+          name: account
+          schema:
+            description: Only this account.
+            examples:
+              - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Only cases assigned to this operator.
+          in: query
+          name: assignee
+          schema:
+            description: Only cases assigned to this operator.
+            examples:
+              - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Only live or test cases.
+          in: query
+          name: livemode
+          schema:
+            description: Only live or test cases.
+            enum:
+              - "true"
+              - "false"
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplianceCaseList"
+          description: "List compliance cases (default: not closed, highest severity first, then oldest)."
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: "List compliance cases (default: not closed, highest severity first, then oldest)."
+      tags:
+        - compliance
+      x-nearpay:
+        auth:
+          - ops:compliance.read
+        idempotent: false
+        ops_roles:
+          - ops
+          - ops_admin
+        service: compliance
+        stage: 2
+        visibility: ops
+  /ops/cases/{id}:
+    get:
+      operationId: getOpsCase
+      parameters:
+        - description: compliance_case id (`case_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: compliance_case id (`case_` + 26 base32 chars).
+            examples:
+              - case_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^case_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplianceCase"
+          description: Retrieve a compliance case with its timeline.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Retrieve a compliance case with its timeline.
+      tags:
+        - compliance
+      x-nearpay:
+        auth:
+          - ops:compliance.read
+        idempotent: false
+        ops_roles:
+          - ops
+          - ops_admin
+        service: compliance
+        stage: 2
+        visibility: ops
+  /ops/cases/{id}/assign:
+    post:
+      description: The assignee must be an active operator. Closed cases are `409 state_conflict`.
+      operationId: assignOpsCase
+      parameters:
+        - description: compliance_case id (`case_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: compliance_case id (`case_` + 26 base32 chars).
+            examples:
+              - case_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^case_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                assignee:
+                  anyOf:
+                    - description: user id (`usr_` + 26 base32 chars).
+                      examples:
+                        - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+                      pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                      type: string
+                    - type: "null"
+                  description: Operator, or null to unassign.
+              required:
+                - assignee
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplianceCase"
+          description: Assign a case to an operator (or unassign); an `open` case becomes `investigating`.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `state_conflict`."
+          x-error-codes:
+            - state_conflict
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Assign a case to an operator (or unassign); an `open` case becomes `investigating`.
+      tags:
+        - compliance
+      x-nearpay:
+        auth:
+          - ops:compliance.cases.write
+        idempotent: true
+        ops_roles:
+          - ops
+          - ops_admin
+        service: compliance
+        stage: 2
+        visibility: ops
+  /ops/cases/{id}/close:
+    post:
+      description: "Closing records the decision only: suspension and blocklist actions are separate routes (suspension needs two operators). Already closed is `409 state_conflict`."
+      operationId: closeOpsCase
+      parameters:
+        - description: compliance_case id (`case_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: compliance_case id (`case_` + 26 base32 chars).
+            examples:
+              - case_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^case_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                note:
+                  description: Resolution note (internal).
+                  maxLength: 2000
+                  minLength: 1
+                  type: string
+                resolution:
+                  description: How the case was resolved.
+                  type: string
+                  x-extensible-enum:
+                    - no_action
+                    - false_positive
+                    - merchant_contacted
+                    - destination_blocked
+                    - account_suspended
+                    - other
+              required:
+                - resolution
+                - note
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplianceCase"
+          description: Close a case with a resolution; a merchant-visible review emits `review.closed`.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `state_conflict`."
+          x-error-codes:
+            - state_conflict
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Close a case with a resolution; a merchant-visible review emits `review.closed`.
+      tags:
+        - compliance
+      x-nearpay:
+        auth:
+          - ops:compliance.cases.write
+        idempotent: true
+        ops_roles:
+          - ops
+          - ops_admin
+        service: compliance
+        stage: 2
+        visibility: ops
+  /ops/cases/{id}/comments:
+    post:
+      operationId: commentOpsCase
+      parameters:
+        - description: compliance_case id (`case_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: compliance_case id (`case_` + 26 base32 chars).
+            examples:
+              - case_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^case_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                note:
+                  description: Note.
+                  maxLength: 2000
+                  minLength: 1
+                  type: string
+              required:
+                - note
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplianceCase"
+          description: Add a note to a case's timeline (envelope-encrypted at rest).
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Add a note to a case's timeline (envelope-encrypted at rest).
+      tags:
+        - compliance
+      x-nearpay:
+        auth:
+          - ops:compliance.cases.write
+        idempotent: true
+        ops_roles:
+          - ops
+          - ops_admin
+        service: compliance
+        stage: 2
+        visibility: ops
+  /ops/kyb_cases:
+    get:
+      operationId: listOpsKybCases
+      parameters:
+        - description: Number of objects to return, 1–100 (default 10).
+          in: query
+          name: limit
+          schema:
+            default: 10
+            description: Number of objects to return, 1–100 (default 10).
+            maximum: 100
+            minimum: 1
+            type: integer
+        - description: "Cursor: id of the last object of the previous page."
+          in: query
+          name: starting_after
+          schema:
+            description: "Cursor: id of the last object of the previous page."
+            maxLength: 64
+            type: string
+        - description: "Cursor: id of the first object of the next page."
+          in: query
+          name: ending_before
+          schema:
+            description: "Cursor: id of the first object of the next page."
+            maxLength: 64
+            type: string
+        - description: Only cases with this status (default `pending`).
+          in: query
+          name: status
+          schema:
+            description: Only cases with this status (default `pending`).
+            type: string
+            x-extensible-enum:
+              - not_started
+              - pending
+              - needs_info
+              - approved
+              - rejected
+        - description: Only this account.
+          in: query
+          name: account
+          schema:
+            description: Only this account.
+            examples:
+              - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpsKybCaseList"
+          description: "KYB review queue (default: `pending`, oldest submission first)."
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: "KYB review queue (default: `pending`, oldest submission first)."
+      tags:
+        - compliance
+      x-nearpay:
+        auth:
+          - ops:compliance.read
+        idempotent: false
+        ops_roles:
+          - ops
+          - ops_admin
+        service: compliance
+        stage: 2
+        visibility: ops
+  /ops/kyb_cases/{id}:
+    get:
+      operationId: getOpsKybCase
+      parameters:
+        - description: account id (`acct_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: account id (`acct_` + 26 base32 chars).
+            examples:
+              - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpsKybCase"
+          description: Retrieve an account's KYB case.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Retrieve an account's KYB case.
+      tags:
+        - compliance
+      x-nearpay:
+        auth:
+          - ops:compliance.read
+        idempotent: false
+        ops_roles:
+          - ops
+          - ops_admin
+        service: compliance
+        stage: 2
+        visibility: ops
+  /ops/kyb_cases/{id}/decision:
+    post:
+      description: "Same use case and rules as the manual `decideKyb` (repeating the current decision is a no-op; a different decision transitions and emits `evt.compliance.kyb.<decision>`; identity recomputes live mode), plus: only `pending` cases may be approved, and `needs_info` needs `requested_info`, which the merchant sees. The actor is the operator id."
+      operationId: decideOpsKybCase
+      parameters:
+        - description: account id (`acct_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: account id (`acct_` + 26 base32 chars).
+            examples:
+              - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                decision:
+                  description: Decision.
+                  enum:
+                    - approved
+                    - rejected
+                    - needs_info
+                  type: string
+                reason:
+                  description: Internal reason (audited; never shown to the merchant).
+                  maxLength: 500
+                  minLength: 1
+                  type: string
+                requested_info:
+                  description: "Required for `needs_info`: what the merchant must add or correct (shown to them and emailed)."
+                  maxLength: 1000
+                  minLength: 1
+                  type: string
+              required:
+                - decision
+                - reason
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpsKybCase"
+          description: Approve, reject or ask for more information.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `state_conflict`."
+          x-error-codes:
+            - state_conflict
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Approve, reject or ask for more information.
+      tags:
+        - compliance
+      x-nearpay:
+        auth:
+          - ops:compliance.kyb.decide
+        idempotent: true
+        ops_roles:
+          - ops
+          - ops_admin
+        service: compliance
+        stage: 2
+        step_up: true
+        visibility: ops
+  /ops/merchants/{id}/suspension:
+    get:
+      operationId: getOpsMerchantSuspension
+      parameters:
+        - description: account id (`acct_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: account id (`acct_` + 26 base32 chars).
+            examples:
+              - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MerchantSuspension"
+          description: Suspension state of a merchant, with any pending request.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Suspension state of a merchant, with any pending request.
+      tags:
+        - compliance
+      x-nearpay:
+        auth:
+          - ops:compliance.read
+        idempotent: false
+        ops_roles:
+          - ops
+          - ops_admin
+        service: compliance
+        stage: 2
+        visibility: ops
+  /ops/merchants/{id}/suspension_requests:
+    post:
+      description: Nothing changes until an `ops_admin` other than the requester approves (24 h expiry). A pending request for the account, or an action that matches the current state, is `409 state_conflict`. Emits `evt.compliance.account.action_requested` (notify alerts the security contacts).
+      operationId: createOpsSuspensionRequest
+      parameters:
+        - description: account id (`acct_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: account id (`acct_` + 26 base32 chars).
+            examples:
+              - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                action:
+                  description: Requested action.
+                  enum:
+                    - suspend
+                    - reinstate
+                  type: string
+                reason:
+                  description: Why (internal; audited).
+                  maxLength: 500
+                  minLength: 1
+                  type: string
+              required:
+                - action
+                - reason
+              type: object
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpsApproval"
+          description: Request suspending or reinstating a merchant; a second operator must approve.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `state_conflict`."
+          x-error-codes:
+            - state_conflict
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Request suspending or reinstating a merchant; a second operator must approve.
+      tags:
+        - compliance
+      x-nearpay:
+        auth:
+          - ops:compliance.accounts.write
+        idempotent: true
+        ops_roles:
+          - ops
+          - ops_admin
+        service: compliance
+        stage: 2
+        step_up: true
+        visibility: ops
+  /ops/merchants/{id}/suspension_requests/{request}/approve:
+    post:
+      description: "Server-side two-person rule (see `OpsApproval`): an `ops_admin` whose operator id differs from the requester's, else `403 approver_conflict`. In one transaction: request `approved`, `account_flags` updated, outbox `evt.compliance.account.suspended|reinstated` (identity sets the account status; notify mails the owners). Returns the new state."
+      operationId: approveOpsSuspensionRequest
+      parameters:
+        - description: account id (`acct_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: account id (`acct_` + 26 base32 chars).
+            examples:
+              - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: ops_approval id (`opa_` + 26 base32 chars).
+          in: path
+          name: request
+          required: true
+          schema:
+            description: ops_approval id (`opa_` + 26 base32 chars).
+            examples:
+              - opa_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^opa_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                note:
+                  description: Approver's note (audited).
+                  maxLength: 500
+                  type: string
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MerchantSuspension"
+          description: Approve a suspend/reinstate request as the second operator; executes it.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `approver_conflict`."
+          x-error-codes:
+            - approver_conflict
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `state_conflict`."
+          x-error-codes:
+            - state_conflict
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Approve a suspend/reinstate request as the second operator; executes it.
+      tags:
+        - compliance
+      x-nearpay:
+        auth:
+          - ops:compliance.accounts.write
+        idempotent: true
+        ops_roles:
+          - ops_admin
+        service: compliance
+        stage: 2
+        step_up: true
+        visibility: ops
+  /ops/merchants/{id}/suspension_requests/{request}/reject:
+    post:
+      operationId: rejectOpsSuspensionRequest
+      parameters:
+        - description: account id (`acct_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: account id (`acct_` + 26 base32 chars).
+            examples:
+              - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: ops_approval id (`opa_` + 26 base32 chars).
+          in: path
+          name: request
+          required: true
+          schema:
+            description: ops_approval id (`opa_` + 26 base32 chars).
+            examples:
+              - opa_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^opa_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                note:
+                  description: Why (audited).
+                  maxLength: 500
+                  minLength: 1
+                  type: string
+              required:
+                - note
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpsApproval"
+          description: Reject (or, as the requester, withdraw) a pending suspend/reinstate request.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `state_conflict`."
+          x-error-codes:
+            - state_conflict
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Reject (or, as the requester, withdraw) a pending suspend/reinstate request.
+      tags:
+        - compliance
+      x-nearpay:
+        auth:
+          - ops:compliance.accounts.write
+        idempotent: true
+        ops_roles:
+          - ops_admin
+        service: compliance
+        stage: 2
+        visibility: ops
+  /ops/rescreens:
+    post:
+      description: Same job as the daily `destinations.rescreen`; hits disable the destination (`evt.compliance.destination.blocked`) and open a case.
+      operationId: createOpsRescreen
+      parameters:
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                account:
+                  description: "Only this account's destinations (default: all)."
+                  examples:
+                    - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+                  pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                  type: string
+              type: object
+        required: true
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RescreenQueued"
+          description: Queue a re-screen of active destinations (one account, or all).
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Queue a re-screen of active destinations (one account, or all).
+      tags:
+        - compliance
+      x-nearpay:
+        auth:
+          - ops:compliance.screen
+        idempotent: true
+        ops_roles:
+          - ops
+          - ops_admin
+        service: compliance
+        stage: 2
+        visibility: ops
+  /ops/screenings:
+    post:
+      description: "Runs the vendor-neutral screening interface (v1: local OFAC digital-currency list + blocklist, provider `local`); the result is stored like any screening but never served from or written to the cache."
+      operationId: createOpsScreening
+      parameters:
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                chain:
+                  description: Chain of an address.
+                  examples:
+                    - eip155:8453
+                  pattern: ^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$
+                  type: string
+                livemode:
+                  description: Mode (test mode uses the sandbox magic rule).
+                  type: boolean
+                subject:
+                  description: Address or account.
+                  maxLength: 256
+                  minLength: 1
+                  type: string
+                subject_type:
+                  description: What is screened.
+                  enum:
+                    - address
+                    - near_account
+                  type: string
+              required:
+                - subject_type
+                - subject
+                - livemode
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Screening"
+          description: Screen a subject now, bypassing the cache (console lookup).
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `screening_unavailable`."
+          x-error-codes:
+            - screening_unavailable
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Screen a subject now, bypassing the cache (console lookup).
+      tags:
+        - compliance
+      x-nearpay:
+        auth:
+          - ops:compliance.screen
+        idempotent: true
+        ops_roles:
+          - ops
+          - ops_admin
+        service: compliance
+        stage: 2
+        visibility: ops
 servers:
   - url: http://compliance-api:8080

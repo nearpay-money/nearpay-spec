@@ -410,6 +410,13 @@ components:
             - screening_unavailable
             - url_invalid
             - event_type_unknown
+            - last_owner
+            - member_exists
+            - invitation_invalid
+            - approver_conflict
+            - two_person_required
+            - authenticator_not_allowed
+            - kyb_profile_incomplete
         doc_url:
           description: Documentation page for this error code.
           format: uri
@@ -1186,6 +1193,31 @@ components:
       required:
         - options
       type: object
+    OpsExecutionList:
+      additionalProperties: {}
+      description: A page of executions.
+      properties:
+        data:
+          description: Objects on this page.
+          items:
+            $ref: "#/components/schemas/Execution"
+          type: array
+        has_more:
+          description: Whether more objects exist after this page.
+          type: boolean
+        object:
+          const: list
+          description: Always `list`.
+          type: string
+        url:
+          description: Path of this list endpoint.
+          type: string
+      required:
+        - object
+        - data
+        - has_more
+        - url
+      type: object
     PriceSnapshot:
       additionalProperties: {}
       description: Prices used to compute the settlement amount (INV-6).
@@ -1808,5 +1840,176 @@ paths:
         idempotent: false
         service: rails
         stage: 1
+  /ops/executions:
+    get:
+      operationId: listOpsExecutions
+      parameters:
+        - description: Number of objects to return, 1–100 (default 10).
+          in: query
+          name: limit
+          schema:
+            default: 10
+            description: Number of objects to return, 1–100 (default 10).
+            maximum: 100
+            minimum: 1
+            type: integer
+        - description: "Cursor: id of the last object of the previous page."
+          in: query
+          name: starting_after
+          schema:
+            description: "Cursor: id of the last object of the previous page."
+            maxLength: 64
+            type: string
+        - description: "Cursor: id of the first object of the next page."
+          in: query
+          name: ending_before
+          schema:
+            description: "Cursor: id of the first object of the next page."
+            maxLength: 64
+            type: string
+        - description: Only objects created at or after this time.
+          in: query
+          name: created[gte]
+          schema:
+            description: Only objects created at or after this time.
+            type: number
+        - description: Only objects created at or before this time.
+          in: query
+          name: created[lte]
+          schema:
+            description: Only objects created at or before this time.
+            type: number
+        - description: Only this account.
+          in: query
+          name: account
+          schema:
+            description: Only this account.
+            examples:
+              - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Only live or test executions.
+          in: query
+          name: livemode
+          schema:
+            description: Only live or test executions.
+            enum:
+              - "true"
+              - "false"
+            type: string
+        - description: Only this state (`AttemptStatus` value, e.g. `held`).
+          in: query
+          name: state
+          schema:
+            description: Only this state (`AttemptStatus` value, e.g. `held`).
+            maxLength: 32
+            type: string
+        - in: query
+          name: held_reason
+          schema:
+            description: Only holds with this reason.
+            type: string
+            x-extensible-enum:
+              - evidence_mismatch
+              - evidence_timeout
+              - failed_after_deposit
+              - unknown_status
+        - description: Only payments or refunds.
+          in: query
+          name: kind
+          schema:
+            description: Only payments or refunds.
+            type: string
+            x-extensible-enum:
+              - payment
+              - refund
+        - description: Only this provider.
+          in: query
+          name: provider
+          schema:
+            description: Only this provider.
+            type: string
+            x-extensible-enum:
+              - oneclick
+              - sandbox
+              - direct_intents
+        - description: Only the execution with this deposit address.
+          in: query
+          name: deposit_address
+          schema:
+            description: Only the execution with this deposit address.
+            maxLength: 256
+            minLength: 1
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpsExecutionList"
+          description: Executions explorer; Verifier holds are `state=held`.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Executions explorer; Verifier holds are `state=held`.
+      tags:
+        - rails
+      x-nearpay:
+        auth:
+          - ops:rails.read
+        idempotent: false
+        ops_roles:
+          - ops
+          - ops_admin
+        service: rails
+        stage: 2
+        visibility: ops
+  /ops/executions/{id}:
+    get:
+      operationId: getOpsExecution
+      parameters:
+        - description: execution id (`ex_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: execution id (`ex_` + 26 base32 chars).
+            examples:
+              - ex_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^ex_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Execution"
+          description: Retrieve an execution with its evidence.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Retrieve an execution with its evidence.
+      tags:
+        - rails
+      x-nearpay:
+        auth:
+          - ops:rails.read
+        idempotent: false
+        ops_roles:
+          - ops
+          - ops_admin
+        service: rails
+        stage: 2
+        visibility: ops
 servers:
   - url: http://rails-api:8080

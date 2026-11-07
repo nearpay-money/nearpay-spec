@@ -46,6 +46,11 @@ export const ID_PREFIXES = {
   msg: { object: "message", owner: "notify" },
   req: { object: "request", owner: "gateway" },
   job: { object: "job", owner: "any" },
+  // stage 2 — identity-console
+  inv: { object: "invitation", owner: "identity" },
+  aud: { object: "audit_event", owner: "identity" },
+  opa: { object: "ops_approval", owner: "any" },
+  bl: { object: "blocklist_entry", owner: "compliance" },
 } as const;
 
 export type IdPrefix = keyof typeof ID_PREFIXES;

@@ -13,7 +13,14 @@
           "type": "string"
         },
         "reason": {
-          "description": "Decision reason.",
+          "description": "Decision reason (internal: never shown to merchants).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "requested_info": {
+          "description": "What ops asked the merchant for (`needs_info`; shown in the `kyb.decision` mail). Absent before Stage 2.",
           "type": [
             "string",
             "null"

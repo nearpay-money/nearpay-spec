@@ -85,7 +85,7 @@
           ]
         },
         "verified_legal_name": {
-          "description": "Legal name verified by KYB, shown on checkout once set.",
+          "description": "Legal name approved by NearPay's KYB review (self-declared business details reviewed by ops), shown on checkout once set.",
           "type": [
             "string",
             "null"
