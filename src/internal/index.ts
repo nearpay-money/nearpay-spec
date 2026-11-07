@@ -3,6 +3,7 @@ import type { AnyRoute } from "@nearpay/spec";
 import * as identity from "./identity.js";
 // stage 2 — identity-console
 import * as ops from "./ops.js";
+import * as payments from "./payments.js"; // stage 2 — payments
 import * as rails from "./rails.js";
 import * as sandbox from "./sandbox.js";
 import * as services from "./services.js";
@@ -12,6 +13,7 @@ export * from "./oneclick.js";
 // stage 2 — identity-console
 export * from "./ops.js";
 export * from "./ops-approval.js";
+export * from "./payments.js"; // stage 2 — payments
 export * from "./rails.js";
 export * from "./sandbox.js";
 export * from "./services.js";
@@ -41,4 +43,6 @@ export const INTERNAL_ROUTES: readonly AnyRoute[] = Object.freeze([
   ...routesOf(rails),
   ...routesOf(sandbox),
   ...OPS_ROUTES,
+  // stage 2 — payments
+  ...routesOf(payments),
 ]);

@@ -22,7 +22,7 @@
           "description": "Event data.",
           "properties": {
             "object": {
-              "$ref": "#/$defs/Review"
+              "$ref": "#/$defs/PublicReview"
             },
             "previous_attributes": {
               "additionalProperties": {},
@@ -107,31 +107,29 @@
       ],
       "type": "object"
     },
-    "Review": {
+    "PublicReview": {
       "additionalProperties": {},
-      "description": "A compliance review of a payment (payment stands; INV-1).",
+      "description": "A compliance review of a payment or destination (the payment stands).",
       "properties": {
-        "account_id": {
-          "description": "account id (`acct_` + 26 base32 chars).",
-          "examples": [
-            "acct_01jbz9k3m4n5p6q7r8s9t0v1w2"
-          ],
-          "pattern": "^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
-          "type": "string"
-        },
         "closed_at": {
           "anyOf": [
             {
-              "description": "RFC 3339 UTC timestamp, e.g. `2026-11-05T10:00:00.000Z`.",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-              "type": "string"
+              "description": "Unix time in seconds.",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
             },
             {
               "type": "null"
             }
           ],
-          "description": "Closed."
+          "description": "When the review closed."
+        },
+        "created": {
+          "description": "When the review opened.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
         },
         "id": {
           "description": "compliance_case id (`case_` + 26 base32 chars).",
@@ -141,19 +139,17 @@
           "pattern": "^case_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
           "type": "string"
         },
+        "livemode": {
+          "description": "`true` for live mode, `false` for test mode.",
+          "type": "boolean"
+        },
         "object": {
           "const": "review",
           "description": "Always `review`.",
           "type": "string"
         },
-        "opened_at": {
-          "description": "Opened.",
-          "format": "date-time",
-          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-          "type": "string"
-        },
         "reason": {
-          "description": "Why.",
+          "description": "Why the review opened.",
           "type": "string",
           "x-extensible-enum": [
             "post_screen_hit",
@@ -175,17 +171,16 @@
           "description": "What is under review.",
           "properties": {
             "id": {
-              "description": "Reviewed object id.",
+              "description": "Reviewed object id (`pi_…`, `ap_…` or `sd_…`).",
               "type": "string"
             },
             "type": {
-              "description": "Reviewed object type (`execution`: a rails execution; payments maps it to its payment intent).",
+              "description": "Reviewed object type.",
               "type": "string",
               "x-extensible-enum": [
                 "payment_intent",
                 "agent_payment",
-                "settlement_destination",
-                "execution"
+                "settlement_destination"
               ]
             }
           },
@@ -199,11 +194,11 @@
       "required": [
         "id",
         "object",
-        "account_id",
+        "created",
+        "livemode",
         "subject",
         "reason",
         "status",
-        "opened_at",
         "closed_at"
       ],
       "type": "object"

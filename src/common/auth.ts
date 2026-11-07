@@ -112,6 +112,8 @@ export const OPS_SCOPES = [
   "compliance.screen",
   "sentinel.read",
   "sentinel.findings.write",
+  // stage 2 — payments
+  "payments.reconcile",
 ] as const;
 export type OpsScope = (typeof OPS_SCOPES)[number];
 

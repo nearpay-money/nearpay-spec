@@ -105,6 +105,15 @@ components:
             - two_person_required
             - authenticator_not_allowed
             - kyb_profile_incomplete
+            - intent_not_succeeded
+            - attempt_not_settled
+            - amount_exceeds_refundable
+            - leg_expired
+            - signed_intent_mismatch
+            - review_requires_evidence
+            - link_inactive
+            - customer_deleted
+            - reconciliation_day_open
         doc_url:
           description: Documentation page for this error code.
           format: uri
@@ -262,6 +271,7 @@ openapi: 3.1.0
 paths:
   /internal/relay:
     post:
+      description: "Checkout (`kind` absent or `checkout`): the execution is a `payment` `intents_transfer` in `awaiting_deposit` and the payload holds exactly the two requirement transfers. Refund (`kind: refund`, Stage 2): the execution is a `refund` execution whose `refund.transfer` is set, still awaiting its deposit; the payload is signed by `refund.transfer.signer_id` (the merchant) and holds exactly that one transfer (receiver, token, amount, memo = binding) with a deadline ≤ `refund.transfer.deadline`. Account and mode come from the execution; the payload is relayed exactly as signed (INV-1)."
       operationId: relaySignedIntent
       parameters:
         - description: Makes the request safe to retry for 24 h (same key + same body = same result).
@@ -288,6 +298,18 @@ paths:
                     - ex_01jbz9k3m4n5p6q7r8s9t0v1w2
                   pattern: ^ex_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
                   type: string
+                kind:
+                  description: What the payload pays (default `checkout`); must match the execution kind.
+                  enum:
+                    - checkout
+                    - refund
+                  type: string
+                refund:
+                  description: "Refund the leg belongs to (`kind: refund`; recorded on the agent payment)."
+                  examples:
+                    - re_01jbz9k3m4n5p6q7r8s9t0v1w2
+                  pattern: ^re_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                  type: string
                 signed:
                   $ref: "#/components/schemas/MultiPayload"
               required:
@@ -302,7 +324,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RelayAccepted"
-          description: Queue a payer-signed payload for a checkout `intents_transfer` attempt.
+          description: "Queue an owner-signed payload: a checkout `intents_transfer` attempt, or a refund leg from an Intents account."
         "400":
           content:
             application/json:
@@ -335,7 +357,7 @@ paths:
           description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
       security:
         - internalToken: []
-      summary: Queue a payer-signed payload for a checkout `intents_transfer` attempt.
+      summary: "Queue an owner-signed payload: a checkout `intents_transfer` attempt, or a refund leg from an Intents account."
       tags:
         - agentpay
       x-nearpay:

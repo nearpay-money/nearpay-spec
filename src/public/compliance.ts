@@ -1,6 +1,5 @@
 /** Public compliance API (lld/compliance.md §5): KYB start/status for the dashboard. */
-import { id } from "../common/ids.js";
-import { CountryCode, Timestamp, UnixTime, Url } from "../common/primitives.js";
+import { CountryCode, UnixTime, Url } from "../common/primitives.js";
 import { route } from "../common/route.js";
 import { inp, openEnum, out, z } from "../common/schema.js";
 
@@ -179,22 +178,3 @@ export const submitKyb = route({
   errors: ["kyb_profile_incomplete", "state_conflict"],
   stage: 2,
 });
-
-// stage 2 — identity-console: `Review` moved here from the internal event catalogue (which re-exports
-// it) so the public `review.opened` / `review.closed` webhook types can reference it.
-export const Review = out({
-  id: id("case"),
-  object: z.literal("review").describe("Always `review`."),
-  account_id: id("acct"),
-  subject: out({
-    type: openEnum(
-      ["payment_intent", "agent_payment", "settlement_destination", "execution"],
-      "Reviewed object type (`execution`: a rails execution; payments maps it to its payment intent).",
-    ),
-    id: z.string().describe("Reviewed object id."),
-  }).describe("What is under review."),
-  reason: openEnum(["post_screen_hit", "held_execution", "audit_mismatch", "screening_hit"], "Why."),
-  status: openEnum(["open", "closed"], "Review status."),
-  opened_at: Timestamp.describe("Opened."),
-  closed_at: Timestamp.nullable().describe("Closed."),
-}).meta({ id: "Review", description: "A compliance review of a payment (payment stands; INV-1)." });

@@ -105,6 +105,15 @@ components:
             - two_person_required
             - authenticator_not_allowed
             - kyb_profile_incomplete
+            - intent_not_succeeded
+            - attempt_not_settled
+            - amount_exceeds_refundable
+            - leg_expired
+            - signed_intent_mismatch
+            - review_requires_evidence
+            - link_inactive
+            - customer_deleted
+            - reconciliation_day_open
         doc_url:
           description: Documentation page for this error code.
           format: uri
@@ -737,6 +746,17 @@ components:
           description: Pricing amount of the payment (fiat minor units or asset base units); its last two digits pick the scenario. Defaults to `amount`.
           pattern: ^\d{1,78}$
           type: string
+        scenario_group:
+          description: Quotes of one payment (`pi_…`) or one refund (`re_…`). Scenario `06` (duplicate settlement) pays the other open quotes of the same group only; without it the sandbox groups as in Stage 1.
+          maxLength: 64
+          minLength: 1
+          type: string
+        scenario_kind:
+          description: "`refund`: a refund leg (rails sets `scenario_amount` to the refund amount). Default `payment`."
+          enum:
+            - payment
+            - refund
+          type: string
         sessionId:
           description: Client session id.
           type: string
@@ -881,6 +901,24 @@ components:
       required:
         - events
         - next_cursor
+      type: object
+    SimTransferResult:
+      additionalProperties: {}
+      description: A simulated transfer.
+      properties:
+        block_height:
+          description: Simulated block.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        tx_hash:
+          description: Simulated transaction hash.
+          maxLength: 128
+          minLength: 8
+          type: string
+      required:
+        - tx_hash
+        - block_height
       type: object
     SimTx:
       additionalProperties: {}
@@ -1373,6 +1411,70 @@ paths:
         idempotent: false
         service: sandbox
         stage: 1
+  /sim/intents/transfers:
+    post:
+      description: Test mode only by construction. Credits `from` with any shortfall first (like `/sim/intents/fund`), then moves `amount` to `to` and emits the DIP-4 `transfer` event with `memo` (and the NEP-245 `mt_transfer`) on the indexer feed, as a signed execute would. Used by payments `simulateRefundDeposit` for `intents_transfer` refund legs and INTENTS-deposit route legs.
+      operationId: sandboxSimulateIntentsTransfer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                amount:
+                  description: Amount.
+                  pattern: ^(0|[1-9][0-9]{0,77})$
+                  type: string
+                from:
+                  description: Sender Intents account (the merchant).
+                  pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+                  type: string
+                memo:
+                  description: Memo (the leg binding).
+                  maxLength: 512
+                  type: string
+                to:
+                  description: Receiver Intents account (payer or deposit address).
+                  pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+                  type: string
+                token:
+                  description: Asset.
+                  examples:
+                    - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+                  maxLength: 256
+                  pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+                  type: string
+              required:
+                - from
+                - to
+                - token
+                - amount
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimTransferResult"
+          description: Simulate an executed Verifier transfer without a signature (refund test helper).
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Simulate an executed Verifier transfer without a signature (refund test helper).
+      tags:
+        - sandbox
+      x-nearpay:
+        auth:
+          - service:sandbox.use
+        idempotent: false
+        service: sandbox
+        stage: 2
   /v0/deposit/submit:
     post:
       operationId: sandboxSubmitDeposit

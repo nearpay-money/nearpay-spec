@@ -11,9 +11,11 @@ import { Livemode, UnixTime } from "../common/primitives.js";
 import { openEnum, out, z } from "../common/schema.js";
 import { AgentPayment } from "../public/agentpay.js";
 // stage 2 — identity-console
-import { Review } from "../public/compliance.js";
 import { Account } from "../public/identity.js";
 import { CheckoutSession, PaymentIntent } from "../public/payments.js";
+// stage 2 — payments
+import { Refund } from "../public/refunds.js";
+import { PublicReview } from "../public/reviews.js";
 
 /** Ping object sent by `POST /v1/webhook_endpoints/{id}/test`. */
 export const Ping = out({
@@ -37,8 +39,15 @@ export const WEBHOOK_TYPES = {
   ping: { object: Ping, subject: null },
   // stage 2 — identity-console
   "account.updated": { object: Account, subject: "evt.identity.account.updated" },
-  "review.opened": { object: Review, subject: "evt.compliance.review.opened" },
-  "review.closed": { object: Review, subject: "evt.compliance.review.closed" },
+  // stage 2 — payments
+  "refund.created": { object: Refund, subject: "evt.payments.refund.created" },
+  "refund.requires_action": { object: Refund, subject: "evt.payments.refund.requires_action" },
+  "refund.pending": { object: Refund, subject: "evt.payments.refund.pending" },
+  "refund.succeeded": { object: Refund, subject: "evt.payments.refund.succeeded" },
+  "refund.failed": { object: Refund, subject: "evt.payments.refund.failed" },
+  "refund.canceled": { object: Refund, subject: "evt.payments.refund.canceled" },
+  "review.opened": { object: PublicReview, subject: "evt.compliance.review.opened" },
+  "review.closed": { object: PublicReview, subject: "evt.compliance.review.closed" },
 } as const satisfies Record<string, { object: z.ZodType; subject: string | null }>;
 
 export type WebhookType = keyof typeof WEBHOOK_TYPES;

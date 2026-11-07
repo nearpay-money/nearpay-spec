@@ -84,6 +84,15 @@ components:
             - two_person_required
             - authenticator_not_allowed
             - kyb_profile_incomplete
+            - intent_not_succeeded
+            - attempt_not_settled
+            - amount_exceeds_refundable
+            - leg_expired
+            - signed_intent_mismatch
+            - review_requires_evidence
+            - link_inactive
+            - customer_deleted
+            - reconciliation_day_open
         doc_url:
           description: Documentation page for this error code.
           format: uri

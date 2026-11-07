@@ -242,6 +242,26 @@ components:
                 - amount
               type: object
           description: Price of the payment.
+        reference:
+          additionalProperties: false
+          description: Payments object served; echoed as `Execution.reference` (payments sends it from Stage 2).
+          properties:
+            payment_attempt:
+              description: payment_attempt id (`pa_` + 26 base32 chars).
+              examples:
+                - pa_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^pa_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            payment_intent:
+              description: payment_intent id (`pi_` + 26 base32 chars).
+              examples:
+                - pi_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^pi_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+          required:
+            - payment_intent
+            - payment_attempt
+          type: object
         slippage_bps:
           description: Override slippage (default per route class).
           maximum: 10000
@@ -258,6 +278,155 @@ components:
         - pricing
         - fee
         - deadline_cap
+      type: object
+    CreateRefundExecution:
+      additionalProperties: false
+      description: "Create a refund leg: a route or Intents transfer from the merchant destination to the payer (no app fee)."
+      properties:
+        account_id:
+          description: account id (`acct_` + 26 base32 chars).
+          examples:
+            - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        amount:
+          description: Refund amount, base units of the source asset.
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        idempotency_key:
+          description: "`refund:<re_id>:leg:<n>` — stable across retries of the same leg."
+          maxLength: 255
+          minLength: 1
+          type: string
+        livemode:
+          description: Mode; selects the provider (INV-8).
+          type: boolean
+        method:
+          description: "`route_quote`: 1Click route back to the payer's origin asset. `intents_transfer`: Verifier transfer to the payer's Intents account (source and recipient asset must be equal; provider `direct_intents`)."
+          enum:
+            - route_quote
+            - intents_transfer
+          type: string
+        recipient:
+          additionalProperties: false
+          description: Payer side (INV-7).
+          properties:
+            address:
+              description: Payer refund address (attempt `refund_to`) or Intents account.
+              maxLength: 256
+              minLength: 1
+              type: string
+            asset_id:
+              description: Asset the payer receives (the attempt's origin asset).
+              examples:
+                - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+              maxLength: 256
+              pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+              type: string
+            chain:
+              description: Chain the payer receives on.
+              examples:
+                - eip155:8453
+              pattern: ^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$
+              type: string
+            type:
+              description: Recipient type.
+              enum:
+                - origin_chain
+                - intents
+              type: string
+          required:
+            - asset_id
+            - chain
+            - address
+            - type
+          type: object
+        reference:
+          additionalProperties: false
+          description: Payments objects served.
+          properties:
+            payment_attempt:
+              description: Attempt whose settlement is refunded.
+              examples:
+                - pa_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^pa_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            payment_intent:
+              description: payment_intent id (`pi_` + 26 base32 chars).
+              examples:
+                - pi_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^pi_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            refund:
+              description: refund id (`re_` + 26 base32 chars).
+              examples:
+                - re_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^re_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            refund_leg:
+              description: Leg number.
+              maximum: 9007199254740991
+              minimum: 1
+              type: integer
+          required:
+            - payment_intent
+            - payment_attempt
+            - refund
+            - refund_leg
+          type: object
+        screen:
+          description: Screen the recipient even if cached (an owner override of the recipient, INV-7). Default false.
+          type: boolean
+        source:
+          additionalProperties: false
+          description: "Merchant side: the intent's destination snapshot."
+          properties:
+            address:
+              description: "Merchant destination address or Intents account: the sender, and the 1Click `refundTo` of route legs."
+              maxLength: 256
+              minLength: 1
+              type: string
+            asset_id:
+              description: Settlement asset the merchant holds.
+              examples:
+                - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+              maxLength: 256
+              pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+              type: string
+            chain:
+              description: Settlement chain.
+              examples:
+                - eip155:8453
+              pattern: ^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$
+              type: string
+            type:
+              description: "Where funds settle: an address on a chain, or a NEAR Intents account."
+              enum:
+                - chain_address
+                - intents_account
+              type: string
+          required:
+            - asset_id
+            - type
+            - chain
+            - address
+          type: object
+        swap_type:
+          description: "Route legs: `EXACT_INPUT` quotes `amount` in (payer absorbs route costs); `EXACT_OUTPUT` quotes the equivalent of `amount` out, converted by rails pricing (merchant absorbs). Ignored for `intents_transfer`."
+          enum:
+            - EXACT_INPUT
+            - EXACT_OUTPUT
+          type: string
+      required:
+        - idempotency_key
+        - account_id
+        - livemode
+        - method
+        - reference
+        - source
+        - recipient
+        - amount
+        - swap_type
       type: object
     DepositLookup:
       additionalProperties: {}
@@ -417,6 +586,15 @@ components:
             - two_person_required
             - authenticator_not_allowed
             - kyb_profile_incomplete
+            - intent_not_succeeded
+            - attempt_not_settled
+            - amount_exceeds_refundable
+            - leg_expired
+            - signed_intent_mismatch
+            - review_requires_evidence
+            - link_inactive
+            - customer_deleted
+            - reconciliation_day_open
         doc_url:
           description: Documentation page for this error code.
           format: uri
@@ -685,6 +863,16 @@ components:
           type:
             - string
             - "null"
+        reference:
+          anyOf:
+            - $ref: "#/components/schemas/ExecutionReference"
+            - type: "null"
+          description: Payments object served (from the create request); null for executions created before Stage 2.
+        refund:
+          anyOf:
+            - $ref: "#/components/schemas/ExecutionRefund"
+            - type: "null"
+          description: "Refund legs: `origin` is the merchant side (asset, chain, `refund_to` = the merchant destination) and `settlement` the payer side (`recipient` = the payer's refund address, `tag` 0)."
         refund_reason:
           description: Provider refund reason.
           type:
@@ -863,6 +1051,115 @@ components:
         - min_amount_in
         - chain
         - deadline
+      type: object
+    ExecutionReference:
+      additionalProperties: {}
+      description: The payments object an execution belongs to.
+      properties:
+        payment_attempt:
+          anyOf:
+            - description: payment_attempt id (`pa_` + 26 base32 chars).
+              examples:
+                - pa_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^pa_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: "Payment attempt (`kind: payment`)."
+        payment_intent:
+          description: payment_intent id (`pi_` + 26 base32 chars).
+          examples:
+            - pi_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^pi_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        refund:
+          anyOf:
+            - description: refund id (`re_` + 26 base32 chars).
+              examples:
+                - re_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^re_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: "Refund (`kind: refund`)."
+        refund_leg:
+          anyOf:
+            - maximum: 9007199254740991
+              minimum: 1
+              type: integer
+            - type: "null"
+          description: "Refund leg number (`kind: refund`)."
+      required:
+        - payment_intent
+        - payment_attempt
+        - refund
+        - refund_leg
+      type: object
+    ExecutionRefund:
+      additionalProperties: {}
+      description: "Refund-leg details of an execution (`kind: refund`)."
+      properties:
+        amount:
+          description: What the merchant sends, base units of the source (settlement) asset.
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        amount_out_expected:
+          anyOf:
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+            - type: "null"
+          description: What the payer should receive, base units of the recipient asset (quote `amountOut`).
+        min_amount_out:
+          anyOf:
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+            - type: "null"
+          description: Quote `minAmountOut` (route legs).
+        swap_type:
+          anyOf:
+            - description: Route quote type.
+              enum:
+                - EXACT_INPUT
+                - EXACT_OUTPUT
+              type: string
+            - type: "null"
+          description: Route legs only; null for `intents_transfer`.
+        token:
+          anyOf:
+            - additionalProperties: {}
+              properties:
+                address:
+                  description: Contract / mint / NEP-141 account; null for native assets.
+                  type:
+                    - string
+                    - "null"
+                standard:
+                  description: Token standard on the source chain.
+                  type: string
+                  x-extensible-enum:
+                    - native
+                    - erc20
+                    - nep141
+                    - spl
+                    - other
+              required:
+                - standard
+                - address
+              type: object
+            - type: "null"
+          description: How to transfer the source asset on its chain (`sign_and_send` legs); null for Intents sources.
+        transfer:
+          anyOf:
+            - $ref: "#/components/schemas/RefundTransfer"
+            - type: "null"
+          description: "Set when the source is an Intents account: the transfer to sign (to the payer, or to the 1Click deposit address)."
+      required:
+        - swap_type
+        - amount
+        - amount_out_expected
+        - min_amount_out
+        - token
+        - transfer
       type: object
     FeeSchedule:
       additionalProperties: {}
@@ -1251,6 +1548,46 @@ components:
         - fx
         - par
         - as_of
+      type: object
+    RefundTransfer:
+      additionalProperties: {}
+      description: "What a merchant signs for a refund leg from an Intents account: exactly one transfer, memo = binding."
+      properties:
+        amount:
+          description: Amount, base units.
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        deadline:
+          description: Latest acceptable payload deadline.
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+          type: string
+        memo:
+          description: Binding memo the transfer must carry (agentpay matches it; the indexer attributes by it).
+          pattern: ^np1:[1-9A-HJ-NP-Za-km-z]{43,44}$
+          type: string
+        receiver_id:
+          description: Payer Intents account (`intents_transfer` leg) or the 1Click INTENTS deposit address (`route_quote` leg).
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        signer_id:
+          description: Merchant Intents account (the settlement destination) that signs.
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        token:
+          description: Asset transferred (the settlement asset).
+          examples:
+            - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+          maxLength: 256
+          pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+          type: string
+      required:
+        - signer_id
+        - receiver_id
+        - token
+        - amount
+        - memo
+        - deadline
       type: object
   securitySchemes:
     internalToken:
@@ -1840,6 +2177,93 @@ paths:
         idempotent: false
         service: rails
         stage: 1
+  /internal/refund_executions:
+    post:
+      description: "Screens the recipient (context `refund`), quotes without app fees and returns the execution view with `refund` set: route legs carry `deposit` (+ `refund.token`, or `refund.transfer` when the source is an Intents account: 1Click INTENTS deposit); `intents_transfer` legs carry `refund.transfer` with a fresh binding. Tracking, verification (payer-side evidence, INV-2) and events are those of payment executions (`evt.rails.execution.*`); `GET /internal/executions/{id}` and `POST /internal/executions/{id}/deposit_tx` apply unchanged. Sandbox: `scenario_amount` = `amount`, `scenario_group` = the refund id."
+      operationId: createRefundExecution
+      parameters:
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRefundExecution"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Execution"
+          description: "Prepare a refund leg (idempotent on idempotency_key) → execution with `kind: refund`."
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `asset_unsupported`."
+          x-error-codes:
+            - asset_unsupported
+        "402":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `screening_blocked`."
+          x-error-codes:
+            - screening_blocked
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `route_unavailable`, `deadline_too_short`, `quote_rejected`."
+          x-error-codes:
+            - route_unavailable
+            - deadline_too_short
+            - quote_rejected
+        "502":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `quote_integrity_failed`."
+          x-error-codes:
+            - quote_integrity_failed
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `pricing_unavailable`, `screening_unavailable`, `rail_unavailable`."
+          x-error-codes:
+            - pricing_unavailable
+            - screening_unavailable
+            - rail_unavailable
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: "Prepare a refund leg (idempotent on idempotency_key) → execution with `kind: refund`."
+      tags:
+        - rails
+      x-nearpay:
+        auth:
+          - service:rails.executions.write
+        idempotent: true
+        service: rails
+        stage: 2
   /ops/executions:
     get:
       operationId: listOpsExecutions

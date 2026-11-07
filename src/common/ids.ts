@@ -51,6 +51,8 @@ export const ID_PREFIXES = {
   aud: { object: "audit_event", owner: "identity" },
   opa: { object: "ops_approval", owner: "any" },
   bl: { object: "blocklist_entry", owner: "compliance" },
+  // stage 2 — payments
+  rcn: { object: "reconciliation_run", owner: "payments" },
 } as const;
 
 export type IdPrefix = keyof typeof ID_PREFIXES;
