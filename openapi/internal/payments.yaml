@@ -39,6 +39,55 @@ components:
         - intents_requirement
         - attestation_ticket
       type: object
+    DepositInstructions:
+      additionalProperties: {}
+      description: Where and how much the payer sends (render only after sentinel attestation).
+      properties:
+        address:
+          description: 1Click deposit address.
+          maxLength: 256
+          minLength: 1
+          type: string
+        amount_in:
+          description: Amount to send, base units of the origin asset.
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        chain:
+          description: Chain to send on.
+          examples:
+            - eip155:8453
+          pattern: ^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$
+          type: string
+        deadline:
+          description: Send before this time; later deposits are refunded.
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+          type: string
+        memo:
+          description: Memo the deposit must carry, if any.
+          type:
+            - string
+            - "null"
+        min_amount_in:
+          description: Minimum the provider accepts; below it the deposit is refunded.
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        origin_asset_id:
+          description: Asset to send.
+          examples:
+            - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+          maxLength: 256
+          pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+          type: string
+      required:
+        - address
+        - memo
+        - amount_in
+        - min_amount_in
+        - deadline
+        - chain
+        - origin_asset_id
+      type: object
     DestinationSnapshot:
       additionalProperties: {}
       description: Settlement destination as snapshotted at creation (INV-6).
@@ -61,6 +110,12 @@ components:
             - eip155:8453
           pattern: ^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$
           type: string
+        fingerprint:
+          anyOf:
+            - pattern: ^[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{2}$
+              type: string
+            - type: "null"
+          description: Fingerprint of the destination as shown at checkout (CR-15-04, spec 0.2.0); optional so older servers stay valid.
         settlement_destination:
           description: settlement_destination id (`sd_` + 26 base32 chars).
           examples:
@@ -173,6 +228,7 @@ components:
             - link_inactive
             - customer_deleted
             - reconciliation_day_open
+            - fx_rate_unavailable
         doc_url:
           description: Documentation page for this error code.
           format: uri
@@ -398,6 +454,117 @@ components:
         - fee_amount
         - binding
         - deadline
+      type: object
+    PayerAttempt:
+      additionalProperties: {}
+      description: A payment attempt as the payer sees it.
+      properties:
+        attestation_ticket:
+          anyOf:
+            - description: "`base64url(JCS payload).base64url(Ed25519 signature)` issued by payments; pass it to sentinel unchanged."
+              pattern: ^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$
+              type: string
+            - type: "null"
+          description: Ticket for sentinel; present while instructions are live.
+        deposit:
+          anyOf:
+            - $ref: "#/components/schemas/DepositInstructions"
+            - type: "null"
+          description: Deposit instructions (`route_quote`).
+        failure_code:
+          description: Reason the attempt failed or was refunded.
+          type:
+            - string
+            - "null"
+        id:
+          description: payment_attempt id (`pa_` + 26 base32 chars).
+          examples:
+            - pa_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^pa_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        intents_requirement:
+          anyOf:
+            - $ref: "#/components/schemas/IntentsRequirement"
+            - type: "null"
+          description: What to sign (`intents_transfer`).
+        livemode:
+          description: "`true` for live mode, `false` for test mode."
+          type: boolean
+        method:
+          description: "`route_quote`: deposit to a 1Click address from any chain. `intents_transfer`: signed transfer from a NEAR Intents balance."
+          enum:
+            - route_quote
+            - intents_transfer
+          type: string
+        object:
+          const: payment_attempt
+          description: Always `payment_attempt`.
+          type: string
+        origin_asset_id:
+          description: Asset the payer pays with.
+          examples:
+            - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+          maxLength: 256
+          pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+          type: string
+        refunded_amount:
+          anyOf:
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+            - type: "null"
+          description: Amount the provider refunded to the payer, if any.
+        status:
+          description: Attempt status (mirrors the rails execution, domain-model §4.3).
+          type: string
+          x-extensible-enum:
+            - quoting
+            - awaiting_deposit
+            - deposit_detected
+            - incomplete_deposit
+            - settling
+            - verifying
+            - succeeded
+            - refunded
+            - failed
+            - expired_unpaid
+            - held
+        visible:
+          description: False once a newer attempt replaced it ("don't send again").
+          type: boolean
+      required:
+        - id
+        - object
+        - livemode
+        - status
+        - method
+        - visible
+        - origin_asset_id
+        - deposit
+        - intents_requirement
+        - attestation_ticket
+        - failure_code
+        - refunded_amount
+      type: object
+    PayerSessionContext:
+      additionalProperties: {}
+      description: A checkout session as the payer sees it, plus its account and mode (agentpay's checkout routes).
+      properties:
+        account_id:
+          description: account id (`acct_` + 26 base32 chars).
+          examples:
+            - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        livemode:
+          description: Mode of the session.
+          type: boolean
+        session:
+          $ref: "#/components/schemas/PublicCheckoutSession"
+      required:
+        - account_id
+        - livemode
+        - session
       type: object
     PaymentAttemptSummary:
       additionalProperties: {}
@@ -772,6 +939,172 @@ components:
         - overpayments
         - sequence
         - metadata
+      type: object
+    PublicCheckoutSession:
+      additionalProperties: {}
+      description: A checkout session as the payer sees it.
+      properties:
+        allowed_origins:
+          description: Origins allowed to embed this session.
+          items:
+            type: string
+          type: array
+        amount:
+          anyOf:
+            - description: Fiat amount in minor units (e.g. cents), integer.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+          description: "Fiat: integer minor units. Asset: base units as a decimal string."
+        asset_id:
+          anyOf:
+            - description: NEAR Intents asset id, e.g. `nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1`.
+              examples:
+                - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+              maxLength: 256
+              pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+              type: string
+            - type: "null"
+          description: Pricing asset when `currency` is `asset`.
+        attempt:
+          anyOf:
+            - $ref: "#/components/schemas/PayerAttempt"
+            - type: "null"
+          description: The current visible attempt, if any.
+        cancel_url:
+          anyOf:
+            - description: Absolute URL.
+              format: uri
+              maxLength: 2048
+              type: string
+            - type: "null"
+          description: Redirect target on cancel.
+        currency:
+          anyOf:
+            - description: ISO 4217 currency code, lower-case (e.g. `usd`).
+              pattern: ^[a-z]{3}$
+              type: string
+            - const: asset
+              type: string
+          description: ISO 4217 code for fiat pricing, or `asset` when priced in an asset (then `asset_id` is set).
+        display:
+          additionalProperties: {}
+          description: What the payer is paying for.
+          properties:
+            description:
+              description: Payment description.
+              type:
+                - string
+                - "null"
+            merchant_name_unverified:
+              description: Merchant display name (not authenticated; the attested name comes from sentinel).
+              type: string
+          required:
+            - merchant_name_unverified
+            - description
+          type: object
+        expires_at:
+          description: When the session stops accepting new payments.
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+          type: string
+        id:
+          description: checkout_session id (`cs_` + 26 base32 chars).
+          examples:
+            - cs_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^cs_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        intent_status:
+          description: Payment intent status (domain-model §4.2).
+          type: string
+          x-extensible-enum:
+            - requires_payment
+            - processing
+            - requires_review
+            - succeeded
+            - canceled
+            - expired
+        livemode:
+          description: "`true` for live mode, `false` for test mode."
+          type: boolean
+        object:
+          const: checkout_session
+          description: Always `checkout_session`.
+          type: string
+        payment_intent:
+          description: Payment intent of this session (embedded checkout reports it in `np:complete`).
+          examples:
+            - pi_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^pi_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        settlement:
+          additionalProperties: {}
+          description: How the merchant is paid (never the raw address).
+          properties:
+            asset_id:
+              description: Asset the merchant receives.
+              examples:
+                - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+              maxLength: 256
+              pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+              type: string
+            chain:
+              description: Chain the merchant receives on.
+              examples:
+                - eip155:8453
+              pattern: ^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$
+              type: string
+            type:
+              description: "Where funds settle: an address on a chain, or a NEAR Intents account."
+              enum:
+                - chain_address
+                - intents_account
+              type: string
+          required:
+            - asset_id
+            - chain
+            - type
+          type: object
+        status:
+          description: Session status; `expiring` means past `expires_at` with money possibly in flight (INV-3).
+          type: string
+          x-extensible-enum:
+            - open
+            - expiring
+            - complete
+            - expired
+        success_url:
+          description: Redirect target after success (`?session_id=` appended).
+          format: uri
+          maxLength: 2048
+          type: string
+        ui_mode:
+          description: Hosted page or embedded iframe.
+          enum:
+            - hosted
+            - embedded
+          type: string
+      required:
+        - id
+        - object
+        - livemode
+        - status
+        - payment_intent
+        - intent_status
+        - amount
+        - currency
+        - asset_id
+        - display
+        - expires_at
+        - settlement
+        - ui_mode
+        - allowed_origins
+        - success_url
+        - cancel_url
+        - attempt
       type: object
     ReceiptContext:
       additionalProperties: {}
@@ -1898,6 +2231,61 @@ paths:
         idempotent: false
         service: payments
         stage: 1
+  /internal/checkout_sessions/{id}/payer:
+    get:
+      description: "Replaces agentpay's call to the public `GET /v1/checkout/sessions/{id}/public` (CR-15-15): agentpay forwards the caller's `X-NearPay-Client-Secret` and authenticates with its service token. A wrong secret answers `client_secret_invalid`, exactly like the public route."
+      operationId: getPayerCheckoutSession
+      parameters:
+        - description: checkout_session id (`cs_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: checkout_session id (`cs_` + 26 base32 chars).
+            examples:
+              - cs_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^cs_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Client secret of the checkout session (from the URL fragment).
+          in: header
+          name: x-nearpay-client-secret
+          required: true
+          schema:
+            description: Client secret of the checkout session (from the URL fragment).
+            pattern: ^cs_[0-9a-z]{26}_secret_[0-9A-Za-z]{32}$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayerSessionContext"
+          description: Verify a payer's client secret and read the session as the payer sees it (agentpay `agent_pay`).
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `client_secret_invalid`."
+          x-error-codes:
+            - client_secret_invalid
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Verify a payer's client secret and read the session as the payer sees it (agentpay `agent_pay`).
+      tags:
+        - payments
+      x-nearpay:
+        auth:
+          - service:payments.read
+        idempotent: false
+        service: payments
+        stage: 2
   /internal/payment_intents/{id}:
     get:
       operationId: getInternalPaymentIntent

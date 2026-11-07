@@ -19,13 +19,17 @@ import {
   NearAccountId,
   openEnum,
   out,
+  PricingAmount,
+  PricingCurrency,
   route,
   SettlementDestinationType,
   Timestamp,
+  TokenContract,
   TxHash,
   z,
 } from "@nearpay/spec";
 import { FeeSchedule } from "./identity.js";
+import { FxRate, PriceRate } from "./pricing.js";
 
 export const RouteClass = openEnum(
   ["same_asset", "stable_pair", "volatile", "intents_transfer"],
@@ -85,6 +89,18 @@ export const PriceSnapshot = out({
   fx: z.string().nullable().describe("FX rate pricing currency → USD (decimal string), null for USD."),
   par: z.boolean().describe("Settled at par (USD stablecoin, depeg guard passed)."),
   as_of: Timestamp.describe("When prices were read."),
+  currency: PricingCurrency.optional().describe(
+    "Pricing currency of the payment (spec 0.2.0; rails 0.2.0+ always sends it): an ISO code, or `asset`.",
+  ),
+  par_currency: Currency.nullable()
+    .optional()
+    .describe("Currency the settlement asset was taken at par with (`usd` for USD stablecoins), or null (spec 0.2.0)."),
+  rates: z
+    .array(PriceRate)
+    .optional()
+    .describe(
+      "Every rate used, exact, with source, `as_of` and `valid_until` (spec 0.2.0; rails 0.2.0+ always sends it): the FX rate of a non-USD currency and the primary + secondary prices of a non-par asset.",
+    ),
 }).meta({ id: "PriceSnapshot", description: "Prices used to compute the settlement amount (INV-6)." });
 
 export const ExecutionDeposit = out({
@@ -224,6 +240,8 @@ export const createExecution = route({
     "quote_rejected",
     "quote_integrity_failed",
     "rail_unavailable",
+    "currency_unsupported",
+    "fx_rate_unavailable",
   ],
   stage: 1,
 });
@@ -279,6 +297,18 @@ export const InternalAsset = out({
   price_usd: z.string().nullable().describe("USD price (decimal string)."),
   price_ok: z.boolean().describe("Primary and secondary prices agree and are fresh (rails §8.2)."),
   as_of: Timestamp.nullable().describe("Price time."),
+  peg_currency: Currency.nullable()
+    .optional()
+    .describe("Fiat currency the asset is a stablecoin of (`usd`, `eur`, …), or null (spec 0.2.0)."),
+  par_ok: z
+    .boolean()
+    .optional()
+    .describe("The depeg guard passes, so the asset settles at par with `peg_currency` (rails §8.2; spec 0.2.0)."),
+  prices: z
+    .array(PriceRate)
+    .optional()
+    .describe("Primary and secondary USD prices with source, `as_of` and `valid_until` (spec 0.2.0)."),
+  token: TokenContract.nullable().optional().describe("On-chain token contract (CR-15-06; spec 0.2.0)."),
 }).meta({ id: "InternalAsset", description: "An asset with pricing state." });
 
 export const getInternalAsset = route({
@@ -344,6 +374,7 @@ export const InternalPaymentOption = out({
   min_deadline_s: z.int().min(0).describe("Minimum deposit window."),
   available: z.boolean().describe("Usable now."),
   reason: z.string().nullable().describe("Why unavailable."),
+  token: TokenContract.nullable().optional().describe("Token contract to pay with (CR-15-06; spec 0.2.0)."),
 }).meta({ id: "InternalPaymentOption", description: "Indicative option (rails view)." });
 
 export const listInternalOptions = route({
@@ -431,8 +462,10 @@ export const listEvidence = route({
   path: "/internal/evidence",
   service: "rails",
   visibility: "internal",
-  summary: "Executions that settled on a UTC day, with evidence.",
-  auth: ["service:rails.read"],
+  summary: "Executions that reached a terminal state on a UTC day, with evidence.",
+  description:
+    "Default: executions that settled (`succeeded`) on the day, by `terminal_at`. Since spec 0.2.0 `states` and `kind` select other terminal states and refund legs (reconciliation, rails §8.10).",
+  auth: ["service:rails.read", "ops:rails.read"],
   idempotent: false,
   query: inp({
     account_id: id("acct"),
@@ -443,6 +476,12 @@ export const listEvidence = route({
     day: z.iso.date().describe("UTC day `YYYY-MM-DD`."),
     starting_after: id("ex").optional().describe("Cursor."),
     limit: z.coerce.number().int().min(1).max(1000).default(500).describe("Page size."),
+    states: z
+      .string()
+      .regex(/^(succeeded|refunded|failed)(,(succeeded|refunded|failed))*$/)
+      .optional()
+      .describe("Comma-separated terminal states (default `succeeded`; spec 0.2.0)."),
+    kind: ExecutionKind.optional().describe("Only payments or only refund legs (default both; spec 0.2.0)."),
   }),
   response: out({
     data: z.array(Execution).describe("Settled executions."),
@@ -530,3 +569,212 @@ export const createRefundExecution = route({
   ],
   stage: 2,
 });
+
+// =============================================================================================
+// stage 2 — rails-fx: pricing/FX (rails §8.2), observation archive (§8.11), reconciliation evidence
+// (§8.10); console routes over executions are on the `/ops/…` table (identity-console)
+// =============================================================================================
+
+const ModeQuery = z
+  .enum(["true", "false"])
+  .transform((v) => v === "true")
+  .describe("Mode.");
+
+export const FxRates = out({
+  base: z.literal("usd").describe("Every rate is to USD."),
+  livemode: z.boolean().describe("Mode whose sources answered (test mode: the fixed test table)."),
+  currencies: z
+    .array(FxRate)
+    .describe("Pricing currencies rails accepts (`NP_PRICING_CURRENCIES`), `usd` first, each with its rate."),
+  as_of: Timestamp.describe("When this answer was assembled."),
+}).meta({ id: "FxRates", description: "Accepted pricing currencies and their FX rates to USD (rails §8.2)." });
+export type FxRates = z.infer<typeof FxRates>;
+
+export const listFxRates = route({
+  id: "listFxRates",
+  method: "GET",
+  path: "/internal/fx-rates",
+  service: "rails",
+  visibility: "internal",
+  summary: "Accepted pricing currencies with their current FX rate to USD, source, as_of and staleness.",
+  description:
+    "Payments uses it to answer `currency_unsupported` (currency absent) and `fx_rate_unavailable` (present but `available: false`) at session/intent creation, and to show the rate source; a stale rate is reported, never used.",
+  auth: ["service:rails.read", "ops:rails.read"],
+  idempotent: false,
+  query: inp({
+    livemode: OptionalMode,
+    currencies: z
+      .string()
+      .regex(/^[a-z]{3}(,[a-z]{3}){0,49}$/)
+      .optional()
+      .describe("Comma-separated currencies to return (default all accepted)."),
+  }),
+  response: FxRates,
+  status: 200,
+  errors: [],
+  stage: 2,
+});
+
+export const SettlementEstimate = out({
+  pricing: out({
+    amount: PricingAmount,
+    currency: PricingCurrency,
+    asset_id: AssetId.nullable().describe("Pricing asset when `currency` is `asset`."),
+  }).describe("What was valued."),
+  usd_micros: BaseUnits.describe("Value in USD micros, rounded down (integer string)."),
+  settlement: out({
+    asset_id: AssetId.describe("Settlement asset."),
+    amount_base: BaseUnits.describe(
+      "Settlement amount before fees and tag, rounded down (rails §8.2; the attempt computes the binding amount).",
+    ),
+    par: z.boolean().describe("Taken at par (stablecoin of the pricing currency, depeg guard passed)."),
+  })
+    .nullable()
+    .describe("Settlement amount in `settlement_asset`, when one was asked for."),
+  price_snapshot: PriceSnapshot,
+}).meta({
+  id: "SettlementEstimate",
+  description: "Indicative valuation of a price in USD and in a settlement asset (not a quote; rails §8.2).",
+});
+export type SettlementEstimate = z.infer<typeof SettlementEstimate>;
+
+export const estimateSettlement = route({
+  id: "estimateSettlement",
+  method: "GET",
+  path: "/internal/settlement-estimate",
+  service: "rails",
+  visibility: "internal",
+  summary: "Value a fiat or asset price in USD micros and, optionally, in a settlement asset.",
+  description:
+    "Same rules as execution pricing (par policy, dual-source prices, FX staleness). Payments compares `usd_micros` with destination minimums and the unverified-destination cap for non-USD prices, and uses `settlement.amount_base` as the options `amount_out`.",
+  auth: ["service:rails.read", "ops:rails.read"],
+  idempotent: false,
+  query: inp({
+    amount: z
+      .string()
+      .regex(/^(0|[1-9][0-9]{0,77})$/)
+      .describe("Fiat minor units, or asset base units when `currency` is `asset`."),
+    currency: PricingCurrency,
+    asset_id: AssetId.optional().describe("Pricing asset; required when `currency` is `asset`."),
+    settlement_asset: AssetId.optional().describe("Also compute the settlement amount in this asset."),
+    livemode: OptionalMode,
+  }),
+  response: SettlementEstimate,
+  status: 200,
+  errors: ["currency_unsupported", "asset_unsupported", "pricing_unavailable", "fx_rate_unavailable"],
+  stage: 2,
+});
+
+export const ObservationSource = openEnum(
+  ["quote", "submit", "hot_poll", "explorer", "indexer", "watcher", "verifier", "operator"],
+  "Detector that recorded the observation (rails §4 `provider_observations.source`).",
+);
+
+export const ProviderObservation = out({
+  id: id("obs"),
+  execution_id: id("ex"),
+  source: ObservationSource,
+  provider_status: z.string().nullable().describe("Provider status in the payload (raw), if any."),
+  provider_updated_at: Timestamp.nullable().describe("Provider's update time, if any."),
+  applied: z.boolean().describe("The observation changed the execution (monotonic, changed-status rules, rails §5)."),
+  observed_at: Timestamp.describe("When rails recorded it."),
+  payload_sha256: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/)
+    .describe("SHA-256 (hex) of the raw payload bytes as received; kept forever."),
+  payload: z
+    .unknown()
+    .nullable()
+    .describe("Raw provider payload (JSON); null once archived (fetch it with `archive`)."),
+  archive: out({
+    object_key: z.string().min(1).max(1024).describe("Object-storage key of the Parquet file."),
+    row: z.int().min(0).describe("Row index inside the file."),
+    archived_at: Timestamp.describe("When the payload moved."),
+  })
+    .nullable()
+    .describe("Where the payload lives after the 90-day archive (rails §8.11), or null."),
+}).meta({
+  id: "ProviderObservation",
+  description: "One raw provider/tracker observation of an execution (evidence trail).",
+});
+export type ProviderObservation = z.infer<typeof ProviderObservation>;
+
+export const listExecutionObservations = route({
+  id: "listExecutionObservations",
+  method: "GET",
+  path: "/internal/executions/{id}/observations",
+  service: "rails",
+  visibility: "internal",
+  summary: "Observations of an execution, oldest first (archived ones carry their archive reference).",
+  auth: ["service:rails.read", "ops:rails.read"],
+  idempotent: false,
+  params: ExecParams,
+  query: inp({
+    starting_after: id("obs").optional().describe("Cursor: last observation of the previous page."),
+    limit: z.coerce.number().int().min(1).max(500).default(100).describe("Page size."),
+  }),
+  response: out({
+    data: z.array(ProviderObservation).describe("Observations, oldest first."),
+    has_more: z.boolean().describe("More pages."),
+  }).meta({ id: "ProviderObservationPage", description: "Observations of an execution." }),
+  status: 200,
+  errors: [],
+  stage: 2,
+});
+
+const TerminalState = closedEnum(["succeeded", "refunded", "failed"], "Terminal execution state.");
+
+export const EvidenceSummary = out({
+  account_id: id("acct"),
+  livemode: z.boolean().describe("Mode."),
+  day: z.iso.date().describe("UTC day `YYYY-MM-DD` (executions by `terminal_at`)."),
+  complete: z
+    .boolean()
+    .describe(
+      "The day is closed for rails: it has ended, every tracker cursor is past its end and no execution created on or before it is still non-terminal except holds (rails §8.10). Reconcile only complete days.",
+    ),
+  in_flight: z.int().min(0).describe("Executions of the account created on or before the day and still non-terminal."),
+  held_open: z.int().min(0).describe("Of those, executions currently `held`."),
+  totals: z
+    .array(
+      out({
+        kind: ExecutionKind,
+        state: TerminalState,
+        asset_id: AssetId.describe("Settlement asset (payments) or origin asset returned to the payer (refunds)."),
+        count: z.int().min(0).describe("Executions."),
+        settled_amount: BaseUnits.describe("Sum of `settled_amount`."),
+        refunded_amount: BaseUnits.describe("Sum of `refunded_amount`."),
+      }).describe("Totals for one kind, state and asset."),
+    )
+    .describe("Totals of executions that reached a terminal state on the day."),
+  tier_b: out({
+    count: z.int().min(0).describe("Tier-B (provider-attested) settlements on the day."),
+    explorer_confirmed: z.int().min(0).describe("Of those, confirmed by an Explorer row with the same status."),
+    unconfirmed: z.array(id("ex")).describe("Tier-B settlements without a matching Explorer row yet."),
+  }).describe("Tier-B cross-check against the Explorer (ADR-0012; empty when the Explorer feed is disabled)."),
+  digest: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/)
+    .describe(
+      "SHA-256 (hex) over the day's `(execution id, version)` pairs in id order; unchanged digest ⇒ unchanged evidence.",
+    ),
+  generated_at: Timestamp.describe("When computed."),
+}).meta({ id: "EvidenceSummary", description: "Per-day evidence totals of one account (reconciliation input)." });
+export type EvidenceSummary = z.infer<typeof EvidenceSummary>;
+
+export const getEvidenceSummary = route({
+  id: "getEvidenceSummary",
+  method: "GET",
+  path: "/internal/evidence/summary",
+  service: "rails",
+  visibility: "internal",
+  summary: "Per-day evidence totals of an account (payments reconciliation, sentinel, console).",
+  auth: ["service:rails.read", "ops:rails.read"],
+  idempotent: false,
+  query: inp({ account_id: id("acct"), livemode: ModeQuery, day: z.iso.date().describe("UTC day `YYYY-MM-DD`.") }),
+  response: EvidenceSummary,
+  status: 200,
+  errors: [],
+  stage: 2,
+});
+// end stage 2 — rails-fx

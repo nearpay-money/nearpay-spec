@@ -102,6 +102,22 @@ export const PublicCheckoutSession = out({
   attempt: PayerAttempt.nullable().describe("The current visible attempt, if any."),
 }).meta({ id: "PublicCheckoutSession", description: "A checkout session as the payer sees it." });
 
+// stage 2 — rails-fx (CR-15-06)
+/** Token contract of an asset on its chain (CR-15-06), so wallets need not derive it from asset-id naming. */
+export const TokenContract = out({
+  standard: openEnum(
+    ["erc20", "native", "nep141", "spl", "other"],
+    "`erc20`: ERC-20 contract on an EVM chain; `native`: the chain's native coin (no contract); `nep141`: NEP-141 token on NEAR; `spl`: SPL mint on Solana; `other`: no wallet transfer recipe (manual path).",
+  ),
+  address: z
+    .string()
+    .min(1)
+    .max(256)
+    .nullable()
+    .describe("Contract address (EVM `0x…`) or token account (NEAR); null for `native`."),
+}).meta({ id: "TokenContract", description: "How to transfer an asset on its chain (wallet path)." });
+// end stage 2 — rails-fx
+
 export const PaymentOption = out({
   method: AttemptMethod,
   origin_asset_id: AssetId.describe("Asset the payer would pay with."),
@@ -116,6 +132,11 @@ export const PaymentOption = out({
     ["route_too_slow", "amount_too_low", "route_unavailable", "pricing_unavailable"],
     "Why it is unavailable.",
   ).nullable(),
+  token: TokenContract.nullable()
+    .optional()
+    .describe(
+      "Token contract to pay with; null when unknown (then use the manual path). Spec 0.2.0 (CR-15-06); optional so older servers stay valid.",
+    ),
 }).meta({ id: "PaymentOption", description: "An indicative way to pay (not a quote)." });
 
 const SessionParams = inp({ id: id("cs") });

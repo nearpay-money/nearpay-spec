@@ -787,6 +787,112 @@
       ],
       "type": "object"
     },
+    "PriceRate": {
+      "additionalProperties": {},
+      "description": "A price or FX rate with its source and timestamps (INV-5: exact rational).",
+      "properties": {
+        "as_of": {
+          "description": "When the source says the value applies (ECB: publication time of the reference day; feeds: their update time).",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+          "type": "string"
+        },
+        "base": {
+          "anyOf": [
+            {
+              "description": "ISO 4217 currency code, lower-case (e.g. `usd`).",
+              "pattern": "^[a-z]{3}$",
+              "type": "string"
+            },
+            {
+              "description": "NEAR Intents asset id, e.g. `nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1`.",
+              "examples": [
+                "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1"
+              ],
+              "maxLength": 256,
+              "pattern": "^(nep141:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+|nep245:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+:[\\x21-\\x7e]{1,128})$",
+              "type": "string"
+            }
+          ],
+          "description": "What is priced: a currency code or an asset id."
+        },
+        "decimal": {
+          "description": "The rate as a decimal string rounded half-even to ≤ 18 places; display only, never for arithmetic.",
+          "pattern": "^(0|[1-9][0-9]{0,59})(\\.[0-9]{1,18})?$",
+          "type": "string"
+        },
+        "fetched_at": {
+          "description": "When rails read it.",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+          "type": "string"
+        },
+        "kind": {
+          "description": "`fx`: fiat exchange rate; `price`: token price.",
+          "type": "string",
+          "x-extensible-enum": [
+            "fx",
+            "price"
+          ]
+        },
+        "quote": {
+          "description": "Currency the value is expressed in (`usd`).",
+          "pattern": "^[a-z]{3}$",
+          "type": "string"
+        },
+        "role": {
+          "description": "`primary`/`secondary`: the two token prices the dual-source check compares (rails §8.2); `reference`: a fiat FX reference rate.",
+          "type": "string",
+          "x-extensible-enum": [
+            "primary",
+            "secondary",
+            "reference"
+          ]
+        },
+        "source": {
+          "description": "Where a rate comes from: `oneclick` (1Click `/v0/tokens`, primary token price), `coingecko` (keyless public feed, secondary token price), `ecb` (ECB euro reference rates, fiat FX), `sandbox` (test-mode token prices), `fixed` (test-mode FX table, and `usd`→`usd`).",
+          "type": "string",
+          "x-extensible-enum": [
+            "oneclick",
+            "coingecko",
+            "ecb",
+            "sandbox",
+            "fixed"
+          ]
+        },
+        "valid_until": {
+          "anyOf": [
+            {
+              "description": "RFC 3339 UTC timestamp, e.g. `2026-11-05T10:00:00.000Z`.",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "After this instant rails no longer uses the rate (staleness bound, rails §8.2); null = no bound (`fixed`)."
+        },
+        "value": {
+          "$ref": "#/$defs/Ratio",
+          "description": "Quote major units per one major unit of `base`."
+        }
+      },
+      "required": [
+        "base",
+        "quote",
+        "kind",
+        "role",
+        "source",
+        "value",
+        "decimal",
+        "as_of",
+        "fetched_at",
+        "valid_until"
+      ],
+      "type": "object"
+    },
     "PriceSnapshot": {
       "additionalProperties": {},
       "description": "Prices used to compute the settlement amount (INV-6).",
@@ -796,6 +902,20 @@
           "format": "date-time",
           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
           "type": "string"
+        },
+        "currency": {
+          "anyOf": [
+            {
+              "description": "ISO 4217 currency code, lower-case (e.g. `usd`).",
+              "pattern": "^[a-z]{3}$",
+              "type": "string"
+            },
+            {
+              "const": "asset",
+              "type": "string"
+            }
+          ],
+          "description": "Pricing currency of the payment (spec 0.2.0; rails 0.2.0+ always sends it): an ISO code, or `asset`."
         },
         "fx": {
           "description": "FX rate pricing currency → USD (decimal string), null for USD.",
@@ -808,12 +928,32 @@
           "description": "Settled at par (USD stablecoin, depeg guard passed).",
           "type": "boolean"
         },
+        "par_currency": {
+          "anyOf": [
+            {
+              "description": "ISO 4217 currency code, lower-case (e.g. `usd`).",
+              "pattern": "^[a-z]{3}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Currency the settlement asset was taken at par with (`usd` for USD stablecoins), or null (spec 0.2.0)."
+        },
         "primary_usd": {
           "description": "Primary USD price of the settlement asset (decimal string).",
           "type": [
             "string",
             "null"
           ]
+        },
+        "rates": {
+          "description": "Every rate used, exact, with source, `as_of` and `valid_until` (spec 0.2.0; rails 0.2.0+ always sends it): the FX rate of a non-USD currency and the primary + secondary prices of a non-par asset.",
+          "items": {
+            "$ref": "#/$defs/PriceRate"
+          },
+          "type": "array"
         },
         "secondary_usd": {
           "description": "Secondary USD price (decimal string).",
@@ -829,6 +969,27 @@
         "fx",
         "par",
         "as_of"
+      ],
+      "type": "object"
+    },
+    "Ratio": {
+      "additionalProperties": {},
+      "description": "An exact rational number `num / den` (integer strings, never a float).",
+      "properties": {
+        "den": {
+          "description": "Denominator (positive integer string).",
+          "pattern": "^[1-9][0-9]{0,77}$",
+          "type": "string"
+        },
+        "num": {
+          "description": "Numerator (integer string).",
+          "pattern": "^(0|[1-9][0-9]{0,77})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "num",
+        "den"
       ],
       "type": "object"
     },

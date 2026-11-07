@@ -595,6 +595,7 @@ components:
             - link_inactive
             - customer_deleted
             - reconciliation_day_open
+            - fx_rate_unavailable
         doc_url:
           description: Documentation page for this error code.
           format: uri
@@ -728,6 +729,134 @@ components:
       required:
         - data
         - has_more
+      type: object
+    EvidenceSummary:
+      additionalProperties: {}
+      description: Per-day evidence totals of one account (reconciliation input).
+      properties:
+        account_id:
+          description: account id (`acct_` + 26 base32 chars).
+          examples:
+            - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        complete:
+          description: "The day is closed for rails: it has ended, every tracker cursor is past its end and no execution created on or before it is still non-terminal except holds (rails §8.10). Reconcile only complete days."
+          type: boolean
+        day:
+          description: UTC day `YYYY-MM-DD` (executions by `terminal_at`).
+          format: date
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
+          type: string
+        digest:
+          description: SHA-256 (hex) over the day's `(execution id, version)` pairs in id order; unchanged digest ⇒ unchanged evidence.
+          pattern: ^[0-9a-f]{64}$
+          type: string
+        generated_at:
+          description: When computed.
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+          type: string
+        held_open:
+          description: Of those, executions currently `held`.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        in_flight:
+          description: Executions of the account created on or before the day and still non-terminal.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        livemode:
+          description: Mode.
+          type: boolean
+        tier_b:
+          additionalProperties: {}
+          description: Tier-B cross-check against the Explorer (ADR-0012; empty when the Explorer feed is disabled).
+          properties:
+            count:
+              description: Tier-B (provider-attested) settlements on the day.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            explorer_confirmed:
+              description: Of those, confirmed by an Explorer row with the same status.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            unconfirmed:
+              description: Tier-B settlements without a matching Explorer row yet.
+              items:
+                description: execution id (`ex_` + 26 base32 chars).
+                examples:
+                  - ex_01jbz9k3m4n5p6q7r8s9t0v1w2
+                pattern: ^ex_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                type: string
+              type: array
+          required:
+            - count
+            - explorer_confirmed
+            - unconfirmed
+          type: object
+        totals:
+          description: Totals of executions that reached a terminal state on the day.
+          items:
+            additionalProperties: {}
+            description: Totals for one kind, state and asset.
+            properties:
+              asset_id:
+                description: Settlement asset (payments) or origin asset returned to the payer (refunds).
+                examples:
+                  - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+                maxLength: 256
+                pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+                type: string
+              count:
+                description: Executions.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+              kind:
+                description: What the execution moves value for.
+                type: string
+                x-extensible-enum:
+                  - payment
+                  - refund
+              refunded_amount:
+                description: Sum of `refunded_amount`.
+                pattern: ^(0|[1-9][0-9]{0,77})$
+                type: string
+              settled_amount:
+                description: Sum of `settled_amount`.
+                pattern: ^(0|[1-9][0-9]{0,77})$
+                type: string
+              state:
+                description: Terminal execution state.
+                enum:
+                  - succeeded
+                  - refunded
+                  - failed
+                type: string
+            required:
+              - kind
+              - state
+              - asset_id
+              - count
+              - settled_amount
+              - refunded_amount
+            type: object
+          type: array
+      required:
+        - account_id
+        - livemode
+        - day
+        - complete
+        - in_flight
+        - held_open
+        - totals
+        - tier_b
+        - digest
+        - generated_at
       type: object
     Execution:
       additionalProperties: {}
@@ -1293,6 +1422,72 @@ components:
         - rules
         - provider_split
       type: object
+    FxRate:
+      additionalProperties: {}
+      description: A pricing currency with its FX rate to USD, source and freshness.
+      properties:
+        available:
+          description: Sessions/intents priced in this currency can be created now (rate present and not stale).
+          type: boolean
+        currency:
+          description: Pricing currency.
+          pattern: ^[a-z]{3}$
+          type: string
+        exponent:
+          description: ISO 4217 minor-unit exponent (`usd` 2, `jpy` 0, `kwd` 3).
+          maximum: 4
+          minimum: 0
+          type: integer
+        rate:
+          anyOf:
+            - $ref: "#/components/schemas/PriceRate"
+            - type: "null"
+          description: Rate `<currency>/usd`, or null when never fetched.
+        reference_date:
+          anyOf:
+            - format: date
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
+              type: string
+            - type: "null"
+          description: ECB reference day `YYYY-MM-DD` of the rate (null for `usd` and test-mode `fixed` rates).
+        stale:
+          description: The last rate passed its `valid_until`; it is shown but never used (rails §8.2).
+          type: boolean
+      required:
+        - currency
+        - exponent
+        - available
+        - stale
+        - reference_date
+        - rate
+      type: object
+    FxRates:
+      additionalProperties: {}
+      description: Accepted pricing currencies and their FX rates to USD (rails §8.2).
+      properties:
+        as_of:
+          description: When this answer was assembled.
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+          type: string
+        base:
+          const: usd
+          description: Every rate is to USD.
+          type: string
+        currencies:
+          description: Pricing currencies rails accepts (`NP_PRICING_CURRENCIES`), `usd` first, each with its rate.
+          items:
+            $ref: "#/components/schemas/FxRate"
+          type: array
+        livemode:
+          description: "Mode whose sources answered (test mode: the fixed test table)."
+          type: boolean
+      required:
+        - base
+        - livemode
+        - currencies
+        - as_of
+      type: object
     IntentsRequirement:
       additionalProperties: {}
       description: "What a payer must sign: transfer(pay_to, amount) and transfer(fee_to, fee_amount), both with memo = binding."
@@ -1378,6 +1573,16 @@ components:
         is_usd_stable:
           description: USD stablecoin.
           type: boolean
+        par_ok:
+          description: The depeg guard passes, so the asset settles at par with `peg_currency` (rails §8.2; spec 0.2.0).
+          type: boolean
+        peg_currency:
+          anyOf:
+            - description: ISO 4217 currency code, lower-case (e.g. `usd`).
+              pattern: ^[a-z]{3}$
+              type: string
+            - type: "null"
+          description: Fiat currency the asset is a stablecoin of (`usd`, `eur`, …), or null (spec 0.2.0).
         price_ok:
           description: Primary and secondary prices agree and are fresh (rails §8.2).
           type: boolean
@@ -1386,9 +1591,19 @@ components:
           type:
             - string
             - "null"
+        prices:
+          description: Primary and secondary USD prices with source, `as_of` and `valid_until` (spec 0.2.0).
+          items:
+            $ref: "#/components/schemas/PriceRate"
+          type: array
         symbol:
           description: Symbol.
           type: string
+        token:
+          anyOf:
+            - $ref: "#/components/schemas/TokenContract"
+            - type: "null"
+          description: On-chain token contract (CR-15-06; spec 0.2.0).
       required:
         - asset_id
         - chain
@@ -1465,6 +1680,11 @@ components:
         symbol:
           description: Symbol.
           type: string
+        token:
+          anyOf:
+            - $ref: "#/components/schemas/TokenContract"
+            - type: "null"
+          description: Token contract to pay with (CR-15-06; spec 0.2.0).
       required:
         - method
         - origin_asset_id
@@ -1515,6 +1735,85 @@ components:
         - has_more
         - url
       type: object
+    PriceRate:
+      additionalProperties: {}
+      description: "A price or FX rate with its source and timestamps (INV-5: exact rational)."
+      properties:
+        as_of:
+          description: "When the source says the value applies (ECB: publication time of the reference day; feeds: their update time)."
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+          type: string
+        base:
+          anyOf:
+            - description: ISO 4217 currency code, lower-case (e.g. `usd`).
+              pattern: ^[a-z]{3}$
+              type: string
+            - description: NEAR Intents asset id, e.g. `nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1`.
+              examples:
+                - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+              maxLength: 256
+              pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+              type: string
+          description: "What is priced: a currency code or an asset id."
+        decimal:
+          description: The rate as a decimal string rounded half-even to ≤ 18 places; display only, never for arithmetic.
+          pattern: ^(0|[1-9][0-9]{0,59})(\.[0-9]{1,18})?$
+          type: string
+        fetched_at:
+          description: When rails read it.
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+          type: string
+        kind:
+          description: "`fx`: fiat exchange rate; `price`: token price."
+          type: string
+          x-extensible-enum:
+            - fx
+            - price
+        quote:
+          description: Currency the value is expressed in (`usd`).
+          pattern: ^[a-z]{3}$
+          type: string
+        role:
+          description: "`primary`/`secondary`: the two token prices the dual-source check compares (rails §8.2); `reference`: a fiat FX reference rate."
+          type: string
+          x-extensible-enum:
+            - primary
+            - secondary
+            - reference
+        source:
+          description: "Where a rate comes from: `oneclick` (1Click `/v0/tokens`, primary token price), `coingecko` (keyless public feed, secondary token price), `ecb` (ECB euro reference rates, fiat FX), `sandbox` (test-mode token prices), `fixed` (test-mode FX table, and `usd`→`usd`)."
+          type: string
+          x-extensible-enum:
+            - oneclick
+            - coingecko
+            - ecb
+            - sandbox
+            - fixed
+        valid_until:
+          anyOf:
+            - description: RFC 3339 UTC timestamp, e.g. `2026-11-05T10:00:00.000Z`.
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+              type: string
+            - type: "null"
+          description: After this instant rails no longer uses the rate (staleness bound, rails §8.2); null = no bound (`fixed`).
+        value:
+          $ref: "#/components/schemas/Ratio"
+          description: Quote major units per one major unit of `base`.
+      required:
+        - base
+        - quote
+        - kind
+        - role
+        - source
+        - value
+        - decimal
+        - as_of
+        - fetched_at
+        - valid_until
+      type: object
     PriceSnapshot:
       additionalProperties: {}
       description: Prices used to compute the settlement amount (INV-6).
@@ -1524,6 +1823,14 @@ components:
           format: date-time
           pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
           type: string
+        currency:
+          anyOf:
+            - description: ISO 4217 currency code, lower-case (e.g. `usd`).
+              pattern: ^[a-z]{3}$
+              type: string
+            - const: asset
+              type: string
+          description: "Pricing currency of the payment (spec 0.2.0; rails 0.2.0+ always sends it): an ISO code, or `asset`."
         fx:
           description: FX rate pricing currency → USD (decimal string), null for USD.
           type:
@@ -1532,11 +1839,23 @@ components:
         par:
           description: Settled at par (USD stablecoin, depeg guard passed).
           type: boolean
+        par_currency:
+          anyOf:
+            - description: ISO 4217 currency code, lower-case (e.g. `usd`).
+              pattern: ^[a-z]{3}$
+              type: string
+            - type: "null"
+          description: Currency the settlement asset was taken at par with (`usd` for USD stablecoins), or null (spec 0.2.0).
         primary_usd:
           description: Primary USD price of the settlement asset (decimal string).
           type:
             - string
             - "null"
+        rates:
+          description: "Every rate used, exact, with source, `as_of` and `valid_until` (spec 0.2.0; rails 0.2.0+ always sends it): the FX rate of a non-USD currency and the primary + secondary prices of a non-par asset."
+          items:
+            $ref: "#/components/schemas/PriceRate"
+          type: array
         secondary_usd:
           description: Secondary USD price (decimal string).
           type:
@@ -1548,6 +1867,134 @@ components:
         - fx
         - par
         - as_of
+      type: object
+    ProviderObservation:
+      additionalProperties: {}
+      description: One raw provider/tracker observation of an execution (evidence trail).
+      properties:
+        applied:
+          description: The observation changed the execution (monotonic, changed-status rules, rails §5).
+          type: boolean
+        archive:
+          anyOf:
+            - additionalProperties: {}
+              properties:
+                archived_at:
+                  description: When the payload moved.
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                  type: string
+                object_key:
+                  description: Object-storage key of the Parquet file.
+                  maxLength: 1024
+                  minLength: 1
+                  type: string
+                row:
+                  description: Row index inside the file.
+                  maximum: 9007199254740991
+                  minimum: 0
+                  type: integer
+              required:
+                - object_key
+                - row
+                - archived_at
+              type: object
+            - type: "null"
+          description: Where the payload lives after the 90-day archive (rails §8.11), or null.
+        execution_id:
+          description: execution id (`ex_` + 26 base32 chars).
+          examples:
+            - ex_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^ex_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        id:
+          description: provider_observation id (`obs_` + 26 base32 chars).
+          examples:
+            - obs_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^obs_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        observed_at:
+          description: When rails recorded it.
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+          type: string
+        payload:
+          anyOf:
+            - {}
+            - type: "null"
+          description: Raw provider payload (JSON); null once archived (fetch it with `archive`).
+        payload_sha256:
+          description: SHA-256 (hex) of the raw payload bytes as received; kept forever.
+          pattern: ^[0-9a-f]{64}$
+          type: string
+        provider_status:
+          description: Provider status in the payload (raw), if any.
+          type:
+            - string
+            - "null"
+        provider_updated_at:
+          anyOf:
+            - description: RFC 3339 UTC timestamp, e.g. `2026-11-05T10:00:00.000Z`.
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+              type: string
+            - type: "null"
+          description: Provider's update time, if any.
+        source:
+          description: Detector that recorded the observation (rails §4 `provider_observations.source`).
+          type: string
+          x-extensible-enum:
+            - quote
+            - submit
+            - hot_poll
+            - explorer
+            - indexer
+            - watcher
+            - verifier
+            - operator
+      required:
+        - id
+        - execution_id
+        - source
+        - provider_status
+        - provider_updated_at
+        - applied
+        - observed_at
+        - payload_sha256
+        - payload
+        - archive
+      type: object
+    ProviderObservationPage:
+      additionalProperties: {}
+      description: Observations of an execution.
+      properties:
+        data:
+          description: Observations, oldest first.
+          items:
+            $ref: "#/components/schemas/ProviderObservation"
+          type: array
+        has_more:
+          description: More pages.
+          type: boolean
+      required:
+        - data
+        - has_more
+      type: object
+    Ratio:
+      additionalProperties: {}
+      description: An exact rational number `num / den` (integer strings, never a float).
+      properties:
+        den:
+          description: Denominator (positive integer string).
+          pattern: ^[1-9][0-9]{0,77}$
+          type: string
+        num:
+          description: Numerator (integer string).
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+      required:
+        - num
+        - den
       type: object
     RefundTransfer:
       additionalProperties: {}
@@ -1588,6 +2035,108 @@ components:
         - amount
         - memo
         - deadline
+      type: object
+    SettlementEstimate:
+      additionalProperties: {}
+      description: Indicative valuation of a price in USD and in a settlement asset (not a quote; rails §8.2).
+      properties:
+        price_snapshot:
+          $ref: "#/components/schemas/PriceSnapshot"
+        pricing:
+          additionalProperties: {}
+          description: What was valued.
+          properties:
+            amount:
+              anyOf:
+                - description: Fiat amount in minor units (e.g. cents), integer.
+                  maximum: 9007199254740991
+                  minimum: 0
+                  type: integer
+                - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+                  pattern: ^(0|[1-9][0-9]{0,77})$
+                  type: string
+              description: "Fiat: integer minor units. Asset: base units as a decimal string."
+            asset_id:
+              anyOf:
+                - description: NEAR Intents asset id, e.g. `nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1`.
+                  examples:
+                    - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+                  maxLength: 256
+                  pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+                  type: string
+                - type: "null"
+              description: Pricing asset when `currency` is `asset`.
+            currency:
+              anyOf:
+                - description: ISO 4217 currency code, lower-case (e.g. `usd`).
+                  pattern: ^[a-z]{3}$
+                  type: string
+                - const: asset
+                  type: string
+              description: ISO 4217 code for fiat pricing, or `asset` when priced in an asset (then `asset_id` is set).
+          required:
+            - amount
+            - currency
+            - asset_id
+          type: object
+        settlement:
+          anyOf:
+            - additionalProperties: {}
+              properties:
+                amount_base:
+                  description: Settlement amount before fees and tag, rounded down (rails §8.2; the attempt computes the binding amount).
+                  pattern: ^(0|[1-9][0-9]{0,77})$
+                  type: string
+                asset_id:
+                  description: Settlement asset.
+                  examples:
+                    - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+                  maxLength: 256
+                  pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+                  type: string
+                par:
+                  description: Taken at par (stablecoin of the pricing currency, depeg guard passed).
+                  type: boolean
+              required:
+                - asset_id
+                - amount_base
+                - par
+              type: object
+            - type: "null"
+          description: Settlement amount in `settlement_asset`, when one was asked for.
+        usd_micros:
+          description: Value in USD micros, rounded down (integer string).
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+      required:
+        - pricing
+        - usd_micros
+        - settlement
+        - price_snapshot
+      type: object
+    TokenContract:
+      additionalProperties: {}
+      description: How to transfer an asset on its chain (wallet path).
+      properties:
+        address:
+          anyOf:
+            - maxLength: 256
+              minLength: 1
+              type: string
+            - type: "null"
+          description: Contract address (EVM `0x…`) or token account (NEAR); null for `native`.
+        standard:
+          description: "`erc20`: ERC-20 contract on an EVM chain; `native`: the chain's native coin (no contract); `nep141`: NEP-141 token on NEAR; `spl`: SPL mint on Solana; `other`: no wallet transfer recipe (manual path)."
+          type: string
+          x-extensible-enum:
+            - erc20
+            - native
+            - nep141
+            - spl
+            - other
+      required:
+        - standard
+        - address
       type: object
   securitySchemes:
     internalToken:
@@ -1730,6 +2279,7 @@ paths:
         stage: 1
   /internal/evidence:
     get:
+      description: "Default: executions that settled (`succeeded`) on the day, by `terminal_at`. Since spec 0.2.0 `states` and `kind` select other terminal states and refund legs (reconciliation, rails §8.10)."
       operationId: listEvidence
       parameters:
         - description: account id (`acct_` + 26 base32 chars).
@@ -1779,13 +2329,29 @@ paths:
             maximum: 1000
             minimum: 1
             type: integer
+        - description: Comma-separated terminal states (default `succeeded`; spec 0.2.0).
+          in: query
+          name: states
+          schema:
+            description: Comma-separated terminal states (default `succeeded`; spec 0.2.0).
+            pattern: ^(succeeded|refunded|failed)(,(succeeded|refunded|failed))*$
+            type: string
+        - description: Only payments or only refund legs (default both; spec 0.2.0).
+          in: query
+          name: kind
+          schema:
+            description: Only payments or only refund legs (default both; spec 0.2.0).
+            type: string
+            x-extensible-enum:
+              - payment
+              - refund
       responses:
         "200":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/EvidencePage"
-          description: Executions that settled on a UTC day, with evidence.
+          description: Executions that reached a terminal state on a UTC day, with evidence.
         default:
           content:
             application/json:
@@ -1794,15 +2360,74 @@ paths:
           description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
       security:
         - internalToken: []
-      summary: Executions that settled on a UTC day, with evidence.
+      summary: Executions that reached a terminal state on a UTC day, with evidence.
       tags:
         - rails
       x-nearpay:
         auth:
           - service:rails.read
+          - ops:rails.read
         idempotent: false
         service: rails
         stage: 1
+  /internal/evidence/summary:
+    get:
+      operationId: getEvidenceSummary
+      parameters:
+        - description: account id (`acct_` + 26 base32 chars).
+          in: query
+          name: account_id
+          required: true
+          schema:
+            description: account id (`acct_` + 26 base32 chars).
+            examples:
+              - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Mode.
+          in: query
+          name: livemode
+          required: true
+          schema:
+            description: Mode.
+            enum:
+              - "true"
+              - "false"
+            type: string
+        - description: UTC day `YYYY-MM-DD`.
+          in: query
+          name: day
+          required: true
+          schema:
+            description: UTC day `YYYY-MM-DD`.
+            format: date
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceSummary"
+          description: Per-day evidence totals of an account (payments reconciliation, sentinel, console).
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Per-day evidence totals of an account (payments reconciliation, sentinel, console).
+      tags:
+        - rails
+      x-nearpay:
+        auth:
+          - service:rails.read
+          - ops:rails.read
+        idempotent: false
+        service: rails
+        stage: 2
   /internal/executions:
     get:
       operationId: lookupExecutionByDeposit
@@ -1875,9 +2500,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-          description: "Error: `asset_unsupported`."
+          description: "Error: `asset_unsupported`, `currency_unsupported`."
           x-error-codes:
             - asset_unsupported
+            - currency_unsupported
         "402":
           content:
             application/json:
@@ -1909,11 +2535,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-          description: "Error: `pricing_unavailable`, `screening_unavailable`, `rail_unavailable`."
+          description: "Error: `pricing_unavailable`, `screening_unavailable`, `rail_unavailable`, `fx_rate_unavailable`."
           x-error-codes:
             - pricing_unavailable
             - screening_unavailable
             - rail_unavailable
+            - fx_rate_unavailable
         default:
           content:
             application/json:
@@ -2038,6 +2665,63 @@ paths:
         idempotent: true
         service: rails
         stage: 1
+  /internal/executions/{id}/observations:
+    get:
+      operationId: listExecutionObservations
+      parameters:
+        - description: execution id (`ex_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: execution id (`ex_` + 26 base32 chars).
+            examples:
+              - ex_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^ex_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: "Cursor: last observation of the previous page."
+          in: query
+          name: starting_after
+          schema:
+            description: "Cursor: last observation of the previous page."
+            examples:
+              - obs_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^obs_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Page size.
+          in: query
+          name: limit
+          schema:
+            default: 100
+            description: Page size.
+            maximum: 500
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderObservationPage"
+          description: Observations of an execution, oldest first (archived ones carry their archive reference).
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Observations of an execution, oldest first (archived ones carry their archive reference).
+      tags:
+        - rails
+      x-nearpay:
+        auth:
+          - service:rails.read
+          - ops:rails.read
+        idempotent: false
+        service: rails
+        stage: 2
   /internal/executions/{id}/signals:
     post:
       operationId: signalExecution
@@ -2094,6 +2778,52 @@ paths:
         idempotent: true
         service: rails
         stage: 1
+  /internal/fx-rates:
+    get:
+      description: "Payments uses it to answer `currency_unsupported` (currency absent) and `fx_rate_unavailable` (present but `available: false`) at session/intent creation, and to show the rate source; a stale rate is reported, never used."
+      operationId: listFxRates
+      parameters:
+        - description: "Mode whose token registry answers (test = sandbox registry). Omitted: live, falling back to test."
+          in: query
+          name: livemode
+          schema:
+            description: "Mode whose token registry answers (test = sandbox registry). Omitted: live, falling back to test."
+            enum:
+              - "true"
+              - "false"
+            type: string
+        - description: Comma-separated currencies to return (default all accepted).
+          in: query
+          name: currencies
+          schema:
+            description: Comma-separated currencies to return (default all accepted).
+            pattern: ^[a-z]{3}(,[a-z]{3}){0,49}$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FxRates"
+          description: Accepted pricing currencies with their current FX rate to USD, source, as_of and staleness.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Accepted pricing currencies with their current FX rate to USD, source, as_of and staleness.
+      tags:
+        - rails
+      x-nearpay:
+        auth:
+          - service:rails.read
+          - ops:rails.read
+        idempotent: false
+        service: rails
+        stage: 2
   /internal/options:
     get:
       operationId: listInternalOptions
@@ -2262,6 +2992,103 @@ paths:
         auth:
           - service:rails.executions.write
         idempotent: true
+        service: rails
+        stage: 2
+  /internal/settlement-estimate:
+    get:
+      description: Same rules as execution pricing (par policy, dual-source prices, FX staleness). Payments compares `usd_micros` with destination minimums and the unverified-destination cap for non-USD prices, and uses `settlement.amount_base` as the options `amount_out`.
+      operationId: estimateSettlement
+      parameters:
+        - description: Fiat minor units, or asset base units when `currency` is `asset`.
+          in: query
+          name: amount
+          required: true
+          schema:
+            description: Fiat minor units, or asset base units when `currency` is `asset`.
+            pattern: ^(0|[1-9][0-9]{0,77})$
+            type: string
+        - description: ISO 4217 code for fiat pricing, or `asset` when priced in an asset (then `asset_id` is set).
+          in: query
+          name: currency
+          required: true
+          schema:
+            anyOf:
+              - description: ISO 4217 currency code, lower-case (e.g. `usd`).
+                pattern: ^[a-z]{3}$
+                type: string
+              - const: asset
+                type: string
+            description: ISO 4217 code for fiat pricing, or `asset` when priced in an asset (then `asset_id` is set).
+        - description: Pricing asset; required when `currency` is `asset`.
+          in: query
+          name: asset_id
+          schema:
+            description: Pricing asset; required when `currency` is `asset`.
+            examples:
+              - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+            maxLength: 256
+            pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+            type: string
+        - description: Also compute the settlement amount in this asset.
+          in: query
+          name: settlement_asset
+          schema:
+            description: Also compute the settlement amount in this asset.
+            examples:
+              - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+            maxLength: 256
+            pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+            type: string
+        - description: "Mode whose token registry answers (test = sandbox registry). Omitted: live, falling back to test."
+          in: query
+          name: livemode
+          schema:
+            description: "Mode whose token registry answers (test = sandbox registry). Omitted: live, falling back to test."
+            enum:
+              - "true"
+              - "false"
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettlementEstimate"
+          description: Value a fiat or asset price in USD micros and, optionally, in a settlement asset.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `currency_unsupported`, `asset_unsupported`."
+          x-error-codes:
+            - currency_unsupported
+            - asset_unsupported
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `pricing_unavailable`, `fx_rate_unavailable`."
+          x-error-codes:
+            - pricing_unavailable
+            - fx_rate_unavailable
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Value a fiat or asset price in USD micros and, optionally, in a settlement asset.
+      tags:
+        - rails
+      x-nearpay:
+        auth:
+          - service:rails.read
+          - ops:rails.read
+        idempotent: false
         service: rails
         stage: 2
   /ops/executions:

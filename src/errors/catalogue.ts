@@ -32,11 +32,13 @@ export interface ErrorDefinition {
   readonly retryable: boolean;
   /** Generic codes apply to every route and are not listed per route. */
   readonly generic?: true;
-  /** Stage that introduced the code (development plan). */
-  readonly since: "0.1.0";
+  /** Spec version that introduced the code. */
+  readonly since: `${number}.${number}.${number}`;
 }
 
 const e = (d: Omit<ErrorDefinition, "since">): ErrorDefinition => ({ ...d, since: "0.1.0" });
+/** Codes introduced with the Stage 2 contract freeze. */
+const e2 = (d: Omit<ErrorDefinition, "since">): ErrorDefinition => ({ ...d, since: "0.2.0" });
 
 export const ERRORS = {
   // ------------------------------------------------------------------ generic (every route)
@@ -498,42 +500,42 @@ export const ERRORS = {
 
   // stage 2 — identity-console
   // ------------------------------------------------------------------ identity: team, approvals, console
-  last_owner: e({
+  last_owner: e2({
     status: 409,
     type: "state_conflict",
     retryable: false,
     message: "The account must keep at least one owner.",
     example: "The account must keep at least one owner.",
   }),
-  member_exists: e({
+  member_exists: e2({
     status: 409,
     type: "state_conflict",
     retryable: false,
     message: "{email} is already a member of this account or has a pending invitation.",
     example: "ana@example.com is already a member of this account or has a pending invitation.",
   }),
-  invitation_invalid: e({
+  invitation_invalid: e2({
     status: 400,
     type: "invalid_request_error",
     retryable: false,
     message: "The invitation is invalid: {reason}",
     example: "The invitation is invalid: it was sent to another email address.",
   }),
-  approver_conflict: e({
+  approver_conflict: e2({
     status: 403,
     type: "permission_error",
     retryable: false,
     message: "This approval needs a different approver: {reason}",
     example: "This approval needs a different approver: the requester cannot approve their own request.",
   }),
-  two_person_required: e({
+  two_person_required: e2({
     status: 409,
     type: "state_conflict",
     retryable: false,
     message: "This action needs a second approver; request it in the console.",
     example: "This action needs a second approver; request it in the console.",
   }),
-  authenticator_not_allowed: e({
+  authenticator_not_allowed: e2({
     status: 403,
     type: "permission_error",
     retryable: false,
@@ -541,7 +543,7 @@ export const ERRORS = {
     example: "Console passkeys must be hardware security keys on the allow-list.",
   }),
   // ------------------------------------------------------------------ compliance: KYB
-  kyb_profile_incomplete: e({
+  kyb_profile_incomplete: e2({
     status: 400,
     type: "invalid_request_error",
     retryable: false,
@@ -549,21 +551,21 @@ export const ERRORS = {
     example: "The business details are incomplete: registration_number, business_address.",
   }),
   // stage 2 — payments
-  intent_not_succeeded: e({
+  intent_not_succeeded: e2({
     status: 409,
     type: "state_conflict",
     retryable: false,
     message: "Payment intent {payment_intent} has no accepted settlement to refund (status {status}).",
     example: "Payment intent pi_01jbz9k3m4n5p6q7r8s9t0v1w2 has no accepted settlement to refund (status processing).",
   }),
-  attempt_not_settled: e({
+  attempt_not_settled: e2({
     status: 409,
     type: "state_conflict",
     retryable: false,
     message: "Payment attempt {payment_attempt} has no verified settlement to refund.",
     example: "Payment attempt pa_01jbz9k3m4n5p6q7r8s9t0v1w2 has no verified settlement to refund.",
   }),
-  amount_exceeds_refundable: e({
+  amount_exceeds_refundable: e2({
     status: 422,
     type: "invalid_request_error",
     retryable: false,
@@ -571,21 +573,21 @@ export const ERRORS = {
     example:
       "Amount 3000000 exceeds the refundable amount 2000042 (base units of nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1).",
   }),
-  leg_expired: e({
+  leg_expired: e2({
     status: 409,
     type: "state_conflict",
     retryable: false,
     message: "The refund's current leg expired at {deadline}; prepare a new leg and sign that one.",
     example: "The refund's current leg expired at 2026-11-07T10:30:00.000Z; prepare a new leg and sign that one.",
   }),
-  signed_intent_mismatch: e({
+  signed_intent_mismatch: e2({
     status: 422,
     type: "invalid_request_error",
     retryable: false,
     message: "The signed payload does not match the refund's next action: {detail}",
     example: "The signed payload does not match the refund's next action: nonce differs.",
   }),
-  review_requires_evidence: e({
+  review_requires_evidence: e2({
     status: 409,
     type: "state_conflict",
     retryable: false,
@@ -593,26 +595,34 @@ export const ERRORS = {
     example:
       "Payment intent pi_01jbz9k3m4n5p6q7r8s9t0v1w2 is held for verification; it can be accepted only once evidence arrives.",
   }),
-  link_inactive: e({
+  link_inactive: e2({
     status: 410,
     type: "invalid_request_error",
     retryable: false,
     message: "This payment link is no longer accepting payments.",
     example: "This payment link is no longer accepting payments.",
   }),
-  customer_deleted: e({
+  customer_deleted: e2({
     status: 409,
     type: "state_conflict",
     retryable: false,
     message: "Customer {customer} is deleted.",
     example: "Customer cus_01jbz9k3m4n5p6q7r8s9t0v1w2 is deleted.",
   }),
-  reconciliation_day_open: e({
+  reconciliation_day_open: e2({
     status: 422,
     type: "invalid_request_error",
     retryable: false,
     message: "Day {day} has not ended (UTC); reconcile only completed days.",
     example: "Day 2026-11-07 has not ended (UTC); reconcile only completed days.",
+  }),
+  // stage 2 — rails-fx
+  fx_rate_unavailable: e2({
+    status: 503,
+    type: "rail_unavailable",
+    retryable: true,
+    message: "A current exchange rate for {currency} is not available right now.",
+    example: "A current exchange rate for eur is not available right now.",
   }),
 } as const satisfies Record<string, ErrorDefinition>;
 

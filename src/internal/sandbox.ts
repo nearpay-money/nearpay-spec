@@ -17,6 +17,7 @@ import {
   TxHash,
   z,
 } from "@nearpay/spec";
+import { ExplorerTransactionList, ExplorerTransactionsQuery } from "./explorer.js";
 import {
   OneClickQuoteRequest,
   OneClickQuoteResponse,
@@ -332,3 +333,23 @@ export const sandboxSimulateIntentsTransfer = route({
   errors: [],
   stage: 2,
 });
+
+// stage 2 — rails-fx
+export const sandboxExplorerTransactions = route({
+  id: "sandboxExplorerTransactions",
+  method: "GET",
+  path: "/api/v0/transactions",
+  service: "sandbox",
+  visibility: "internal",
+  summary: "Explorer mirror: sandbox quotes as Explorer rows, newest first (rails Explorer feed in test mode).",
+  description:
+    "Same query and row schema as `GET explorer.near-intents.org/api/v0/transactions`; no rate limit. Rows are the sandbox's quotes with their current scenario status; `amountIn`/`amountOut` read `0` until the scenario settles, like the live Explorer.",
+  auth: SANDBOX_AUTH,
+  idempotent: false,
+  query: ExplorerTransactionsQuery,
+  response: ExplorerTransactionList,
+  status: 200,
+  errors: [],
+  stage: 2,
+});
+// end stage 2 — rails-fx

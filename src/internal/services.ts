@@ -7,6 +7,7 @@ import {
   Binding,
   ChainAddress,
   ChainId,
+  ClientSecretHeaders,
   CountryCode,
   closedEnum,
   IntentsRequirement,
@@ -22,6 +23,7 @@ import {
   PaymentIntent,
   PricingAmount,
   PricingCurrency,
+  PublicCheckoutSession,
   ROLES,
   route,
   SettlementValue,
@@ -104,6 +106,36 @@ export const getReceiptContext = route({
   errors: [],
   stage: 1,
 });
+
+// stage 2 — rails-fx (CR-15-15)
+export const PayerSessionContext = out({
+  account_id: id("acct"),
+  livemode: z.boolean().describe("Mode of the session."),
+  session: PublicCheckoutSession,
+}).meta({
+  id: "PayerSessionContext",
+  description: "A checkout session as the payer sees it, plus its account and mode (agentpay's checkout routes).",
+});
+
+export const getPayerCheckoutSession = route({
+  id: "getPayerCheckoutSession",
+  method: "GET",
+  path: "/internal/checkout_sessions/{id}/payer",
+  service: "payments",
+  visibility: "internal",
+  summary: "Verify a payer's client secret and read the session as the payer sees it (agentpay `agent_pay`).",
+  description:
+    "Replaces agentpay's call to the public `GET /v1/checkout/sessions/{id}/public` (CR-15-15): agentpay forwards the caller's `X-NearPay-Client-Secret` and authenticates with its service token. A wrong secret answers `client_secret_invalid`, exactly like the public route.",
+  auth: ["service:payments.read"],
+  idempotent: false,
+  params: inp({ id: id("cs") }),
+  headers: ClientSecretHeaders,
+  response: PayerSessionContext,
+  status: 200,
+  errors: ["client_secret_invalid"],
+  stage: 2,
+});
+// end stage 2 — rails-fx
 
 // =============================================================================================
 // agentpay

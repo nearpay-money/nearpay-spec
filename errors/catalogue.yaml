@@ -548,7 +548,7 @@ errors:
     message: The account must keep at least one owner.
     example: The account must keep at least one owner.
     doc_url: https://docs.nearpay.money/errors/last_owner
-    since: 0.1.0
+    since: 0.2.0
   - code: member_exists
     status: 409
     type: state_conflict
@@ -557,7 +557,7 @@ errors:
     message: "{email} is already a member of this account or has a pending invitation."
     example: ana@example.com is already a member of this account or has a pending invitation.
     doc_url: https://docs.nearpay.money/errors/member_exists
-    since: 0.1.0
+    since: 0.2.0
   - code: invitation_invalid
     status: 400
     type: invalid_request_error
@@ -566,7 +566,7 @@ errors:
     message: "The invitation is invalid: {reason}"
     example: "The invitation is invalid: it was sent to another email address."
     doc_url: https://docs.nearpay.money/errors/invitation_invalid
-    since: 0.1.0
+    since: 0.2.0
   - code: approver_conflict
     status: 403
     type: permission_error
@@ -575,7 +575,7 @@ errors:
     message: "This approval needs a different approver: {reason}"
     example: "This approval needs a different approver: the requester cannot approve their own request."
     doc_url: https://docs.nearpay.money/errors/approver_conflict
-    since: 0.1.0
+    since: 0.2.0
   - code: two_person_required
     status: 409
     type: state_conflict
@@ -584,7 +584,7 @@ errors:
     message: This action needs a second approver; request it in the console.
     example: This action needs a second approver; request it in the console.
     doc_url: https://docs.nearpay.money/errors/two_person_required
-    since: 0.1.0
+    since: 0.2.0
   - code: authenticator_not_allowed
     status: 403
     type: permission_error
@@ -593,7 +593,7 @@ errors:
     message: Console passkeys must be hardware security keys on the allow-list.
     example: Console passkeys must be hardware security keys on the allow-list.
     doc_url: https://docs.nearpay.money/errors/authenticator_not_allowed
-    since: 0.1.0
+    since: 0.2.0
   - code: kyb_profile_incomplete
     status: 400
     type: invalid_request_error
@@ -602,7 +602,7 @@ errors:
     message: "The business details are incomplete: {fields}"
     example: "The business details are incomplete: registration_number, business_address."
     doc_url: https://docs.nearpay.money/errors/kyb_profile_incomplete
-    since: 0.1.0
+    since: 0.2.0
   - code: intent_not_succeeded
     status: 409
     type: state_conflict
@@ -611,7 +611,7 @@ errors:
     message: Payment intent {payment_intent} has no accepted settlement to refund (status {status}).
     example: Payment intent pi_01jbz9k3m4n5p6q7r8s9t0v1w2 has no accepted settlement to refund (status processing).
     doc_url: https://docs.nearpay.money/errors/intent_not_succeeded
-    since: 0.1.0
+    since: 0.2.0
   - code: attempt_not_settled
     status: 409
     type: state_conflict
@@ -620,7 +620,7 @@ errors:
     message: Payment attempt {payment_attempt} has no verified settlement to refund.
     example: Payment attempt pa_01jbz9k3m4n5p6q7r8s9t0v1w2 has no verified settlement to refund.
     doc_url: https://docs.nearpay.money/errors/attempt_not_settled
-    since: 0.1.0
+    since: 0.2.0
   - code: amount_exceeds_refundable
     status: 422
     type: invalid_request_error
@@ -629,7 +629,7 @@ errors:
     message: Amount {amount} exceeds the refundable amount {refundable} (base units of {asset_id}).
     example: Amount 3000000 exceeds the refundable amount 2000042 (base units of nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1).
     doc_url: https://docs.nearpay.money/errors/amount_exceeds_refundable
-    since: 0.1.0
+    since: 0.2.0
   - code: leg_expired
     status: 409
     type: state_conflict
@@ -638,7 +638,7 @@ errors:
     message: The refund's current leg expired at {deadline}; prepare a new leg and sign that one.
     example: The refund's current leg expired at 2026-11-07T10:30:00.000Z; prepare a new leg and sign that one.
     doc_url: https://docs.nearpay.money/errors/leg_expired
-    since: 0.1.0
+    since: 0.2.0
   - code: signed_intent_mismatch
     status: 422
     type: invalid_request_error
@@ -647,7 +647,7 @@ errors:
     message: "The signed payload does not match the refund's next action: {detail}"
     example: "The signed payload does not match the refund's next action: nonce differs."
     doc_url: https://docs.nearpay.money/errors/signed_intent_mismatch
-    since: 0.1.0
+    since: 0.2.0
   - code: review_requires_evidence
     status: 409
     type: state_conflict
@@ -656,7 +656,7 @@ errors:
     message: Payment intent {payment_intent} is held for verification; it can be accepted only once evidence arrives.
     example: Payment intent pi_01jbz9k3m4n5p6q7r8s9t0v1w2 is held for verification; it can be accepted only once evidence arrives.
     doc_url: https://docs.nearpay.money/errors/review_requires_evidence
-    since: 0.1.0
+    since: 0.2.0
   - code: link_inactive
     status: 410
     type: invalid_request_error
@@ -665,7 +665,7 @@ errors:
     message: This payment link is no longer accepting payments.
     example: This payment link is no longer accepting payments.
     doc_url: https://docs.nearpay.money/errors/link_inactive
-    since: 0.1.0
+    since: 0.2.0
   - code: customer_deleted
     status: 409
     type: state_conflict
@@ -674,7 +674,7 @@ errors:
     message: Customer {customer} is deleted.
     example: Customer cus_01jbz9k3m4n5p6q7r8s9t0v1w2 is deleted.
     doc_url: https://docs.nearpay.money/errors/customer_deleted
-    since: 0.1.0
+    since: 0.2.0
   - code: reconciliation_day_open
     status: 422
     type: invalid_request_error
@@ -683,4 +683,13 @@ errors:
     message: Day {day} has not ended (UTC); reconcile only completed days.
     example: Day 2026-11-07 has not ended (UTC); reconcile only completed days.
     doc_url: https://docs.nearpay.money/errors/reconciliation_day_open
-    since: 0.1.0
+    since: 0.2.0
+  - code: fx_rate_unavailable
+    status: 503
+    type: rail_unavailable
+    retryable: true
+    generic: false
+    message: A current exchange rate for {currency} is not available right now.
+    example: A current exchange rate for eur is not available right now.
+    doc_url: https://docs.nearpay.money/errors/fx_rate_unavailable
+    since: 0.2.0

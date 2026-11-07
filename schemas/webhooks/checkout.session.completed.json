@@ -317,6 +317,18 @@
           "pattern": "^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$",
           "type": "string"
         },
+        "fingerprint": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Fingerprint of the destination as shown at checkout (CR-15-04, spec 0.2.0); optional so older servers stay valid."
+        },
         "settlement_destination": {
           "description": "settlement_destination id (`sd_` + 26 base32 chars).",
           "examples": [
