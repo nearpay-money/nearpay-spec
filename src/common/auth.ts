@@ -186,6 +186,7 @@ export const SERVICE_CLIENT_SCOPES: Record<ServiceName, readonly ServiceScope[]>
     "compliance.screen",
     "sandbox.use",
     "sentinel.read" /* spec 0.2.1 — kill-switch state at boot */,
+    "rails.executions.write" /* stage 3 — agent-commerce: cross-chain x402 quotes and deposit txs */,
   ],
   sentinel: ["rails.read", "sandbox.use"],
   billing: [

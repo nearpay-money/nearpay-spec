@@ -97,6 +97,8 @@ describe("anonymous allow-list (identity §11, system audit S-03)", () => {
     ["GET|POST", /^\/v1\/payment_links\/\{id\}\/public(\/.*)?$/],
     // stage 3 — billing (hosted invoice `/i/:id`; billing checks the invoice secret)
     ["GET|POST", /^\/v1\/invoices\/\{id\}\/public(\/.*)?$/],
+    // stage 3 — agent-commerce: CLI login (identity §11, device authorization)
+    ["POST", /^\/v1\/cli\/logins(\/poll)?$/],
   ];
   it("contains exactly the routes the LLD allows", () => {
     for (const r of PUBLIC_ANONYMOUS_ROUTES) {

@@ -200,6 +200,12 @@ components:
             - refund_to
             - refund_type
           type: object
+        owner:
+          description: "Default `payments`. `agentpay` for a cross-chain x402 quote: then `reference` is absent, `x402_binding` is required, the destination is an `intents_account` and the fee bearer is `payer` (spec 0.3.0)."
+          type: string
+          x-extensible-enum:
+            - payments
+            - agentpay
         pricing:
           anyOf:
             - additionalProperties: false
@@ -267,6 +273,10 @@ components:
           maximum: 10000
           minimum: 0
           type: integer
+        x402_binding:
+          description: "Owner `agentpay`: the `near-intents` binding (`idempotency_key` = `x402:<binding>`)."
+          pattern: ^np1:[1-9A-HJ-NP-Za-km-z]{43,44}$
+          type: string
       required:
         - idempotency_key
         - kind
@@ -691,6 +701,14 @@ components:
           maxLength: 256
           minLength: 1
           type: string
+        sender:
+          anyOf:
+            - description: Address in the chain's canonical text form.
+              maxLength: 256
+              minLength: 1
+              type: string
+            - type: "null"
+          description: "Account that sent the settlement transfer, when the detector saw it (NEAR Intents: the transferring Intents account); null if unknown. Spec 0.3.0."
         source:
           description: Detector that produced the evidence.
           type: string
@@ -1016,6 +1034,12 @@ components:
             - refund_to
             - refund_type
           type: object
+        owner:
+          description: Service that consumes this execution's events and owns its merchant record (spec 0.3.0; absent = `payments`). Consumers ignore executions they do not own.
+          type: string
+          x-extensible-enum:
+            - payments
+            - agentpay
         price_snapshot:
           anyOf:
             - $ref: "#/components/schemas/PriceSnapshot"
@@ -1156,6 +1180,13 @@ components:
           maximum: 9007199254740991
           minimum: 1
           type: integer
+        x402_binding:
+          anyOf:
+            - description: Binding memo `np1:` + base58(sha256(…)) tying a signed transfer to one requirement.
+              pattern: ^np1:[1-9A-HJ-NP-Za-km-z]{43,44}$
+              type: string
+            - type: "null"
+          description: "Owner `agentpay`: binding of the `near-intents` requirement the quote was minted for; null otherwise."
       required:
         - id
         - version
@@ -2404,6 +2435,15 @@ paths:
             x-extensible-enum:
               - payment
               - refund
+        - description: Only executions of this owner (default all). Payments' reconciliation sends `payments` (spec 0.3.0).
+          in: query
+          name: owner
+          schema:
+            description: Only executions of this owner (default all). Payments' reconciliation sends `payments` (spec 0.3.0).
+            type: string
+            x-extensible-enum:
+              - payments
+              - agentpay
       responses:
         "200":
           content:

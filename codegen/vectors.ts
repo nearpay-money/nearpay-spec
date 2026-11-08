@@ -9,6 +9,7 @@
  *   webhook-signatures.json     webhooks (signer) ↔ @nearpay/node (verifier)
  *   intents-payloads.json       checkout, agent-signer (signers) ↔ agentpay, sandbox (verifiers)
  *   billing-tax.json            billing (invoices, PDF) ↔ dashboard, checkout (display): tax + periods
+ *   x402-near-intents.json      agentpay (binding, operation token) ↔ @nearpay/x402, agent-signer (wire shapes)
  *
  * Keys here are TEST-ONLY seeds derived from fixed strings; never use them for anything else.
  * Usage: tsx codegen/vectors.ts [--check]
@@ -30,11 +31,19 @@ import {
   type IntentMessage,
   MultiPayload,
   type MultiPayload as MultiPayloadT,
+  NearIntentsPaymentPayload,
+  NearIntentsSettleResponse,
+  NearIntentsVerifyResponse,
+  parseOperationToken,
   periodBoundary,
+  quotedRequirements,
   routeQuoteDepositKey,
   SignedAttestation,
   signedPayload,
   taxPercentageToPpm,
+  X402NearIntentsBindingInput,
+  X402OperationTokenInput,
+  X402PaymentRequiredAny,
 } from "../src/public-entry.js";
 import { type Output, toJson, writeOutputs } from "./lib.js";
 
@@ -511,6 +520,130 @@ function billingTaxVectors() {
 }
 
 // ---------------------------------------------------------------------------------------------
+// stage 3 — agent-commerce: x402 `near-intents` (lld/agentpay.md §3.1)
+// ---------------------------------------------------------------------------------------------
+
+function nearIntentsVectors() {
+  const resource = { url: "https://merchant.example/premium", description: "Premium data" };
+  const ORIGIN_USDC_BASE = "nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near";
+  const bindingInput = X402NearIntentsBindingInput.parse({
+    method: "near-intents",
+    account_id: "acct_01jbz9k3m4n5p6q7r8s9t0v1w2",
+    resource_url: resource.url,
+    origin_network: "eip155:8453",
+    origin_asset_id: ORIGIN_USDC_BASE,
+    pay_to: "merchant.near",
+    asset_id: USDC_NEAR,
+    amount: "1000000",
+    max_timeout_s: 1800,
+    nonce16: hex(sha256(enc.encode("near-intents nonce vector")).slice(0, 16)),
+    expires_at: 1794132300,
+  });
+  const bindingJcs = jcs(bindingInput);
+  const binding = `np1:${bs58.encode(sha256(enc.encode(bindingJcs)))}`;
+  const destination = { network: "near:mainnet", asset: USDC_NEAR, amount: "1000000", recipient: "merchant.near" };
+  const unquoted = {
+    scheme: "exact",
+    network: "eip155:8453",
+    amount: "",
+    asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    payTo: "",
+    maxTimeoutSeconds: 1800,
+    extra: {
+      assetTransferMethod: "near-intents",
+      paymentFlow: "upfront",
+      destination,
+      indicativeAmount: "1012000",
+      binding,
+      deadline: "2026-11-08T10:05:00.000Z",
+      originAssetId: ORIGIN_USDC_BASE,
+      slippageTolerance: { min: 10, max: 300, default: 50 },
+    },
+  } as const;
+  const paymentRequired = X402PaymentRequiredAny.parse({ x402Version: 2, resource, accepts: [unquoted] });
+  const quotePayload = NearIntentsPaymentPayload.parse({
+    x402Version: 2,
+    resource: { url: resource.url },
+    accepted: unquoted,
+    payload: { type: "quote", refundTo: "0x2527D02599Ba641c19Fea793Cd0f9A6e8457c317", slippageTolerance: 50 },
+  });
+
+  // operation token: <kid>.<expiry>.<b64url(HMAC-SHA256(key, JCS(X402OperationTokenInput)))>
+  const key = seed("x402 operation token key");
+  const kid = "k1";
+  const refundDeadline = "2026-11-08T10:32:00.000Z";
+  const expiry = Date.parse(refundDeadline) / 1000 + 86_400;
+  const depositAddress = "0x76b4c56085ED136a8744D52bE956396624a730E8";
+  const tokenInput = X402OperationTokenInput.parse({
+    v: 1,
+    binding,
+    network: "eip155:8453",
+    deposit_address: depositAddress,
+    deposit_memo: null,
+    resource_url: resource.url,
+    destination,
+    expiry,
+  });
+  const tokenJcs = jcs(tokenInput);
+  const mac = b64url(hmac(sha256, key, enc.encode(tokenJcs)));
+  const operationToken = `${kid}.${expiry}.${mac}`;
+  if (!parseOperationToken(operationToken)) throw new Error("operation token vector does not parse");
+  const quote = NearIntentsVerifyResponse.parse({
+    isValid: true,
+    extra: { depositAddress, amountIn: "1012000", minAmountIn: "1007000", refundDeadline, operationToken },
+  });
+  if (!quote.extra) throw new Error("quote vector without extra");
+  const quoted = quotedRequirements(paymentRequired.accepts[0] as never, quote.extra);
+  const depositTx = "0x9bcff372aee89b648c922b850573b22387c31d693079f5e37cd255814e2d615a";
+  const depositPayload = NearIntentsPaymentPayload.parse({
+    x402Version: 2,
+    resource: { url: resource.url },
+    accepted: unquoted,
+    payload: { type: "deposit", operationToken, depositAddress, txHash: depositTx },
+  });
+  const settled = NearIntentsSettleResponse.parse({
+    success: true,
+    transaction: "9gnJ1EoQy3yqCDqGKiCGJm6YrwTqwYbL1n9vFhJ3nWVd",
+    network: "near:mainnet",
+    payer: "0x2527D02599Ba641c19Fea793Cd0f9A6e8457c317",
+    amount: "1000000",
+    extra: { originNetwork: "eip155:8453", originTxHash: depositTx, agentPayment: "ap_01jbz9k3m4n5p6q7r8s9t0v1w2" },
+  });
+  const pending = NearIntentsSettleResponse.parse({
+    success: false,
+    errorReason: "settlement_pending",
+    transaction: depositTx,
+    network: "eip155:8453",
+    payer: "0x2527D02599Ba641c19Fea793Cd0f9A6e8457c317",
+    extra: { status: "PROCESSING" },
+  });
+  const failed = NearIntentsSettleResponse.parse({
+    success: false,
+    errorReason: "exact_near_intents_payment_failed",
+    transaction: "",
+    network: "eip155:8453",
+    payer: "0x2527D02599Ba641c19Fea793Cd0f9A6e8457c317",
+    extra: { status: "REFUNDED", refundTo: "0x2527D02599Ba641c19Fea793Cd0f9A6e8457c317" },
+  });
+  return {
+    description:
+      "x402 exact + near-intents (lld/agentpay.md §3.1). binding = 'np1:' + base58(sha256(UTF-8 JCS(X402NearIntentsBindingInput))). operationToken = kid '.' expiry '.' base64url-unpadded(HMAC-SHA256(key, UTF-8 JCS(X402OperationTokenInput))), expiry = refundDeadline + 86400 s; the facilitator recomputes the MAC from accepted.network, payload.depositAddress/depositMemo, resource.url and its own entry. quoted = quotedRequirements(unquoted, quote.extra). The key is TEST-ONLY.",
+    binding: { input: bindingInput, jcs: bindingJcs, binding },
+    operation_token: { key_hex: hex(key), kid, input: tokenInput, jcs: tokenJcs, mac, token: operationToken },
+    headers: {
+      payment_required_unquoted: paymentRequired,
+      payment_signature_quote: quotePayload,
+      verify_response_quote: quote,
+      payment_required_quoted: { x402Version: 2, resource, accepts: [quoted] },
+      payment_signature_deposit: depositPayload,
+      payment_response_settled: settled,
+      payment_response_pending: pending,
+      payment_response_failed: failed,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------------------------
 
 export function vectorOutputs(): Output[] {
   return [
@@ -522,6 +655,8 @@ export function vectorOutputs(): Output[] {
     { path: "test-vectors/intents-payloads.json", content: toJson(intentsVectors()) },
     // stage 3 — billing
     { path: "test-vectors/billing-tax.json", content: toJson(billingTaxVectors()) },
+    // stage 3 — agent-commerce
+    { path: "test-vectors/x402-near-intents.json", content: toJson(nearIntentsVectors()) },
   ];
 }
 

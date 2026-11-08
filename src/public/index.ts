@@ -2,6 +2,7 @@
 import type { AnyRoute } from "../common/route.js";
 import * as agentpay from "./agentpay.js";
 import * as billingCatalog from "./billing-catalog.js"; // stage 3 — billing
+import * as cli from "./cli.js"; // stage 3 — agent-commerce
 import * as compliance from "./compliance.js";
 import * as customers from "./customers.js"; // stage 2 — payments
 import * as identity from "./identity.js";
@@ -17,6 +18,7 @@ import * as webhooks from "./webhooks.js";
 
 export * from "./agentpay.js";
 export * from "./billing-catalog.js"; // stage 3 — billing
+export * from "./cli.js"; // stage 3 — agent-commerce
 export * from "./compliance.js";
 export * from "./customers.js"; // stage 2 — payments
 export * from "./identity.js";
@@ -55,6 +57,8 @@ export const PUBLIC_ROUTES: readonly AnyRoute[] = Object.freeze([
   ...routesOf(billingCatalog),
   ...routesOf(invoices),
   ...routesOf(subscriptions),
+  // stage 3 — agent-commerce
+  ...routesOf(cli),
 ]);
 
 /**

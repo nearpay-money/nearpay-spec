@@ -4,12 +4,45 @@
  */
 import { id } from "../common/ids.js";
 import { createdFilterShape, listOf, listQueryShape } from "../common/pagination.js";
-import { AssetId, BaseUnits, Binding, Livemode, NearAccountId, TxHash, UnixTime } from "../common/primitives.js";
+import {
+  AssetId,
+  BaseUnits,
+  Binding,
+  ChainAddress,
+  ChainId,
+  Livemode,
+  NearAccountId,
+  TxHash,
+  UnixTime,
+} from "../common/primitives.js";
 import { route } from "../common/route.js";
 import { inp, openEnum, out, z } from "../common/schema.js";
 import { IntentsRequirement, MultiPayload } from "../intents/payloads.js";
+import {
+  NearIntentsSettleResponse,
+  NearIntentsVerifyRequest,
+  NearIntentsVerifyResponse,
+  X402PaymentRequiredAny,
+} from "../x402/near-intents.js";
 import { PaymentRequired, SettleResponse, SupportedResponse, VerifyRequest, VerifyResponse } from "../x402/scheme.js";
 import { AttestationTicket, ClientSecretHeaders, PayerAttempt } from "./payer.js";
+
+// stage 3 — agent-commerce
+export const AgentPaymentOrigin = out({
+  network: ChainId.describe("Origin network (CAIP-2) the payer deposited on."),
+  asset_id: AssetId.describe("Origin asset (NEAR Intents id)."),
+  amount_in: BaseUnits.nullable().describe("What the payer deposited, base units of `asset_id`; null if not reported."),
+  refund_to: ChainAddress.describe("The payer's refund address on the origin network (from the quote payload)."),
+  deposit_address: ChainAddress.describe("1Click deposit address the payer paid."),
+  deposit_memo: z.string().nullable().describe("Deposit memo, if the origin network needs one."),
+  tx_hashes: z.array(TxHash).describe("Deposit transactions on the origin network."),
+  fee: out({
+    amount: BaseUnits.describe("Fee, base units of `asset_id`."),
+    asset_id: AssetId.describe("Asset the fee was taken in."),
+  })
+    .nullable()
+    .describe("NearPay's fee as observed for the route (provider app fee); null when not reported."),
+}).meta({ id: "AgentPaymentOrigin", description: "The cross-chain deposit behind a `near-intents` agent payment." });
 
 export const AgentPayment = out({
   id: id("ap"),
@@ -45,6 +78,16 @@ export const AgentPayment = out({
     .optional()
     .describe(
       "Increases with every change; discard webhook objects with a lower sequence. Servers MUST send it (optional in the 0.1.x schema only so readers built on 0.1.4 stay compatible).",
+    ),
+  // stage 3 — agent-commerce: cross-chain x402 (`near-intents`, lld/agentpay.md §3.1)
+  transfer_method: openEnum(
+    ["intents-transfer", "near-intents"],
+    "How the payment reached the merchant: a payer-signed Verifier payload (`intents-transfer`) or a cross-chain 1Click deposit (`near-intents`, kind `x402` only). Absent from servers older than spec 0.3.0 (= `intents-transfer`).",
+  ).optional(),
+  origin: AgentPaymentOrigin.nullable()
+    .optional()
+    .describe(
+      "`near-intents` only (null otherwise): the cross-chain deposit. For `near-intents`, `payer` is the NEAR Intents account that delivered the funds to `pay_to` (from the evidence), `amount` the delivered amount and `fee_amount` `0` (NearPay's fee is taken from the deposit: `origin.fee`). Spec 0.3.0.",
     ),
 }).meta({ id: "AgentPayment", description: "A payer-signed NEAR Intents payment relayed by NearPay." });
 export type AgentPayment = z.infer<typeof AgentPayment>;
@@ -229,4 +272,106 @@ export const agentPay = route({
   status: 202,
   errors: ["client_secret_invalid", "session_not_open", "intent_invalid", "insufficient_balance", "rail_unavailable"],
   stage: 1,
+});
+
+// =============================================================================================
+// stage 3 — agent-commerce: cross-chain x402, `exact` + `near-intents` (lld/agentpay.md §3.1, §5)
+// =============================================================================================
+
+const X402_AUTH = ["secret_key", "restricted_key:agentpay.facilitate"] as const;
+
+export const x402NearIntentsRequirements = route({
+  id: "x402NearIntentsRequirements",
+  method: "POST",
+  path: "/x402/near-intents/requirements",
+  service: "agentpay",
+  visibility: "public",
+  summary: "Issue single-use requirements for one 402 response, with cross-chain (`near-intents`) entries.",
+  description:
+    "Returns a `PAYMENT-REQUIRED` body whose `accepts` holds the `intents-transfer` entry (unless `include_intents_transfer: false`) followed by one **unquoted** `near-intents` entry per origin. Each entry has its own single-use binding. Never cache or share the result between clients. The merchant is paid in its NEAR Intents account (`pay_to`, or the default Intents destination); NearPay's fee is added to the payer's deposit by the quote.",
+  auth: X402_AUTH,
+  idempotent: false,
+  body: inp({
+    resource: inp({
+      url: z.url().describe("Resource URL."),
+      description: z.string().max(500).optional().describe("What is being paid for."),
+      mimeType: z.string().max(100).optional().describe("MIME type."),
+    }).describe("The resource being paid for."),
+    amount: BaseUnits.describe("Exact amount the merchant receives, base units of the asset."),
+    asset_id: AssetId.optional().describe("Asset; default: the asset of the default Intents destination."),
+    pay_to: NearAccountId.optional().describe("Merchant Intents account; must be an active Intents destination."),
+    origins: z
+      .array(
+        inp({
+          asset_id: AssetId.describe("Origin asset the payer may deposit (NEAR Intents id, from `GET /v1/assets`)."),
+          max_timeout_s: z
+            .int()
+            .min(60)
+            .max(86_400)
+            .optional()
+            .describe("Deposit window; default and minimum come from the origin chain's profile."),
+        }).describe("An origin the payer may pay from."),
+      )
+      .min(1)
+      .max(20)
+      .describe("Origins to offer, one unquoted entry each (duplicates refused)."),
+    include_intents_transfer: z
+      .boolean()
+      .default(true)
+      .describe("Also return the `intents-transfer` entry first (`max_timeout_s` applies to it)."),
+    max_timeout_s: z.int().min(30).max(300).default(120).describe("`intents-transfer` settlement window, seconds."),
+    quote_window_s: z
+      .int()
+      .min(30)
+      .max(900)
+      .default(300)
+      .describe("How long the unquoted entries can be quoted (`extra.deadline`), seconds."),
+  }),
+  response: X402PaymentRequiredAny,
+  status: 200,
+  errors: [
+    "destination_not_intents_account",
+    "asset_unsupported",
+    "amount_below_minimum",
+    "account_not_live",
+    "deadline_too_short",
+    "rail_unavailable",
+  ],
+  stage: 3,
+});
+
+export const x402NearIntentsVerify = route({
+  id: "x402NearIntentsVerify",
+  method: "POST",
+  path: "/x402/near-intents/verify",
+  service: "agentpay",
+  visibility: "public",
+  summary: "`quote` payload: mint a 1Click deposit quote. `deposit` payload: check the token and terms.",
+  description:
+    "A `quote` payload consumes the entry's binding and creates a rails execution (owner agentpay); the quote is in `extra` — answer the client with a second 402 holding `quotedRequirements(entry, extra)` and do not serve the resource. A `deposit` payload is checked without waiting or claiming (token, expiry, terms). `paymentRequirements` must be the server's own unquoted entry.",
+  auth: X402_AUTH,
+  idempotent: false,
+  body: NearIntentsVerifyRequest,
+  response: NearIntentsVerifyResponse,
+  status: 200,
+  errors: ["rail_unavailable", "screening_unavailable"],
+  stage: 3,
+});
+
+export const x402NearIntentsSettle = route({
+  id: "x402NearIntentsSettle",
+  method: "POST",
+  path: "/x402/near-intents/settle",
+  service: "agentpay",
+  visibility: "public",
+  summary: "Redeem a `deposit` payload once the merchant is paid (idempotent per operation).",
+  description:
+    "Waits up to 8 s for rails evidence; `errorReason: settlement_pending` is not terminal (retry with the same token). An operation has one final result, repeated with `replayed: true` after the first response that carried it. Serve the resource only on `success: true` and at most once per operation.",
+  auth: X402_AUTH,
+  idempotent: false,
+  body: NearIntentsVerifyRequest,
+  response: NearIntentsSettleResponse,
+  status: 200,
+  errors: ["rail_unavailable"],
+  stage: 3,
 });

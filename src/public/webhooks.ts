@@ -346,3 +346,78 @@ export const resendEvent = route({
   errors: ["state_conflict"],
   stage: 2,
 });
+
+// =============================================================================================
+// stage 3 — agent-commerce: live event stream (lld/webhooks.md §5.1; CLI `listen`, dashboard tail)
+// =============================================================================================
+
+export const EVENT_STREAM_HEARTBEAT_S = 15;
+export const EVENT_STREAM_RETRY_MS = 3000;
+/** The server closes a stream after this long; clients reconnect with `Last-Event-ID`. */
+export const EVENT_STREAM_MAX_SECONDS = 3600;
+/** Concurrent streams per account and mode. */
+export const EVENT_STREAM_MAX_CONCURRENT = 5;
+
+export const EventStreamReady = out({
+  object: z.literal("event_stream").describe("Always `event_stream`."),
+  livemode: Livemode,
+  account: id("acct"),
+  types: z.array(z.string()).describe('Types this stream carries (`["*"]` = all).'),
+  resumed_after: id("evt")
+    .nullable()
+    .describe("Event the stream resumed after (`Last-Event-ID` / `starting_after`); null for a live-only start."),
+  expires_at: UnixTime.describe("When the server will close this stream (reconnect with `Last-Event-ID`)."),
+}).meta({ id: "EventStreamReady", description: "First frame of an event stream (`event: ready`)." });
+
+export const EventStreamReset = out({
+  object: z.literal("event_stream_reset").describe("Always `event_stream_reset`."),
+  reason: openEnum(
+    ["cursor_unknown", "cursor_expired"],
+    "`cursor_unknown`: the resume cursor is not an event of this account and mode. `cursor_expired`: it is older than the 30-day retention.",
+  ),
+  cursor: z.string().describe("The cursor as received."),
+}).meta({
+  id: "EventStreamReset",
+  description:
+    "The stream could not resume from the given cursor and continues live only; catch up with `GET /v1/events` if needed (`event: reset`).",
+});
+
+export const streamEvents = route({
+  id: "streamEvents",
+  method: "GET",
+  path: "/v1/events/stream",
+  service: "webhooks",
+  visibility: "public",
+  summary: "New events as server-sent events (CLI `listen`, dashboard live tail).",
+  description: [
+    "Frames: `event: ready` once (`EventStreamReady`), then `event: event` per public event (`Event`, rendered in the latest API version, exactly the object `GET /v1/events/{id}` returns) with `id: <evt_…>`; `event: reset` (`EventStreamReset`) when a resume cursor cannot be honoured. A comment heartbeat every 15 s; `retry: 3000`.",
+    "Resume: `Last-Event-ID` (sent by `EventSource` on reconnect) or `starting_after` (the header wins) replays every later event of the last 30 days in id order, then continues live; without a cursor the stream is live only. Delivery is at-least-once in id order: dedupe by `id`.",
+    "Mode comes from the credential (INV-8): API keys stream **test mode only** (a live key is `403 livemode_forbidden`); dashboard sessions stream the mode of `NearPay-Mode`. At most 5 concurrent streams per account and mode (`429 rate_limited`). The server closes a stream after 1 h, and closes a client that does not read (more than 1 MiB unsent for 30 s); reconnect with `Last-Event-ID`.",
+    "Streamed events are not webhook deliveries: they are neither signed nor retried, and do not affect endpoints.",
+  ].join("\n\n"),
+  auth: ["secret_key", "restricted_key:events.read", "session"],
+  idempotent: false,
+  query: inp({
+    types: z
+      .string()
+      .min(1)
+      .max(4096)
+      .optional()
+      .describe(
+        "Comma-separated event types, or `*` (default). A type that is not a webhook type is `400 event_type_unknown` (`param types[i]`).",
+      ),
+    starting_after: id("evt").optional().describe("Resume after this event (ignored when `Last-Event-ID` is sent)."),
+  }),
+  headers: inp({
+    "last-event-id": id("evt").optional().describe("Resume after this event (set by `EventSource` on reconnect)."),
+  }),
+  response: null,
+  status: 200,
+  stream: {
+    events: { ready: EventStreamReady, event: Event, reset: EventStreamReset },
+    heartbeatSeconds: EVENT_STREAM_HEARTBEAT_S,
+    retryMs: EVENT_STREAM_RETRY_MS,
+  },
+  errors: ["event_type_unknown", "livemode_forbidden"],
+  stage: 3,
+});

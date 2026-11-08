@@ -364,7 +364,7 @@ export const advancePaymentAttempt = route({
   service: "payments",
   visibility: "public",
   summary: "Test mode: move a sandbox attempt to the next step.",
-  auth: ["secret_key"],
+  auth: ["secret_key", "restricted_key:checkout_sessions.write" /* stage 3 — agent-commerce: CLI key */],
   idempotent: true,
   testModeOnly: true,
   params: inp({ attempt: id("pa") }),
@@ -375,4 +375,57 @@ export const advancePaymentAttempt = route({
   status: 202,
   errors: ["livemode_forbidden", "state_conflict"],
   stage: 1,
+});
+
+// =============================================================================================
+// stage 3 — agent-commerce: test helper behind `nearpay trigger` (lld/payments.md §16.1, sdks-and-tools §3)
+// =============================================================================================
+
+export const TestHelperPayment = out({
+  object: z.literal("test_helper_payment").describe("Always `test_helper_payment`."),
+  checkout_session: id("cs"),
+  payment_intent: id("pi"),
+  payment_attempt: id("pa"),
+  outcome: openEnum(
+    ["succeeded", "payment_failed", "refunded", "none"],
+    "Outcome the sandbox was told to reach (events follow asynchronously).",
+  ),
+}).meta({ id: "TestHelperPayment", description: "A sandbox payment started by the test helper." });
+
+export const payCheckoutSessionTestHelper = route({
+  id: "payCheckoutSessionTestHelper",
+  method: "POST",
+  path: "/v1/test_helpers/checkout_sessions/{id}/pay",
+  service: "payments",
+  visibility: "public",
+  summary: "Test mode: pay an open checkout session through the sandbox, as a payer would.",
+  description:
+    "Creates a `route_quote` attempt (no Turnstile; refund address = the sandbox test address of the origin chain), simulates the deposit and advances the sandbox to `outcome`, so the normal events follow (`payment_intent.*`, `checkout.session.completed`, …). `none` only creates the attempt (continue with `advancePaymentAttempt`). Used by `nearpay trigger`.",
+  auth: ["secret_key", "restricted_key:checkout_sessions.write", "session"],
+  roles: ["owner", "admin", "developer"],
+  idempotent: true,
+  testModeOnly: true,
+  params: SessionParams,
+  body: inp({
+    origin_asset_id: AssetId.optional().describe(
+      "Asset to pay with; default: the first available sandbox `route_quote` option of the session.",
+    ),
+    outcome: closedEnum(["succeeded", "payment_failed", "refunded", "none"], "Outcome to drive the sandbox to.")
+      .default("succeeded")
+      .describe("Outcome to drive the sandbox to (default `succeeded`)."),
+    amount_in: BaseUnits.optional().describe(
+      "Deposit amount; default the quoted `amount_in` (less → underpaid, more → overpaid).",
+    ),
+  }),
+  response: TestHelperPayment,
+  status: 202,
+  errors: [
+    "livemode_forbidden",
+    "session_not_open",
+    "attempt_in_flight",
+    "too_many_attempts",
+    "asset_unsupported",
+    "rail_unavailable",
+  ],
+  stage: 3,
 });
