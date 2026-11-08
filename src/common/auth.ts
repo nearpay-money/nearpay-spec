@@ -196,6 +196,8 @@ export const SERVICE_CLIENT_SCOPES: Record<ServiceName, readonly ServiceScope[]>
     // stage 3 — billing: merchant name/destinations (hosted invoice, PDF, notification context) and asset display
     "identity.context.read",
     "rails.read",
+    // stage 4 — autodebit: test-mode keeper RPC and payer simulations on the sandbox vault stand-in
+    "sandbox.use",
   ],
   notify: ["identity.recipients.read", "payments.receipts.read", "billing.read"],
   compliance: ["identity.operators.read" /* spec 0.2.1 — active-operator check on case assignment */],

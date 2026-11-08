@@ -24,6 +24,7 @@ export * from "./pricing.js";
 export * from "./rails.js";
 export * from "./sandbox.js";
 export * from "./services.js";
+export * from "./vault.js"; // stage 4 — autodebit
 
 function routesOf(mod: Record<string, unknown>): AnyRoute[] {
   return Object.values(mod).filter(

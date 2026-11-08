@@ -370,10 +370,11 @@
           "description": "Set once canceled or scheduled to cancel."
         },
         "collection_method": {
-          "description": "How the invoice is collected: `send_invoice` = the customer pays the hosted invoice (v1).",
+          "description": "How the invoice is collected: `send_invoice` = the customer pays the hosted invoice; `auto_debit` (Stage 4) = billing's keeper collects it from the subscription's vault mandate, falling back to `send_invoice` (emailed) when the mandate cannot pay it (lld/billing.md §7.1, §14).",
           "type": "string",
           "x-extensible-enum": [
-            "send_invoice"
+            "send_invoice",
+            "auto_debit"
           ]
         },
         "created": {
@@ -492,6 +493,22 @@
         "livemode": {
           "description": "`true` for live mode, `false` for test mode.",
           "type": "boolean"
+        },
+        "mandate": {
+          "anyOf": [
+            {
+              "description": "mandate id (`md_` + 26 base32 chars).",
+              "examples": [
+                "md_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^md_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The linked vault mandate renewals are collected from (`collection_method: auto_debit`); null/absent when none (Stage 4)."
         },
         "metadata": {
           "additionalProperties": {

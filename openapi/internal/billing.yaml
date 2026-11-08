@@ -104,6 +104,8 @@ components:
             - customer_email_missing
             - invoice_secret_invalid
             - invoice_not_payable
+            - auto_debit_unavailable
+            - vault_cap_exceeded
         doc_url:
           description: Documentation page for this error code.
           format: uri
@@ -405,6 +407,243 @@ components:
         - payment_intent
         - reminder
       type: object
+    MandateNotificationContext:
+      additionalProperties: {}
+      description: Data for the payer's mandate emails (PII; never in events).
+      properties:
+        account_id:
+          description: account id (`acct_` + 26 base32 chars).
+          examples:
+            - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        amount_per_period:
+          description: Tokens per period.
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        balance:
+          description: Remaining balance.
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        cancel_transaction:
+          anyOf:
+            - $ref: "#/components/schemas/NearTransactionRequest"
+            - type: "null"
+          description: The payer's `cancel` transaction (contract, method, args, 100 Tgas, 1 yoctoNEAR) while on-chain active; null otherwise.
+        customer:
+          description: customer id (`cus_` + 26 base32 chars).
+          examples:
+            - cus_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^cus_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        customer_email:
+          anyOf:
+            - format: email
+              pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+              type: string
+            - type: "null"
+          description: "Recipient: the customer's email from payments; null = no mail."
+        customer_name:
+          description: Customer name, if known.
+          type:
+            - string
+            - "null"
+        invoice:
+          anyOf:
+            - description: invoice id (`in_` + 26 base32 chars).
+              examples:
+                - in_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^in_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: "`mandate.insufficient_funds`: the invoice that fell back to `send_invoice` (it is emailed separately)."
+        link_status:
+          description: "`linked`: billing collects this mandate for its subscription. `unlinked`: the on-chain terms do not match what billing prepared; billing never collects it and the payer is asked to cancel it."
+          type: string
+          x-extensible-enum:
+            - linked
+            - unlinked
+        livemode:
+          description: Mode (test-mode mails say so).
+          type: boolean
+        manage_url:
+          anyOf:
+            - description: Absolute URL.
+              format: uri
+              maxLength: 2048
+              type: string
+            - type: "null"
+          description: "Hosted invoice page of the subscription's latest invoice (with its secret) where the payer can top up, cancel or withdraw; null when none. PII-grade: never logged, never in events."
+        mandate:
+          description: mandate id (`md_` + 26 base32 chars).
+          examples:
+            - md_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^md_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        merchant_display_name:
+          description: Merchant name (account display name, or the ops-approved legal name).
+          type: string
+        next_collect_at:
+          anyOf:
+            - description: RFC 3339 UTC timestamp, e.g. `2026-11-05T10:00:00.000Z`.
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+              type: string
+            - type: "null"
+          description: Next due time; null when none.
+        onchain_id:
+          description: Vault mandate id (shown so the payer can cancel from any wallet).
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        payer:
+          description: Payer's NEAR account (the mail shows it shortened).
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        recurring:
+          anyOf:
+            - $ref: "#/components/schemas/PriceRecurring"
+            - type: "null"
+          description: Billing period of the subscription; null if it no longer exists.
+        refunded:
+          anyOf:
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+            - type: "null"
+          description: "`mandate.canceled`: amount returned to the payer by the cancel."
+        status:
+          description: "Mandate status (domain-model §4.5): `active` = on-chain active with at least one period funded; `insufficient` = on-chain active but the balance is below one period (top up, or the due invoice falls back to `send_invoice`); `exhausted` = `max_periods` collected; `canceled` = canceled by the payer or the merchant receiver."
+          type: string
+          x-extensible-enum:
+            - active
+            - insufficient
+            - exhausted
+            - canceled
+        subscription:
+          description: subscription id (`sub_` + 26 base32 chars).
+          examples:
+            - sub_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^sub_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        token_asset:
+          $ref: "#/components/schemas/PricingAssetDisplay"
+          description: Display data of the mandate's token (symbol, decimals).
+        unlinked_reason:
+          anyOf:
+            - description: "Why a mandate is `unlinked` (billing §6 linkage rule): the subscription is not `auto_debit` or has ended, another mandate is already linked, or a term differs from the prepared one (receiver kind, receiver = an active Intents-account destination of the account, token, amount per period, period, fee, `start_at` after the current period end, `max_periods` below the remaining periods), or a test-vault mandate names a live subscription (or the reverse)."
+              type: string
+              x-extensible-enum:
+                - subscription_not_auto_debit
+                - subscription_ended
+                - already_linked
+                - receiver_kind_mismatch
+                - receiver_not_destination
+                - token_mismatch
+                - amount_mismatch
+                - period_mismatch
+                - fee_mismatch
+                - start_too_late
+                - max_periods_too_low
+                - mode_mismatch
+            - type: "null"
+          description: Why it is unlinked (the mail asks the payer to cancel).
+        vault_contract:
+          description: Vault account.
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        withdraw_transaction:
+          anyOf:
+            - $ref: "#/components/schemas/NearTransactionRequest"
+            - type: "null"
+          description: The payer's `withdraw` transaction when a balance remains after cancel/exhaustion; null otherwise.
+      required:
+        - account_id
+        - livemode
+        - merchant_display_name
+        - customer
+        - customer_email
+        - customer_name
+        - mandate
+        - subscription
+        - status
+        - link_status
+        - unlinked_reason
+        - payer
+        - vault_contract
+        - onchain_id
+        - token_asset
+        - amount_per_period
+        - recurring
+        - balance
+        - next_collect_at
+        - refunded
+        - cancel_transaction
+        - withdraw_transaction
+        - invoice
+        - manage_url
+      type: object
+    NearFunctionCallAction:
+      additionalProperties: {}
+      description: A NEAR function-call action to sign as is.
+      properties:
+        args:
+          additionalProperties: {}
+          description: JSON arguments, exactly as they must be sent.
+          propertyNames:
+            type: string
+          type: object
+        deposit:
+          description: Attached deposit in yoctoNEAR as a decimal string.
+          pattern: ^(0|[1-9][0-9]{0,38})$
+          type: string
+        gas:
+          description: Gas in gas units as a decimal string (1 Tgas = 10^12).
+          pattern: ^[1-9][0-9]{0,17}$
+          type: string
+        method_name:
+          description: Contract method.
+          maxLength: 256
+          minLength: 1
+          type: string
+        type:
+          const: FunctionCall
+          description: Always `FunctionCall`.
+          type: string
+      required:
+        - type
+        - method_name
+        - args
+        - gas
+        - deposit
+      type: object
+    NearTransactionRequest:
+      additionalProperties: {}
+      description: A NEAR transaction for a wallet to sign (snake_case; NEAR Connect / wallet-selector take the same fields in camelCase). Clients show a summary and never edit receiver, method, args, gas or deposit.
+      properties:
+        actions:
+          description: Actions, in order.
+          items:
+            $ref: "#/components/schemas/NearFunctionCallAction"
+          maxItems: 4
+          minItems: 1
+          type: array
+        receiver_id:
+          description: Contract the transaction calls.
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        signer_id:
+          anyOf:
+            - description: NEAR account id (named, implicit or eth-implicit), 2–64 chars.
+              pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+              type: string
+            - type: "null"
+          description: Account that must sign; null = the connected wallet's account (it becomes the payer).
+      required:
+        - signer_id
+        - receiver_id
+        - actions
+      type: object
     PriceRecurring:
       additionalProperties: {}
       description: How often a recurring price bills.
@@ -642,6 +881,45 @@ paths:
         idempotent: false
         service: billing
         stage: 3
+  /internal/mandates/{id}/notification-context:
+    get:
+      description: "notify calls it for `evt.billing.mandate.activated` (`mandate.activated`), `.insufficient_funds` (`mandate.insufficient_funds`), `.canceled` (`mandate.canceled`), `.unlinked` (`mandate.unlinked`) and `.released` (`mandate.released`). `customer_email: null` → no mail; nothing is sent when the context's `livemode` differs from the event's."
+      operationId: getMandateNotificationContext
+      parameters:
+        - description: mandate id (`md_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: mandate id (`md_` + 26 base32 chars).
+            examples:
+              - md_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^md_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MandateNotificationContext"
+          description: Data for the mandate emails to the payer (PII and the hosted link; never in events).
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Data for the mandate emails to the payer (PII and the hosted link; never in events).
+      tags:
+        - billing
+      x-nearpay:
+        auth:
+          - service:billing.read
+        idempotent: false
+        service: billing
+        stage: 4
   /internal/subscriptions/{id}/notification-context:
     get:
       description: notify calls it for `evt.billing.subscription.renewal_upcoming` (`subscription.renewal_upcoming`).

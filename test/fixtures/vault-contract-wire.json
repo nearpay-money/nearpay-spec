@@ -1,0 +1,65 @@
+{
+  "source": {
+    "repo": "nearpay-contracts",
+    "branch": "stage-4/4.1-vault",
+    "commit": "7e2585a201c8bceb7d458416b90f22769c9bb0c2",
+    "how": "Strings produced by the contract's own code (events::format, serde_json of the view structs, errors::ALL, msg/gas constants) in a throwaway unit test; nearpay-spec's test/additions-stage4-autodebit.test.ts asserts test-vectors/vault.json reproduces them byte for byte."
+  },
+  "events": {
+    "mandate_created": "EVENT_JSON:{\"standard\":\"nearpay_vault\",\"version\":\"1.0.0\",\"event\":\"mandate_created\",\"data\":[{\"mandate_id\":7,\"payer\":\"alice.near\",\"merchant_receiver\":\"merchant-demo.near\",\"token\":\"17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1\",\"amount_per_period\":\"10000000\",\"period_secs\":2629746,\"start_at\":\"1794268800000000000\",\"max_periods\":null,\"fee_bps\":100,\"ext_ref\":\"sub_01jbz9k3m4n5p6q7r8s9t0v1w2\",\"receiver_kind\":\"intents_account\",\"balance\":\"30000000\"}]}",
+    "mandate_created_max_periods_near_account": "EVENT_JSON:{\"standard\":\"nearpay_vault\",\"version\":\"1.0.0\",\"event\":\"mandate_created\",\"data\":[{\"mandate_id\":8,\"payer\":\"alice.near\",\"merchant_receiver\":\"merchant-demo.near\",\"token\":\"usdt.tether-token.near\",\"amount_per_period\":\"5000000\",\"period_secs\":604800,\"start_at\":\"1794268800000000000\",\"max_periods\":12,\"fee_bps\":0,\"ext_ref\":\"\",\"receiver_kind\":\"near_account\",\"balance\":\"5000000\"}]}",
+    "topped_up": "EVENT_JSON:{\"standard\":\"nearpay_vault\",\"version\":\"1.0.0\",\"event\":\"topped_up\",\"data\":[{\"mandate_id\":7,\"amount\":\"10000000\",\"balance\":\"40000000\"}]}",
+    "collected": "EVENT_JSON:{\"standard\":\"nearpay_vault\",\"version\":\"1.0.0\",\"event\":\"collected\",\"data\":[{\"mandate_id\":7,\"period\":1,\"amount\":\"10000000\",\"merchant_share\":\"9900000\",\"fee\":\"100000\",\"balance\":\"30000000\"}]}",
+    "collected_fee_leg_failed": "EVENT_JSON:{\"standard\":\"nearpay_vault\",\"version\":\"1.0.0\",\"event\":\"collected\",\"data\":[{\"mandate_id\":7,\"period\":2,\"amount\":\"9900000\",\"merchant_share\":\"9900000\",\"fee\":\"0\",\"balance\":\"20100000\"}]}",
+    "collected_partial": "EVENT_JSON:{\"standard\":\"nearpay_vault\",\"version\":\"1.0.0\",\"event\":\"collected\",\"data\":[{\"mandate_id\":7,\"period\":3,\"amount\":\"4950000\",\"merchant_share\":\"4950000\",\"fee\":\"0\",\"balance\":\"15150000\"}]}",
+    "collect_failed": "EVENT_JSON:{\"standard\":\"nearpay_vault\",\"version\":\"1.0.0\",\"event\":\"collect_failed\",\"data\":[{\"mandate_id\":7,\"period\":4,\"reason\":\"merchant_transfer_failed\"}]}",
+    "canceled": "EVENT_JSON:{\"standard\":\"nearpay_vault\",\"version\":\"1.0.0\",\"event\":\"canceled\",\"data\":[{\"mandate_id\":7,\"by\":\"alice.near\",\"refunded\":\"15150000\"}]}",
+    "canceled_refund_failed": "EVENT_JSON:{\"standard\":\"nearpay_vault\",\"version\":\"1.0.0\",\"event\":\"canceled\",\"data\":[{\"mandate_id\":7,\"by\":\"merchant-demo.near\",\"refunded\":\"0\"}]}",
+    "withdrawn": "EVENT_JSON:{\"standard\":\"nearpay_vault\",\"version\":\"1.0.0\",\"event\":\"withdrawn\",\"data\":[{\"mandate_id\":7,\"amount\":\"15150000\"}]}",
+    "exhausted": "EVENT_JSON:{\"standard\":\"nearpay_vault\",\"version\":\"1.0.0\",\"event\":\"exhausted\",\"data\":[{\"mandate_id\":8}]}"
+  },
+  "views": {
+    "get_mandate": "{\"mandate_id\":7,\"payer\":\"alice.near\",\"merchant_receiver\":\"merchant-demo.near\",\"receiver_kind\":\"intents_account\",\"token\":\"17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1\",\"amount_per_period\":\"10000000\",\"period_secs\":2629746,\"start_at\":\"1794268800000000000\",\"max_periods\":null,\"fee_bps\":100,\"collected_periods\":1,\"balance\":\"30000000\",\"status\":\"active\",\"in_flight\":false,\"refund_in_flight\":\"0\",\"ext_ref\":\"sub_01jbz9k3m4n5p6q7r8s9t0v1w2\",\"next_collect_at\":\"1796898546000000000\"}",
+    "get_mandate_exhausted": "{\"mandate_id\":8,\"payer\":\"alice.near\",\"merchant_receiver\":\"merchant-demo.near\",\"receiver_kind\":\"near_account\",\"token\":\"usdt.tether-token.near\",\"amount_per_period\":\"5000000\",\"period_secs\":604800,\"start_at\":\"1794268800000000000\",\"max_periods\":12,\"fee_bps\":0,\"collected_periods\":12,\"balance\":\"1\",\"status\":\"exhausted\",\"in_flight\":false,\"refund_in_flight\":\"0\",\"ext_ref\":\"\",\"next_collect_at\":null}",
+    "get_mandate_missing": "null",
+    "get_mandates_by_payer": "[{\"mandate_id\":7,\"payer\":\"alice.near\",\"merchant_receiver\":\"merchant-demo.near\",\"receiver_kind\":\"intents_account\",\"token\":\"17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1\",\"amount_per_period\":\"10000000\",\"period_secs\":2629746,\"start_at\":\"1794268800000000000\",\"max_periods\":null,\"fee_bps\":100,\"collected_periods\":1,\"balance\":\"30000000\",\"status\":\"active\",\"in_flight\":false,\"refund_in_flight\":\"0\",\"ext_ref\":\"sub_01jbz9k3m4n5p6q7r8s9t0v1w2\",\"next_collect_at\":\"1796898546000000000\"},{\"mandate_id\":8,\"payer\":\"alice.near\",\"merchant_receiver\":\"merchant-demo.near\",\"receiver_kind\":\"near_account\",\"token\":\"usdt.tether-token.near\",\"amount_per_period\":\"5000000\",\"period_secs\":604800,\"start_at\":\"1794268800000000000\",\"max_periods\":12,\"fee_bps\":0,\"collected_periods\":12,\"balance\":\"1\",\"status\":\"exhausted\",\"in_flight\":false,\"refund_in_flight\":\"0\",\"ext_ref\":\"\",\"next_collect_at\":null}]",
+    "next_collect_at": "\"1796898546000000000\"",
+    "next_collect_at_none": "null",
+    "get_config": "{\"allowed_tokens\":[\"17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1\",\"usdt.tether-token.near\"],\"fee_receiver\":\"treasury.nearpay.near\",\"max_fee_bps\":500,\"intents_account\":\"intents.near\",\"min_period_secs\":86400,\"caps\":[{\"token\":\"17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1\",\"cap\":\"1000000000000\",\"mandate_cap\":\"100000000000\"},{\"token\":\"usdt.tether-token.near\",\"cap\":\"1000000000000\",\"mandate_cap\":\"100000000000\"}],\"mandate_storage_cost\":\"10000000000000000000000\",\"storage_registration_cost\":\"2000000000000000000000\"}",
+    "get_token_tvl": "{\"token\":\"17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1\",\"tvl\":\"30000000\",\"cap\":\"1000000000000\",\"mandate_cap\":\"100000000000\"}",
+    "storage_balance_of": "{\"total\":\"12000000000000000000000\",\"available\":\"0\"}",
+    "storage_balance_bounds": "{\"min\":\"2000000000000000000000\",\"max\":null}"
+  },
+  "errors": [
+    "ERR_NOT_FOUND",
+    "ERR_NOT_ACTIVE",
+    "ERR_NOT_DUE",
+    "ERR_IN_FLIGHT",
+    "ERR_INSUFFICIENT_BALANCE",
+    "ERR_MAX_PERIODS",
+    "ERR_UNAUTHORIZED",
+    "ERR_TOKEN_NOT_ALLOWED",
+    "ERR_BAD_MSG",
+    "ERR_CAP_EXCEEDED",
+    "ERR_FEE_TOO_HIGH",
+    "ERR_NO_STORAGE",
+    "ERR_STILL_ACTIVE",
+    "ERR_OPEN_MANDATES",
+    "ERR_BAD_CONFIG",
+    "ERR_UNSUPPORTED_SENDER",
+    "ERR_GAS"
+  ],
+  "cap_logs": ["ERR_CAP_EXCEEDED: mandate", "ERR_CAP_EXCEEDED: tvl"],
+  "constants": {
+    "min_period_secs": 86400,
+    "max_period_secs": 379468800,
+    "max_max_periods": 2147483647,
+    "max_start_delay_ns": "31622400000000000",
+    "max_ext_ref_len": 64,
+    "max_msg_len": 2048,
+    "min_collect_tgas": 170,
+    "min_exit_tgas": 50,
+    "mandate_storage_cost": "10000000000000000000000",
+    "storage_registration_cost": "2000000000000000000000"
+  }
+}

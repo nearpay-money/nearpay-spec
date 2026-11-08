@@ -95,10 +95,11 @@
           "description": "Open payments checkout session paying the invoice (created on demand by the hosted page)."
         },
         "collection_method": {
-          "description": "How the invoice is collected: `send_invoice` = the customer pays the hosted invoice (v1).",
+          "description": "How the invoice is collected: `send_invoice` = the customer pays the hosted invoice; `auto_debit` (Stage 4) = billing's keeper collects it from the subscription's vault mandate, falling back to `send_invoice` (emailed) when the mandate cannot pay it (lld/billing.md §7.1, §14).",
           "type": "string",
           "x-extensible-enum": [
-            "send_invoice"
+            "send_invoice",
+            "auto_debit"
           ]
         },
         "created": {
@@ -218,6 +219,90 @@
         "livemode": {
           "description": "`true` for live mode, `false` for test mode.",
           "type": "boolean"
+        },
+        "mandate": {
+          "anyOf": [
+            {
+              "description": "mandate id (`md_` + 26 base32 chars).",
+              "examples": [
+                "md_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^md_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Mandate the keeper collects (or collected) this invoice from; null/absent when none (Stage 4)."
+        },
+        "mandate_collection": {
+          "anyOf": [
+            {
+              "additionalProperties": {},
+              "properties": {
+                "fee": {
+                  "description": "NearPay fee taken by the vault.",
+                  "pattern": "^(0|[1-9][0-9]{0,77})$",
+                  "type": "string"
+                },
+                "mandate": {
+                  "description": "mandate id (`md_` + 26 base32 chars).",
+                  "examples": [
+                    "md_01jbz9k3m4n5p6q7r8s9t0v1w2"
+                  ],
+                  "pattern": "^md_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+                  "type": "string"
+                },
+                "merchant_share": {
+                  "description": "Tokens delivered to the merchant's Intents account.",
+                  "pattern": "^(0|[1-9][0-9]{0,77})$",
+                  "type": "string"
+                },
+                "period": {
+                  "description": "Vault period that paid the invoice.",
+                  "maximum": 9007199254740991,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "receipt_id": {
+                  "description": "Vault receipt that logged `collected` (the evidence, INV-2).",
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "token": {
+                  "description": "Token received, as a NEAR Intents asset id.",
+                  "examples": [
+                    "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1"
+                  ],
+                  "maxLength": 256,
+                  "pattern": "^(nep141:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+|nep245:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+:[\\x21-\\x7e]{1,128})$",
+                  "type": "string"
+                },
+                "tx_hash": {
+                  "description": "NEAR transaction of the `collect`.",
+                  "maxLength": 128,
+                  "minLength": 8,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mandate",
+                "period",
+                "token",
+                "merchant_share",
+                "fee",
+                "tx_hash",
+                "receipt_id"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Set when the invoice was paid by a vault collection instead of a payment intent (Stage 4)."
         },
         "metadata": {
           "additionalProperties": {

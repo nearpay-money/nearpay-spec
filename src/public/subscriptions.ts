@@ -79,6 +79,13 @@ export const Subscription = out({
   description: z.string().nullable().describe("Shown on every invoice of the subscription."),
   metadata: Metadata.describe("Copied onto every invoice of the subscription."),
   sequence: z.int().min(0).describe("Increases with every change; discard webhook objects with a lower sequence."),
+  // stage 4 — autodebit
+  mandate: id("md")
+    .nullable()
+    .optional()
+    .describe(
+      "The linked vault mandate renewals are collected from (`collection_method: auto_debit`); null/absent when none (Stage 4).",
+    ),
 }).meta({ id: "Subscription", description: "A customer billed every period by emailed invoice (FR-BIL-02)." });
 export type Subscription = z.infer<typeof Subscription>;
 
@@ -126,7 +133,10 @@ const ITEM_ERRORS = [
 export const SubscriptionCreate = inp({
   customer: id("cus").describe("Customer to bill (not deleted)."),
   items: Items,
-  collection_method: z.literal("send_invoice").optional().describe("`send_invoice` (the only method in v1; default)."),
+  collection_method: closedEnum(
+    ["send_invoice", "auto_debit"],
+    "`send_invoice` (default): each invoice is emailed and paid on the hosted page. `auto_debit` (Stage 4): the payer funds a NEAR vault mandate (`prepareMandate`, or from the hosted page of the first invoice) and billing's keeper collects each renewal from it; invoices fall back to `send_invoice` when the mandate cannot pay. Needs vault-compatible pricing (`auto_debit_unavailable`).",
+  ).optional(),
   days_until_due: z.int().min(0).max(90).optional().describe("Invoice due after this many days (default 7)."),
   trial_period_days: z
     .int()
@@ -166,6 +176,8 @@ export const createSubscription = route({
     "currency_unsupported",
     // spec 0.3.1 — a zero-total first invoice is refused
     "invoice_empty",
+    // stage 4 — autodebit
+    "auto_debit_unavailable",
   ],
   stage: 3,
 });
@@ -234,10 +246,15 @@ export const updateSubscription = route({
     settlement_destination: id("sd").nullable().optional().describe("Destination (`null` = account default)."),
     proration_behavior: ProrationBehavior,
     metadata: Metadata.optional(),
+    // stage 4 — autodebit
+    collection_method: closedEnum(
+      ["send_invoice", "auto_debit"],
+      "Switch how later invoices are collected (Stage 4). Leaving `auto_debit` releases a linked mandate (`mandate.released`). While a linked mandate is active, changes to `items` or `default_tax_rates` that change the per-period total are `state_conflict` (the payer authorised a fixed amount).",
+    ).optional(),
   }).meta({ id: "SubscriptionUpdate", description: "Subscription fields to change." }),
   response: Subscription,
   status: 200,
-  errors: ["state_conflict", ...ITEM_ERRORS],
+  errors: ["state_conflict", ...ITEM_ERRORS, "auto_debit_unavailable" /* stage 4 — autodebit */],
   stage: 3,
 });
 

@@ -25,6 +25,8 @@ import {
   OneClickSubmitDepositRequest,
   OneClickToken,
 } from "./oneclick.js";
+// stage 4 — autodebit
+import { NearFinalExecutionOutcome, NearRpcRequest, NearRpcResponse } from "./vault.js";
 
 const SANDBOX_AUTH = ["service:sandbox.use"] as const;
 
@@ -300,6 +302,18 @@ export const sandboxIntentsEvents = route({
           tx_hash: TxHash.describe("Transaction."),
           block_height: z.int().min(0).describe("Block."),
           log: z.string().describe("`EVENT_JSON:` log line."),
+          // stage 4 — autodebit: receipt context of the vault stand-in's lines (rails §8.6 rules)
+          receipt_id: z
+            .string()
+            .optional()
+            .describe("Receipt that logged the line (always set for vault stand-in lines; Stage 4)."),
+          log_index: z.int().min(0).optional().describe("Index of the line in that receipt's logs (Stage 4)."),
+          executor_id: NearAccountId.optional().describe(
+            "Executor of the receipt; absent = `intents.near` (the simulated Verifier). Vault stand-in lines carry the stand-in account (Stage 4).",
+          ),
+          block_hash: z.string().optional().describe("Block hash (Stage 4)."),
+          block_timestamp: z.string().optional().describe("Block time in ns as a decimal string (Stage 4)."),
+          receipt_status: closedEnum(["success", "failure"], "Receipt outcome (absent = success; Stage 4).").optional(),
         }).describe("An event."),
       )
       .describe("Events."),
@@ -357,3 +371,115 @@ export const sandboxExplorerTransactions = route({
   stage: 2,
 });
 // end stage 2 — rails-fx
+
+// stage 4 — autodebit: sandbox vault stand-in (OQ-T-03, lld/sandbox.md §3.1, §4.2)
+const SimVaultTokenAmount = BaseUnits.refine((v) => v !== "0", "must be > 0");
+
+export const sandboxNearRpc = route({
+  id: "sandboxNearRpc",
+  method: "POST",
+  path: "/sim/near-rpc",
+  service: "sandbox",
+  visibility: "internal",
+  summary: "Vault stand-in: NEAR JSON-RPC subset (test-mode `NP_NEAR_RPC_URLS` of billing's keeper).",
+  description:
+    "Serves `NearRpcRequest` for the stand-in vault account (and NEP-141 `ft_balance_of` / `storage_balance_of` views of the test tokens) with mainnet shapes: `send_tx` / `broadcast_tx_commit` decode the borsh `SignedTransaction`, verify its ed25519 signature over sha256(transaction), require a nonce above the key's last one (keys register on first use, like the simulated Verifier) and execute `collect`, `cancel`, `withdraw`, `storage_deposit`, `storage_withdraw` or `storage_unregister` synchronously by the vault rules (contracts-vault §3.1–§3.8: check orders, `MIN_COLLECT_GAS`/`MIN_EXIT_GAS` from the action's gas, 1 yoctoNEAR, caps, periods, refunds). A vault error is `status.Failure` with `Smart contract panicked: ERR_…`; a success carries the exact `EVENT_JSON` lines (`formatVaultEventLog`) in the vault receipts' logs and `status.SuccessValue` = base64 of the return value. Every receipt with logs is also appended to `GET /sim/intents/events` (with `receipt_id`, `log_index`, `executor_id`). Always HTTP 200 with a JSON-RPC result or error, as NEAR RPC does.",
+  auth: SANDBOX_AUTH,
+  idempotent: false,
+  body: NearRpcRequest,
+  response: NearRpcResponse,
+  status: 200,
+  errors: [],
+  stage: 4,
+});
+
+export const sandboxVaultFtTransferCall = route({
+  id: "sandboxVaultFtTransferCall",
+  method: "POST",
+  path: "/sim/vault/ft_transfer_call",
+  service: "sandbox",
+  visibility: "internal",
+  summary: "Vault stand-in: the payer's `ft_transfer_call` to the vault (create or top up a mandate).",
+  description:
+    "Stands in for the payer's wallet (no signature): mints the payer's shortfall of the test token first (like `/sim/intents/transfers`), then runs the token's `ft_transfer_call(receiver_id = vault, amount, msg)` with `payer` as signer and sender: the token receipt (NEP-141 `ft_transfer` log), the vault's `ft_on_transfer` (contracts-vault §3.1 check order; a rejection logs `ERR_…[: detail]` and returns the full amount) and the token's resolve (refund log). `payer` = `intents.near` or the vault is refused with `ERR_UNSUPPORTED_SENDER`, as on chain. Test mode only by construction.",
+  auth: SANDBOX_AUTH,
+  idempotent: false,
+  body: inp({
+    payer: NearAccountId.describe(
+      "Payer (signer and NEP-141 sender); default for NearPay helpers `sandbox-payer.near`.",
+    ),
+    token: NearAccountId.describe(
+      "Test token contract (one of the stand-in's allowed tokens, or any other to test `ERR_TOKEN_NOT_ALLOWED`).",
+    ),
+    amount: SimVaultTokenAmount.describe("Amount (base units)."),
+    msg: z.string().max(4096).describe("The `msg` exactly as the payer would send it."),
+  }),
+  response: NearFinalExecutionOutcome,
+  status: 200,
+  errors: [],
+  stage: 4,
+});
+
+export const sandboxVaultCall = route({
+  id: "sandboxVaultCall",
+  method: "POST",
+  path: "/sim/vault/call",
+  service: "sandbox",
+  visibility: "internal",
+  summary: "Vault stand-in: an unsigned change call as a named account (payer cancel/withdraw, storage).",
+  description:
+    "Same execution as a signed `send_tx` for the stand-in vault, without the signature (test helper for simulated payers and merchants). Gas and deposit are taken as given, so `ERR_GAS` and the 1-yocto guard are testable.",
+  auth: SANDBOX_AUTH,
+  idempotent: false,
+  body: inp({
+    signer: NearAccountId.describe("Account the call is made as (predecessor and signer)."),
+    method: closedEnum(
+      ["collect", "cancel", "withdraw", "storage_deposit", "storage_withdraw", "storage_unregister"],
+      "Vault method.",
+    ),
+    args: z.record(z.string(), z.unknown()).describe('JSON arguments (e.g. `{"mandate_id": 7}`).'),
+    gas: z
+      .string()
+      .regex(/^[1-9][0-9]{0,17}$/)
+      .optional()
+      .describe("Attached gas (default 100 Tgas; `collect` default 250 Tgas)."),
+    deposit: z
+      .string()
+      .regex(/^(0|[1-9][0-9]{0,38})$/)
+      .optional()
+      .describe("Attached yoctoNEAR (default `1` for cancel/withdraw/storage_withdraw/storage_unregister, else `0`)."),
+  }),
+  response: NearFinalExecutionOutcome,
+  status: 200,
+  errors: [],
+  stage: 4,
+});
+
+export const SimVaultClock = out({
+  mandate_id: z.int().min(0).describe("Vault mandate id."),
+  clock_offset_secs: z.int().min(0).describe("Total seconds this mandate's clock is ahead of real time."),
+  now_ns: z.string().describe("The mandate's clock now (ns)."),
+  next_collect_at: z.string().nullable().describe("`next_collect_at` view after the advance (ns)."),
+}).meta({ id: "SimVaultClock", description: "A stand-in mandate clock after an advance." });
+
+export const sandboxVaultAdvance = route({
+  id: "sandboxVaultAdvance",
+  method: "POST",
+  path: "/sim/vault/advance",
+  service: "sandbox",
+  visibility: "internal",
+  summary: "Vault stand-in: move one mandate's clock forward (make the next period due).",
+  description:
+    "Each stand-in mandate has its own forward-only clock offset (like billing's per-subscription test clock), used for its due checks and `next_collect_at`; other mandates and block timestamps are unaffected. `secs` omitted = exactly up to the mandate's `next_collect_at` (no-op when already due). The 86 400 s minimum period is never lowered. billing's `advanceSubscriptionClock` calls it with the same delta for a subscription's linked mandate. Unknown or closed mandate → `404`.",
+  auth: SANDBOX_AUTH,
+  idempotent: false,
+  body: inp({
+    mandate_id: z.int().min(0).describe("Vault mandate id."),
+    secs: z.int().min(1).max(379_468_800).optional().describe("Seconds to move forward."),
+  }),
+  response: SimVaultClock,
+  status: 200,
+  errors: [],
+  stage: 4,
+});
+// end stage 4 — autodebit
