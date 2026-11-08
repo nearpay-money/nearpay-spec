@@ -96,6 +96,17 @@
           "description": "Always `agent_payment`.",
           "type": "string"
         },
+        "origin": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AgentPaymentOrigin"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`near-intents` only (null otherwise): the cross-chain deposit. For `near-intents`, `payer` is the NEAR Intents account that delivered the funds to `pay_to` (from the evidence), `amount` the delivered amount and `fee_amount` `0` (NearPay's fee is taken from the deposit: `origin.fee`). Spec 0.3.0."
+        },
         "pay_to": {
           "description": "Receiving Intents account: the merchant (`x402`, `checkout`) or, for a `refund`, the payer's Intents account or the 1Click deposit account of a route refund.",
           "pattern": "^(?=.{2,64}$)(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+$",
@@ -165,6 +176,14 @@
             "failed"
           ]
         },
+        "transfer_method": {
+          "description": "How the payment reached the merchant: a payer-signed Verifier payload (`intents-transfer`) or a cross-chain 1Click deposit (`near-intents`, kind `x402` only). Absent from servers older than spec 0.3.0 (= `intents-transfer`).",
+          "type": "string",
+          "x-extensible-enum": [
+            "intents-transfer",
+            "near-intents"
+          ]
+        },
         "tx_hash": {
           "anyOf": [
             {
@@ -199,6 +218,114 @@
         "block_height",
         "error_reason",
         "settled_at"
+      ],
+      "type": "object"
+    },
+    "AgentPaymentOrigin": {
+      "additionalProperties": {},
+      "description": "The cross-chain deposit behind a `near-intents` agent payment.",
+      "properties": {
+        "amount_in": {
+          "anyOf": [
+            {
+              "description": "Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).",
+              "pattern": "^(0|[1-9][0-9]{0,77})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "What the payer deposited, base units of `asset_id`; null if not reported."
+        },
+        "asset_id": {
+          "description": "Origin asset (NEAR Intents id).",
+          "examples": [
+            "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1"
+          ],
+          "maxLength": 256,
+          "pattern": "^(nep141:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+|nep245:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+:[\\x21-\\x7e]{1,128})$",
+          "type": "string"
+        },
+        "deposit_address": {
+          "description": "1Click deposit address the payer paid.",
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
+        },
+        "deposit_memo": {
+          "description": "Deposit memo, if the origin network needs one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fee": {
+          "anyOf": [
+            {
+              "additionalProperties": {},
+              "properties": {
+                "amount": {
+                  "description": "Fee, base units of `asset_id`.",
+                  "pattern": "^(0|[1-9][0-9]{0,77})$",
+                  "type": "string"
+                },
+                "asset_id": {
+                  "description": "Asset the fee was taken in.",
+                  "examples": [
+                    "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1"
+                  ],
+                  "maxLength": 256,
+                  "pattern": "^(nep141:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+|nep245:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+:[\\x21-\\x7e]{1,128})$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "amount",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "NearPay's fee as observed for the route (provider app fee); null when not reported."
+        },
+        "network": {
+          "description": "Origin network (CAIP-2) the payer deposited on.",
+          "examples": [
+            "eip155:8453"
+          ],
+          "pattern": "^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$",
+          "type": "string"
+        },
+        "refund_to": {
+          "description": "The payer's refund address on the origin network (from the quote payload).",
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
+        },
+        "tx_hashes": {
+          "description": "Deposit transactions on the origin network.",
+          "items": {
+            "description": "Transaction hash in the chain's text form.",
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "network",
+        "asset_id",
+        "amount_in",
+        "refund_to",
+        "deposit_address",
+        "deposit_memo",
+        "tx_hashes",
+        "fee"
       ],
       "type": "object"
     },

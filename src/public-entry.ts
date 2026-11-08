@@ -17,6 +17,8 @@ export * from "./intents/payloads.js";
 export * from "./public/index.js";
 export * from "./webhooks/events.js";
 export * from "./webhooks/signature.js";
+// stage 3 — agent-commerce
+export * from "./x402/near-intents.js";
 export * from "./x402/scheme.js";
 
 /** Version of this contract package (kept equal to package.json by `test/package.test.ts`). */

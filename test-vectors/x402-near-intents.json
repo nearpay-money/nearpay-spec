@@ -1,0 +1,239 @@
+{
+  "description": "x402 exact + near-intents (lld/agentpay.md §3.1). binding = 'np1:' + base58(sha256(UTF-8 JCS(X402NearIntentsBindingInput))). operationToken = kid '.' expiry '.' base64url-unpadded(HMAC-SHA256(key, UTF-8 JCS(X402OperationTokenInput))), expiry = refundDeadline + 86400 s; the facilitator recomputes the MAC from accepted.network, payload.depositAddress/depositMemo, resource.url and its own entry. quoted = quotedRequirements(unquoted, quote.extra). The key is TEST-ONLY.",
+  "binding": {
+    "input": {
+      "method": "near-intents",
+      "account_id": "acct_01jbz9k3m4n5p6q7r8s9t0v1w2",
+      "resource_url": "https://merchant.example/premium",
+      "origin_network": "eip155:8453",
+      "origin_asset_id": "nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near",
+      "pay_to": "merchant.near",
+      "asset_id": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+      "amount": "1000000",
+      "max_timeout_s": 1800,
+      "nonce16": "361441f00c324e2775626d50b2489734",
+      "expires_at": 1794132300
+    },
+    "jcs": "{\"account_id\":\"acct_01jbz9k3m4n5p6q7r8s9t0v1w2\",\"amount\":\"1000000\",\"asset_id\":\"nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1\",\"expires_at\":1794132300,\"max_timeout_s\":1800,\"method\":\"near-intents\",\"nonce16\":\"361441f00c324e2775626d50b2489734\",\"origin_asset_id\":\"nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near\",\"origin_network\":\"eip155:8453\",\"pay_to\":\"merchant.near\",\"resource_url\":\"https://merchant.example/premium\"}",
+    "binding": "np1:FkMXJmBuTZEMpEvn6a6VRVGugj435HBY98sUfKJhinuj"
+  },
+  "operation_token": {
+    "key_hex": "db903712fdfd9030c4c5299fe1402a9d9b8541072b60f6bf56db8952381f6a4f",
+    "kid": "k1",
+    "input": {
+      "v": 1,
+      "binding": "np1:FkMXJmBuTZEMpEvn6a6VRVGugj435HBY98sUfKJhinuj",
+      "network": "eip155:8453",
+      "deposit_address": "0x76b4c56085ED136a8744D52bE956396624a730E8",
+      "deposit_memo": null,
+      "resource_url": "https://merchant.example/premium",
+      "destination": {
+        "network": "near:mainnet",
+        "asset": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+        "amount": "1000000",
+        "recipient": "merchant.near"
+      },
+      "expiry": 1794220320
+    },
+    "jcs": "{\"binding\":\"np1:FkMXJmBuTZEMpEvn6a6VRVGugj435HBY98sUfKJhinuj\",\"deposit_address\":\"0x76b4c56085ED136a8744D52bE956396624a730E8\",\"deposit_memo\":null,\"destination\":{\"amount\":\"1000000\",\"asset\":\"nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1\",\"network\":\"near:mainnet\",\"recipient\":\"merchant.near\"},\"expiry\":1794220320,\"network\":\"eip155:8453\",\"resource_url\":\"https://merchant.example/premium\",\"v\":1}",
+    "mac": "HlEcLQKWz-n8v36o4oNNsu7grADXll7PBNhbvxspJDI",
+    "token": "k1.1794220320.HlEcLQKWz-n8v36o4oNNsu7grADXll7PBNhbvxspJDI"
+  },
+  "headers": {
+    "payment_required_unquoted": {
+      "x402Version": 2,
+      "resource": {
+        "url": "https://merchant.example/premium",
+        "description": "Premium data"
+      },
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "eip155:8453",
+          "amount": "",
+          "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+          "payTo": "",
+          "maxTimeoutSeconds": 1800,
+          "extra": {
+            "assetTransferMethod": "near-intents",
+            "paymentFlow": "upfront",
+            "destination": {
+              "network": "near:mainnet",
+              "asset": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+              "amount": "1000000",
+              "recipient": "merchant.near"
+            },
+            "indicativeAmount": "1012000",
+            "binding": "np1:FkMXJmBuTZEMpEvn6a6VRVGugj435HBY98sUfKJhinuj",
+            "deadline": "2026-11-08T10:05:00.000Z",
+            "originAssetId": "nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near",
+            "slippageTolerance": {
+              "min": 10,
+              "max": 300,
+              "default": 50
+            }
+          }
+        }
+      ]
+    },
+    "payment_signature_quote": {
+      "x402Version": 2,
+      "resource": {
+        "url": "https://merchant.example/premium"
+      },
+      "accepted": {
+        "scheme": "exact",
+        "network": "eip155:8453",
+        "amount": "",
+        "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "payTo": "",
+        "maxTimeoutSeconds": 1800,
+        "extra": {
+          "assetTransferMethod": "near-intents",
+          "paymentFlow": "upfront",
+          "destination": {
+            "network": "near:mainnet",
+            "asset": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+            "amount": "1000000",
+            "recipient": "merchant.near"
+          },
+          "indicativeAmount": "1012000",
+          "binding": "np1:FkMXJmBuTZEMpEvn6a6VRVGugj435HBY98sUfKJhinuj",
+          "deadline": "2026-11-08T10:05:00.000Z",
+          "originAssetId": "nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near",
+          "slippageTolerance": {
+            "min": 10,
+            "max": 300,
+            "default": 50
+          }
+        }
+      },
+      "payload": {
+        "type": "quote",
+        "refundTo": "0x2527D02599Ba641c19Fea793Cd0f9A6e8457c317",
+        "slippageTolerance": 50
+      }
+    },
+    "verify_response_quote": {
+      "isValid": true,
+      "extra": {
+        "depositAddress": "0x76b4c56085ED136a8744D52bE956396624a730E8",
+        "amountIn": "1012000",
+        "minAmountIn": "1007000",
+        "refundDeadline": "2026-11-08T10:32:00.000Z",
+        "operationToken": "k1.1794220320.HlEcLQKWz-n8v36o4oNNsu7grADXll7PBNhbvxspJDI"
+      }
+    },
+    "payment_required_quoted": {
+      "x402Version": 2,
+      "resource": {
+        "url": "https://merchant.example/premium",
+        "description": "Premium data"
+      },
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "eip155:8453",
+          "amount": "1012000",
+          "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+          "payTo": "0x76b4c56085ED136a8744D52bE956396624a730E8",
+          "maxTimeoutSeconds": 1800,
+          "extra": {
+            "assetTransferMethod": "near-intents",
+            "paymentFlow": "upfront",
+            "destination": {
+              "network": "near:mainnet",
+              "asset": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+              "amount": "1000000",
+              "recipient": "merchant.near"
+            },
+            "indicativeAmount": "1012000",
+            "binding": "np1:FkMXJmBuTZEMpEvn6a6VRVGugj435HBY98sUfKJhinuj",
+            "deadline": "2026-11-08T10:05:00.000Z",
+            "originAssetId": "nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near",
+            "slippageTolerance": {
+              "min": 10,
+              "max": 300,
+              "default": 50
+            },
+            "refundDeadline": "2026-11-08T10:32:00.000Z",
+            "operationToken": "k1.1794220320.HlEcLQKWz-n8v36o4oNNsu7grADXll7PBNhbvxspJDI",
+            "minAmountIn": "1007000"
+          }
+        }
+      ]
+    },
+    "payment_signature_deposit": {
+      "x402Version": 2,
+      "resource": {
+        "url": "https://merchant.example/premium"
+      },
+      "accepted": {
+        "scheme": "exact",
+        "network": "eip155:8453",
+        "amount": "",
+        "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "payTo": "",
+        "maxTimeoutSeconds": 1800,
+        "extra": {
+          "assetTransferMethod": "near-intents",
+          "paymentFlow": "upfront",
+          "destination": {
+            "network": "near:mainnet",
+            "asset": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+            "amount": "1000000",
+            "recipient": "merchant.near"
+          },
+          "indicativeAmount": "1012000",
+          "binding": "np1:FkMXJmBuTZEMpEvn6a6VRVGugj435HBY98sUfKJhinuj",
+          "deadline": "2026-11-08T10:05:00.000Z",
+          "originAssetId": "nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near",
+          "slippageTolerance": {
+            "min": 10,
+            "max": 300,
+            "default": 50
+          }
+        }
+      },
+      "payload": {
+        "type": "deposit",
+        "operationToken": "k1.1794220320.HlEcLQKWz-n8v36o4oNNsu7grADXll7PBNhbvxspJDI",
+        "depositAddress": "0x76b4c56085ED136a8744D52bE956396624a730E8",
+        "txHash": "0x9bcff372aee89b648c922b850573b22387c31d693079f5e37cd255814e2d615a"
+      }
+    },
+    "payment_response_settled": {
+      "success": true,
+      "transaction": "9gnJ1EoQy3yqCDqGKiCGJm6YrwTqwYbL1n9vFhJ3nWVd",
+      "network": "near:mainnet",
+      "payer": "0x2527D02599Ba641c19Fea793Cd0f9A6e8457c317",
+      "amount": "1000000",
+      "extra": {
+        "originNetwork": "eip155:8453",
+        "originTxHash": "0x9bcff372aee89b648c922b850573b22387c31d693079f5e37cd255814e2d615a",
+        "agentPayment": "ap_01jbz9k3m4n5p6q7r8s9t0v1w2"
+      }
+    },
+    "payment_response_pending": {
+      "success": false,
+      "transaction": "0x9bcff372aee89b648c922b850573b22387c31d693079f5e37cd255814e2d615a",
+      "network": "eip155:8453",
+      "payer": "0x2527D02599Ba641c19Fea793Cd0f9A6e8457c317",
+      "errorReason": "settlement_pending",
+      "extra": {
+        "status": "PROCESSING"
+      }
+    },
+    "payment_response_failed": {
+      "success": false,
+      "transaction": "",
+      "network": "eip155:8453",
+      "payer": "0x2527D02599Ba641c19Fea793Cd0f9A6e8457c317",
+      "errorReason": "exact_near_intents_payment_failed",
+      "extra": {
+        "status": "REFUNDED",
+        "refundTo": "0x2527D02599Ba641c19Fea793Cd0f9A6e8457c317"
+      }
+    }
+  }
+}

@@ -66,6 +66,20 @@
           "minLength": 1,
           "type": "string"
         },
+        "sender": {
+          "anyOf": [
+            {
+              "description": "Address in the chain's canonical text form.",
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Account that sent the settlement transfer, when the detector saw it (NEAR Intents: the transferring Intents account); null if unknown. Spec 0.3.0."
+        },
         "source": {
           "description": "Detector that produced the evidence.",
           "type": "string",
@@ -327,6 +341,14 @@
           ],
           "type": "object"
         },
+        "owner": {
+          "description": "Service that consumes this execution's events and owns its merchant record (spec 0.3.0; absent = `payments`). Consumers ignore executions they do not own.",
+          "type": "string",
+          "x-extensible-enum": [
+            "payments",
+            "agentpay"
+          ]
+        },
         "price_snapshot": {
           "anyOf": [
             {
@@ -528,6 +550,19 @@
           "maximum": 9007199254740991,
           "minimum": 1,
           "type": "integer"
+        },
+        "x402_binding": {
+          "anyOf": [
+            {
+              "description": "Binding memo `np1:` + base58(sha256(…)) tying a signed transfer to one requirement.",
+              "pattern": "^np1:[1-9A-HJ-NP-Za-km-z]{43,44}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Owner `agentpay`: binding of the `near-intents` requirement the quote was minted for; null otherwise."
         }
       },
       "required": [

@@ -1,6 +1,7 @@
 /** Public route table (`/v1/*`, `/x402/*`). */
 import type { AnyRoute } from "../common/route.js";
 import * as agentpay from "./agentpay.js";
+import * as cli from "./cli.js"; // stage 3 — agent-commerce
 import * as compliance from "./compliance.js";
 import * as customers from "./customers.js"; // stage 2 — payments
 import * as identity from "./identity.js";
@@ -13,6 +14,7 @@ import * as sentinel from "./sentinel.js";
 import * as webhooks from "./webhooks.js";
 
 export * from "./agentpay.js";
+export * from "./cli.js"; // stage 3 — agent-commerce
 export * from "./compliance.js";
 export * from "./customers.js"; // stage 2 — payments
 export * from "./identity.js";
@@ -45,6 +47,8 @@ export const PUBLIC_ROUTES: readonly AnyRoute[] = Object.freeze([
   ...routesOf(refunds),
   ...routesOf(paymentLinks),
   ...routesOf(customers),
+  // stage 3 — agent-commerce
+  ...routesOf(cli),
 ]);
 
 /**

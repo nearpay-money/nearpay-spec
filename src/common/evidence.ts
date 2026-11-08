@@ -22,5 +22,11 @@ export const Evidence = out({
   source: EvidenceSource,
   observed_at: Timestamp.describe("When NearPay accepted the evidence."),
   explorer_url: z.url().nullable().describe("Block-explorer link for the transaction."),
+  // stage 3 — agent-commerce
+  sender: ChainAddress.nullable()
+    .optional()
+    .describe(
+      "Account that sent the settlement transfer, when the detector saw it (NEAR Intents: the transferring Intents account); null if unknown. Spec 0.3.0.",
+    ),
 }).meta({ id: "Evidence", description: "Independent on-chain proof that a settlement reached the merchant (INV-2)." });
 export type Evidence = z.infer<typeof Evidence>;

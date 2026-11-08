@@ -94,6 +94,8 @@ describe("anonymous allow-list (identity §11, system audit S-03)", () => {
     ["GET", /^\/v1\/webhook_signing_keys$/],
     // stage 2 — payments (payment links, identity §11 `GET|POST /v1/payment_links/{id}/public/**`)
     ["GET|POST", /^\/v1\/payment_links\/\{id\}\/public(\/.*)?$/],
+    // stage 3 — agent-commerce: CLI login (identity §11, device authorization)
+    ["POST", /^\/v1\/cli\/logins(\/poll)?$/],
   ];
   it("contains exactly the routes the LLD allows", () => {
     for (const r of PUBLIC_ANONYMOUS_ROUTES) {

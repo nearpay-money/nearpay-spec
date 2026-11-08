@@ -321,6 +321,14 @@ components:
           maxLength: 256
           minLength: 1
           type: string
+        sender:
+          anyOf:
+            - description: Address in the chain's canonical text form.
+              maxLength: 256
+              minLength: 1
+              type: string
+            - type: "null"
+          description: "Account that sent the settlement transfer, when the detector saw it (NEAR Intents: the transferring Intents account); null if unknown. Spec 0.3.0."
         source:
           description: Detector that produced the evidence.
           type: string
