@@ -139,9 +139,43 @@ export const SimTx = out({
           .describe("Sender, when the simulated chain knows it (null/absent = unknown)."),
         to: ChainAddress.describe("Recipient."),
         amount: BaseUnits.describe("Amount."),
+        // stage 4 — chains
+        vout: z
+          .int()
+          .min(0)
+          .nullable()
+          .optional()
+          .describe("Bitcoin: output index of this transfer; null/absent on other chains. Spec 0.4.0."),
+        token_account: z
+          .string()
+          .nullable()
+          .optional()
+          .describe(
+            "Solana SPL: recipient token account (the ATA of `to` for the mint); null/absent for SOL and other chains. Spec 0.4.0.",
+          ),
       }).describe("A transfer."),
     )
     .describe("Transfers in the transaction."),
+  // stage 4 — chains
+  block_ref: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("Simulated slot (Solana) or block height (Bitcoin, EVM, NEAR); null/absent when unknown. Spec 0.4.0."),
+  confirmations: z
+    .int()
+    .min(0)
+    .nullable()
+    .optional()
+    .describe(
+      "Bitcoin: confirmations now (0 = in the mempool; `finalized` is then false); null/absent on chains with a finality flag. Spec 0.4.0.",
+    ),
+  failed: z
+    .boolean()
+    .optional()
+    .describe(
+      "Solana: the transaction landed but failed (`meta.err` set; `transfers` empty). Absent = false. Spec 0.4.0.",
+    ),
 }).meta({ id: "SimTx", description: "A simulated chain transaction (sandbox verifiers)." });
 
 export const sandboxGetTx = route({

@@ -10,6 +10,7 @@
  *   intents-payloads.json       checkout, agent-signer (signers) ↔ agentpay, sandbox (verifiers)
  *   billing-tax.json            billing (invoices, PDF) ↔ dashboard, checkout (display): tax + periods
  *   x402-near-intents.json      agentpay (binding, operation token) ↔ @nearpay/x402, agent-signer (wire shapes)
+ *   chains-solana-bitcoin.json, destination-attestation.json, solana-transfer.json — stage 4 chains (vectors-chains.ts)
  *
  * Keys here are TEST-ONLY seeds derived from fixed strings; never use them for anything else.
  * Usage: tsx codegen/vectors.ts [--check]
@@ -46,6 +47,12 @@ import {
   X402PaymentRequiredAny,
 } from "../src/public-entry.js";
 import { type Output, toJson, writeOutputs } from "./lib.js";
+// stage 4 — chains
+import {
+  chainsVectors,
+  attestationVectors as destinationAttestationVectors,
+  solanaTransferVectors,
+} from "./vectors-chains.js";
 
 const enc = new TextEncoder();
 const hex = (b: Uint8Array) => Buffer.from(b).toString("hex");
@@ -657,6 +664,10 @@ export function vectorOutputs(): Output[] {
     { path: "test-vectors/billing-tax.json", content: toJson(billingTaxVectors()) },
     // stage 3 — agent-commerce
     { path: "test-vectors/x402-near-intents.json", content: toJson(nearIntentsVectors()) },
+    // stage 4 — chains
+    { path: "test-vectors/chains-solana-bitcoin.json", content: toJson(chainsVectors()) },
+    { path: "test-vectors/destination-attestation.json", content: toJson(destinationAttestationVectors()) },
+    { path: "test-vectors/solana-transfer.json", content: toJson(solanaTransferVectors()) },
   ];
 }
 

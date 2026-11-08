@@ -3,6 +3,21 @@
 `@nearpay/spec` and `@nearpay-internal/spec` share one version. Within a version line changes are
 additive only (`pnpm compat` gates every release against `test/compat/baseline/`, the last release).
 
+## Unreleased
+
+### chains (stage 4.1 — Solana and Bitcoin as Tier A chains; lld/rails.md §21, identity §8.2, sentinel §16, sandbox §10, checkout §5.4)
+
+Additive over 0.3.1: one request enum widened, optional response fields, new schemas/helpers and test vectors. No new routes, events, webhook types or error codes.
+
+- **New module `src/common/chains.ts`** (public): `SOLANA_MAINNET` (`solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp`), `BITCOIN_MAINNET` (`bip122:000000000019d6689c085ae165831e93`), `SolanaAddress`, `SolanaSignature`, `BitcoinTxid`, `BitcoinDestinationAddress` (P2WPKH/P2TR, lower-case), `BitcoinAddressType`, `DESTINATION_SIGNING_STANDARDS`, `SolanaEvidence`, `BitcoinEvidence`, `ConfirmationTier`, `BITCOIN_CONFIRMATION_TIERS` (1 confirmation below USD 1,000, else 2), helpers `formatBaseUnits`, `bip21Uri`, `solanaPayUri`, `parseOmftAssetId`, `requiredConfirmations`.
+- **`Evidence.solana` / `Evidence.bitcoin`** (nullable, optional): Solana signature, slot, block time, mint, token program, owner, token accounts, pre/post balance; Bitcoin txid, outputs (`vout`, value, scriptPubKey), block height/hash, confirmations, required confirmations. Flows into every schema embedding `Evidence` (executions, payment intents, refunds, their events and webhooks).
+- **`attestSettlementDestination.body.standard`** += `solana`, `bip322` (request enum widened). Signature formats: Solana base58 64-byte ed25519 over the raw challenge bytes; BIP-322 base64 "simple" witness (P2WPKH, P2TR). `public_key` stays NEP-413-only.
+- **`ChainProfile.explorer_address_url`**, **`ChainProfile.confirmation_tiers`** (nullable, optional; internal rails).
+- **Sandbox `SimTx`**: `block_ref`, `confirmations` (Bitcoin), `failed` (Solana `meta.err`); `transfers[].vout` (Bitcoin), `transfers[].token_account` (Solana SPL) — all optional.
+- `TokenContract.address` description: SPL mint for `spl` (doc only).
+- **Test vectors** (`codegen/vectors-chains.ts`, verified independently in `test/vectors-chains.test.ts`): `chains-solana-bitcoin.json` (profiles, assets from the live 1Click registry, address rules, omft ids incl. the SPL rule `nep141:sol-<hex(keccak256(mint)[12..32])>.omft.near`, payment URIs, evidence parsing from RPC results), `destination-attestation.json` (challenge message, Solana ed25519 cases, BIP-322 upstream vectors + NearPay P2WPKH/P2TR cases), `solana-transfer.json` (checkout wallet-path instructions: SOL transfer, ATA create-idempotent + SPL `transferChecked`).
+- Dev dependencies: `@scure/base` 2.4.0, `@scure/btc-signer` 2.4.1 (vector verification only).
+
 ## 0.3.1 — 2026-11-08
 
 Stage 3.2 change requests from the service builders (payments, rails, billing, notify, agentpay,
