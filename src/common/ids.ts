@@ -53,6 +53,10 @@ export const ID_PREFIXES = {
   bl: { object: "blocklist_entry", owner: "compliance" },
   // stage 2 — payments
   rcn: { object: "reconciliation_run", owner: "payments" },
+  // stage 3 — billing
+  txr: { object: "tax_rate", owner: "billing" },
+  il: { object: "invoice_line_item", owner: "billing" },
+  si: { object: "subscription_item", owner: "billing" },
 } as const;
 
 export type IdPrefix = keyof typeof ID_PREFIXES;

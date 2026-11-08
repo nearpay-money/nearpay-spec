@@ -1,0 +1,655 @@
+components:
+  schemas:
+    Error:
+      additionalProperties: {}
+      description: Envelope returned with every non-2xx response.
+      properties:
+        error:
+          $ref: "#/components/schemas/ErrorBody"
+      required:
+        - error
+      type: object
+    ErrorBody:
+      additionalProperties: {}
+      description: Details of a failed request.
+      properties:
+        code:
+          description: Machine-readable error code from the error catalogue.
+          type: string
+          x-extensible-enum:
+            - invalid_request
+            - resource_missing
+            - authentication_required
+            - invalid_api_key
+            - permission_denied
+            - csrf_token_invalid
+            - ip_not_allowed
+            - account_suspended
+            - step_up_required
+            - rate_limited
+            - idempotency_key_reused
+            - idempotency_in_progress
+            - api_error
+            - state_conflict
+            - livemode_forbidden
+            - link_expired
+            - link_used
+            - webauthn_failed
+            - invalid_client
+            - turnstile_failed
+            - invalid_setting
+            - scope_unknown
+            - address_invalid
+            - asset_unsupported
+            - memo_destination_unsupported
+            - destination_in_use
+            - recovery_lock
+            - screening_blocked
+            - attestation_invalid
+            - challenge_expired
+            - destination_not_active
+            - account_not_live
+            - amount_below_destination_minimum
+            - amount_above_unverified_cap
+            - currency_unsupported
+            - allowed_origins_required
+            - attempt_in_flight
+            - client_secret_invalid
+            - session_not_open
+            - too_many_attempts
+            - route_too_slow
+            - refund_address_invalid
+            - geo_blocked
+            - intent_invalid
+            - insufficient_balance
+            - rail_unavailable
+            - route_unavailable
+            - pricing_unavailable
+            - deadline_too_short
+            - quote_rejected
+            - quote_integrity_failed
+            - ticket_invalid
+            - attestation_refused
+            - attestation_stale
+            - attestation_unavailable
+            - destination_not_intents_account
+            - amount_below_minimum
+            - screening_unavailable
+            - url_invalid
+            - event_type_unknown
+            - last_owner
+            - member_exists
+            - invitation_invalid
+            - approver_conflict
+            - two_person_required
+            - authenticator_not_allowed
+            - kyb_profile_incomplete
+            - intent_not_succeeded
+            - attempt_not_settled
+            - amount_exceeds_refundable
+            - leg_expired
+            - signed_intent_mismatch
+            - review_requires_evidence
+            - link_inactive
+            - customer_deleted
+            - reconciliation_day_open
+            - fx_rate_unavailable
+            - currency_mismatch
+            - interval_mismatch
+            - price_inactive
+            - price_type_invalid
+            - tax_rate_inactive
+            - tax_rates_mixed
+            - invoice_empty
+            - customer_email_missing
+            - invoice_secret_invalid
+            - invoice_not_payable
+        doc_url:
+          description: Documentation page for this error code.
+          format: uri
+          type: string
+        message:
+          description: Human-readable message; safe to show to developers, not to payers.
+          type: string
+        param:
+          description: The request parameter the error relates to, when there is one.
+          type: string
+        request_id:
+          description: Request id, also returned in the `X-Request-Id` header.
+          examples:
+            - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        type:
+          description: Error category; decides whether a retry can help.
+          type: string
+          x-extensible-enum:
+            - invalid_request_error
+            - authentication_error
+            - permission_error
+            - payment_error
+            - idempotency_error
+            - state_conflict
+            - rate_limit_error
+            - api_error
+            - rail_unavailable
+      required:
+        - type
+        - code
+        - message
+        - doc_url
+        - request_id
+      type: object
+    InvoiceNotificationContext:
+      additionalProperties: {}
+      description: Data for the billing invoice emails (PII; never in events).
+      properties:
+        account_id:
+          description: account id (`acct_` + 26 base32 chars).
+          examples:
+            - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        amount_due:
+          anyOf:
+            - description: Fiat amount in minor units (e.g. cents), integer.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+          description: Amount due.
+        amount_remaining:
+          anyOf:
+            - description: Fiat amount in minor units (e.g. cents), integer.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+          description: Amount still to pay.
+        asset_id:
+          anyOf:
+            - description: NEAR Intents asset id, e.g. `nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1`.
+              examples:
+                - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+              maxLength: 256
+              pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+              type: string
+            - type: "null"
+          description: Pricing asset when `currency` is `asset`.
+        currency:
+          anyOf:
+            - description: ISO 4217 currency code, lower-case (e.g. `usd`).
+              pattern: ^[a-z]{3}$
+              type: string
+            - const: asset
+              type: string
+          description: ISO 4217 code for fiat pricing, or `asset` when priced in an asset (then `asset_id` is set).
+        customer:
+          description: customer id (`cus_` + 26 base32 chars).
+          examples:
+            - cus_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^cus_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        customer_email:
+          anyOf:
+            - format: email
+              pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+              type: string
+            - type: "null"
+          description: "Recipient: the customer's email from payments; null = no mail."
+        customer_name:
+          description: Customer name, if known.
+          type:
+            - string
+            - "null"
+        due_date:
+          anyOf:
+            - description: RFC 3339 UTC timestamp, e.g. `2026-11-05T10:00:00.000Z`.
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+              type: string
+            - type: "null"
+          description: Due date.
+        hosted_invoice_url:
+          anyOf:
+            - description: Absolute URL.
+              format: uri
+              maxLength: 2048
+              type: string
+            - type: "null"
+          description: "Hosted invoice page including the invoice secret in the fragment (PII-grade: never logged, never in events); null when void."
+        invoice:
+          description: invoice id (`in_` + 26 base32 chars).
+          examples:
+            - in_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^in_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        lines:
+          description: Lines for the mail body (at most 20).
+          items:
+            additionalProperties: {}
+            description: A line (the first 20).
+            properties:
+              amount:
+                anyOf:
+                  - description: Fiat amount in minor units (e.g. cents), integer.
+                    maximum: 9007199254740991
+                    minimum: 0
+                    type: integer
+                  - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+                    pattern: ^(0|[1-9][0-9]{0,77})$
+                    type: string
+                description: Line amount.
+              description:
+                description: Line text.
+                type: string
+              quantity:
+                description: Quantity.
+                maximum: 9007199254740991
+                minimum: 1
+                type: integer
+            required:
+              - description
+              - quantity
+              - amount
+            type: object
+          maxItems: 20
+          type: array
+        livemode:
+          description: Mode (test-mode mails say so).
+          type: boolean
+        merchant_display_name:
+          description: Merchant name (account display name, or the ops-approved legal name).
+          type: string
+        number:
+          description: Invoice number.
+          type: string
+        payment_intent:
+          anyOf:
+            - description: payment_intent id (`pi_` + 26 base32 chars).
+              examples:
+                - pi_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^pi_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: "Intent that paid the invoice (`invoice.paid`: notify reads its receipt context for evidence links)."
+        period_end:
+          anyOf:
+            - description: RFC 3339 UTC timestamp, e.g. `2026-11-05T10:00:00.000Z`.
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+              type: string
+            - type: "null"
+          description: Billed subscription period end (exclusive).
+        period_start:
+          anyOf:
+            - description: RFC 3339 UTC timestamp, e.g. `2026-11-05T10:00:00.000Z`.
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+              type: string
+            - type: "null"
+          description: Billed subscription period start.
+        pricing_asset:
+          anyOf:
+            - $ref: "#/components/schemas/PricingAssetDisplay"
+            - type: "null"
+          description: Display data of the pricing asset; null for fiat.
+        reminder:
+          anyOf:
+            - additionalProperties: {}
+              properties:
+                last:
+                  description: The last reminder of the schedule.
+                  type: boolean
+                number:
+                  description: 1-based reminder number.
+                  maximum: 9007199254740991
+                  minimum: 1
+                  type: integer
+                offset_days:
+                  description: Days relative to the due date (negative = before).
+                  maximum: 9007199254740991
+                  minimum: -9007199254740991
+                  type: integer
+              required:
+                - number
+                - offset_days
+                - last
+              type: object
+            - type: "null"
+          description: Set when the context is read for an `evt.billing.invoice.reminder` (`?reminder=<n>`).
+        status:
+          description: "Invoice status (domain-model §4.5): `uncollectible` invoices can still be paid (INV-3)."
+          type: string
+          x-extensible-enum:
+            - draft
+            - open
+            - paid
+            - void
+            - uncollectible
+        subscription:
+          anyOf:
+            - description: subscription id (`sub_` + 26 base32 chars).
+              examples:
+                - sub_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^sub_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Subscription of the invoice.
+        total:
+          anyOf:
+            - description: Fiat amount in minor units (e.g. cents), integer.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+          description: Invoice total.
+      required:
+        - account_id
+        - livemode
+        - merchant_display_name
+        - customer
+        - customer_email
+        - customer_name
+        - invoice
+        - number
+        - status
+        - currency
+        - asset_id
+        - pricing_asset
+        - total
+        - amount_due
+        - amount_remaining
+        - due_date
+        - period_start
+        - period_end
+        - subscription
+        - lines
+        - hosted_invoice_url
+        - payment_intent
+        - reminder
+      type: object
+    PriceRecurring:
+      additionalProperties: {}
+      description: How often a recurring price bills.
+      properties:
+        interval:
+          description: Unit of a billing period.
+          type: string
+          x-extensible-enum:
+            - day
+            - week
+            - month
+            - year
+        interval_count:
+          description: Number of `interval` units per period, 1–12.
+          maximum: 12
+          minimum: 1
+          type: integer
+      required:
+        - interval
+        - interval_count
+      type: object
+    PricingAssetDisplay:
+      additionalProperties: {}
+      description: Display data of a pricing asset (rails registry).
+      properties:
+        asset_id:
+          description: Pricing asset.
+          examples:
+            - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+          maxLength: 256
+          pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+          type: string
+        decimals:
+          description: Token decimals (format `amount` with them).
+          maximum: 255
+          minimum: 0
+          type: integer
+        symbol:
+          description: Token symbol.
+          maxLength: 32
+          minLength: 1
+          type: string
+      required:
+        - asset_id
+        - symbol
+        - decimals
+      type: object
+    SubscriptionNotificationContext:
+      additionalProperties: {}
+      description: Data for the renewal-upcoming email (PII; never in events).
+      properties:
+        account_id:
+          description: account id (`acct_` + 26 base32 chars).
+          examples:
+            - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        asset_id:
+          anyOf:
+            - description: NEAR Intents asset id, e.g. `nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1`.
+              examples:
+                - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+              maxLength: 256
+              pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+              type: string
+            - type: "null"
+          description: Pricing asset when `currency` is `asset`.
+        cancel_at_period_end:
+          description: The subscription ends instead of renewing (no mail is sent then).
+          type: boolean
+        currency:
+          anyOf:
+            - description: ISO 4217 currency code, lower-case (e.g. `usd`).
+              pattern: ^[a-z]{3}$
+              type: string
+            - const: asset
+              type: string
+          description: ISO 4217 code for fiat pricing, or `asset` when priced in an asset (then `asset_id` is set).
+        customer:
+          description: customer id (`cus_` + 26 base32 chars).
+          examples:
+            - cus_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^cus_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        customer_email:
+          anyOf:
+            - format: email
+              pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+              type: string
+            - type: "null"
+          description: "Recipient: the customer's email from payments; null = no mail."
+        customer_name:
+          description: Customer name, if known.
+          type:
+            - string
+            - "null"
+        items:
+          description: Items of the next renewal.
+          items:
+            additionalProperties: {}
+            description: An item.
+            properties:
+              description:
+                description: Product name.
+                type: string
+              quantity:
+                description: Quantity.
+                maximum: 9007199254740991
+                minimum: 1
+                type: integer
+            required:
+              - description
+              - quantity
+            type: object
+          type: array
+        livemode:
+          description: Mode (test-mode mails say so).
+          type: boolean
+        merchant_display_name:
+          description: Merchant name (account display name, or the ops-approved legal name).
+          type: string
+        next_amount:
+          anyOf:
+            - description: Fiat amount in minor units (e.g. cents), integer.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+          description: Total of the next renewal invoice with current items and tax rates.
+        pricing_asset:
+          anyOf:
+            - $ref: "#/components/schemas/PricingAssetDisplay"
+            - type: "null"
+          description: Display data of the pricing asset; null for fiat.
+        recurring:
+          $ref: "#/components/schemas/PriceRecurring"
+          description: Billing period.
+        renews_at:
+          description: When the next renewal invoice is created (`current_period_end`).
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+          type: string
+        status:
+          description: Subscription status.
+          type: string
+        subscription:
+          description: subscription id (`sub_` + 26 base32 chars).
+          examples:
+            - sub_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^sub_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+      required:
+        - account_id
+        - livemode
+        - merchant_display_name
+        - customer
+        - customer_email
+        - customer_name
+        - subscription
+        - status
+        - renews_at
+        - recurring
+        - currency
+        - asset_id
+        - pricing_asset
+        - next_amount
+        - items
+        - cancel_at_period_end
+      type: object
+  securitySchemes:
+    internalToken:
+      description: "Internal Ed25519 JWT: request token or service token."
+      in: header
+      name: X-NearPay-Token
+      type: apiKey
+    serviceClient:
+      description: Service client credentials (`client_id` + secret file).
+      scheme: basic
+      type: http
+info:
+  description: NearPay internal service API. Generated from `nearpay-spec`; do not edit by hand.
+  license:
+    identifier: Apache-2.0
+    name: Apache-2.0
+  title: nearpay-billing internal API
+  version: 0.2.1
+openapi: 3.1.0
+paths:
+  /internal/invoices/{id}/notification-context:
+    get:
+      description: "notify calls it for `evt.billing.invoice.sent` (`invoice.issued`), `.reminder` (`invoice.reminder`, with `?reminder=`), `.paid` (`invoice.paid`) and `.voided` (`invoice.voided`). `customer_email: null` → no mail. notify sends nothing when the context's `livemode` differs from the event's, or when the status no longer fits the mail (e.g. a reminder for an invoice that is paid by now)."
+      operationId: getInvoiceNotificationContext
+      parameters:
+        - description: invoice id (`in_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: invoice id (`in_` + 26 base32 chars).
+            examples:
+              - in_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^in_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Reminder number of the event being mailed.
+          in: query
+          name: reminder
+          schema:
+            description: Reminder number of the event being mailed.
+            maximum: 10
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceNotificationContext"
+          description: Data for the invoice emails (PII and the hosted link; never in events).
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Data for the invoice emails (PII and the hosted link; never in events).
+      tags:
+        - billing
+      x-nearpay:
+        auth:
+          - service:billing.read
+        idempotent: false
+        service: billing
+        stage: 3
+  /internal/subscriptions/{id}/notification-context:
+    get:
+      description: notify calls it for `evt.billing.subscription.renewal_upcoming` (`subscription.renewal_upcoming`).
+      operationId: getSubscriptionNotificationContext
+      parameters:
+        - description: subscription id (`sub_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: subscription id (`sub_` + 26 base32 chars).
+            examples:
+              - sub_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^sub_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionNotificationContext"
+          description: Data for the renewal-upcoming email (PII; never in events).
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Data for the renewal-upcoming email (PII; never in events).
+      tags:
+        - billing
+      x-nearpay:
+        auth:
+          - service:billing.read
+        idempotent: false
+        service: billing
+        stage: 3
+servers:
+  - url: http://billing-api:8080

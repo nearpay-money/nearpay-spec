@@ -12,6 +12,7 @@ import {
   CheckoutSession,
   CountryCode,
   closedEnum,
+  Invoice,
   id,
   KybStatus,
   OpsRoleSchema,
@@ -23,6 +24,7 @@ import {
   RequestId,
   RoleSchema,
   type ServiceName,
+  Subscription,
   Timestamp,
   Uuid,
   z,
@@ -201,6 +203,26 @@ export const CheckoutSessionEvent = CheckoutSession.extend({
   client_secret: z.null().describe("Always null on the bus."),
 }).meta({ id: "CheckoutSessionEvent", description: "Checkout session snapshot (no secrets)." });
 
+// stage 3 — billing
+/** Invoice on the bus: never the hosted URL (it embeds the invoice secret). */
+export const InvoiceEvent = Invoice.extend({
+  hosted_invoice_url: z.null().describe("Always null on the bus."),
+}).meta({ id: "InvoiceEvent", description: "Invoice snapshot (no secrets, no personal data)." });
+
+export const InvoiceReminderEvent = out({
+  invoice: id("in"),
+  customer: id("cus"),
+  subscription: id("sub").nullable().describe("Subscription of the invoice."),
+  number: z.int().min(1).describe("1-based reminder number (notify passes it as `?reminder=`)."),
+  offset_days: z.int().describe("Days relative to the due date (negative = before)."),
+  due_date: Timestamp.describe("Due date of the invoice."),
+  last: z.boolean().describe("The last reminder of the schedule (dunning exhausts after it if still unpaid)."),
+}).meta({
+  id: "InvoiceReminderEvent",
+  description: "A scheduled reminder of an unpaid invoice fell due (ids only; notify mails `invoice.reminder`).",
+});
+// end stage 3 — billing
+
 // ---------------------------------------------------------------------------------------------
 // Catalogue
 // ---------------------------------------------------------------------------------------------
@@ -301,7 +323,7 @@ export const SUBJECTS = {
     object: CheckoutSessionEvent,
     aggregate: "checkout_session",
     producer: "payments",
-    consumers: ["webhooks"],
+    consumers: ["webhooks", "billing" /* stage 3 — billing: invoice sessions */],
     stage: 1,
   }),
   "evt.payments.payment_intent.created": s({
@@ -322,14 +344,14 @@ export const SUBJECTS = {
     object: PaymentIntent,
     aggregate: "payment_intent",
     producer: "payments",
-    consumers: ["webhooks", "notify"],
+    consumers: ["webhooks", "notify", "billing" /* stage 3 — billing: invoice sessions */],
     stage: 1,
   }),
   "evt.payments.payment_intent.payment_failed": s({
     object: PaymentIntent,
     aggregate: "payment_intent",
     producer: "payments",
-    consumers: ["webhooks"],
+    consumers: ["webhooks", "billing" /* stage 3 — billing: invoice sessions */],
     stage: 1,
   }),
   "evt.payments.payment_intent.requires_review": s({
@@ -650,6 +672,99 @@ export const SUBJECTS = {
     consumers: ["notify"],
     stage: 2,
   }),
+
+  // stage 3 — billing (billing §6)
+  "evt.billing.invoice.created": s({
+    object: InvoiceEvent,
+    aggregate: "invoice",
+    producer: "billing",
+    consumers: ["webhooks"],
+    stage: 3,
+  }),
+  "evt.billing.invoice.finalized": s({
+    object: InvoiceEvent,
+    aggregate: "invoice",
+    producer: "billing",
+    consumers: ["webhooks"],
+    stage: 3,
+  }),
+  "evt.billing.invoice.sent": s({
+    object: InvoiceEvent,
+    aggregate: "invoice",
+    producer: "billing",
+    consumers: ["webhooks", "notify"],
+    stage: 3,
+  }),
+  "evt.billing.invoice.paid": s({
+    object: InvoiceEvent,
+    aggregate: "invoice",
+    producer: "billing",
+    consumers: ["webhooks", "notify"],
+    stage: 3,
+  }),
+  "evt.billing.invoice.payment_failed": s({
+    object: InvoiceEvent,
+    aggregate: "invoice",
+    producer: "billing",
+    consumers: ["webhooks"],
+    stage: 3,
+  }),
+  "evt.billing.invoice.overdue": s({
+    object: InvoiceEvent,
+    aggregate: "invoice",
+    producer: "billing",
+    consumers: ["webhooks"],
+    stage: 3,
+  }),
+  "evt.billing.invoice.voided": s({
+    object: InvoiceEvent,
+    aggregate: "invoice",
+    producer: "billing",
+    consumers: ["webhooks", "notify"],
+    stage: 3,
+  }),
+  "evt.billing.invoice.marked_uncollectible": s({
+    object: InvoiceEvent,
+    aggregate: "invoice",
+    producer: "billing",
+    consumers: ["webhooks"],
+    stage: 3,
+  }),
+  "evt.billing.invoice.reminder": s({
+    object: InvoiceReminderEvent,
+    aggregate: "invoice",
+    producer: "billing",
+    consumers: ["notify"],
+    stage: 3,
+  }),
+  "evt.billing.subscription.created": s({
+    object: Subscription,
+    aggregate: "subscription",
+    producer: "billing",
+    consumers: ["webhooks"],
+    stage: 3,
+  }),
+  "evt.billing.subscription.updated": s({
+    object: Subscription,
+    aggregate: "subscription",
+    producer: "billing",
+    consumers: ["webhooks"],
+    stage: 3,
+  }),
+  "evt.billing.subscription.deleted": s({
+    object: Subscription,
+    aggregate: "subscription",
+    producer: "billing",
+    consumers: ["webhooks"],
+    stage: 3,
+  }),
+  "evt.billing.subscription.renewal_upcoming": s({
+    object: Subscription,
+    aggregate: "subscription",
+    producer: "billing",
+    consumers: ["webhooks", "notify"],
+    stage: 3,
+  }),
 } as const satisfies Record<string, SubjectDefinition>;
 
 export type Subject = keyof typeof SUBJECTS;
@@ -803,6 +918,9 @@ export const AggregateType = closedEnum(
     "ops_action",
     // spec 0.2.1
     "user",
+    // stage 3 — billing
+    "invoice",
+    "subscription",
   ],
   "Aggregate type.",
 );

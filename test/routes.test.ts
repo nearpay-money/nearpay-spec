@@ -72,8 +72,9 @@ describe("route tables", () => {
     const unused = Object.values(SERVICE_CLIENT_SCOPES)
       .flat()
       .filter((s) => !checked.has(s));
-    // billing.read: billing internal API arrives in Stage 3; payments.sessions.create likewise.
-    expect(new Set(unused)).toEqual(new Set(["billing.read", "payments.sessions.create"]));
+    // stage 3 — billing: `billing.read` (notification contexts) and `payments.sessions.create`
+    // (invoice sessions) are checked now, so every scope is used.
+    expect(new Set(unused)).toEqual(new Set());
   });
 
   it("use HTTP statuses consistent with their error codes", () => {
@@ -94,6 +95,8 @@ describe("anonymous allow-list (identity §11, system audit S-03)", () => {
     ["GET", /^\/v1\/webhook_signing_keys$/],
     // stage 2 — payments (payment links, identity §11 `GET|POST /v1/payment_links/{id}/public/**`)
     ["GET|POST", /^\/v1\/payment_links\/\{id\}\/public(\/.*)?$/],
+    // stage 3 — billing (hosted invoice `/i/:id`; billing checks the invoice secret)
+    ["GET|POST", /^\/v1\/invoices\/\{id\}\/public(\/.*)?$/],
   ];
   it("contains exactly the routes the LLD allows", () => {
     for (const r of PUBLIC_ANONYMOUS_ROUTES) {

@@ -118,6 +118,17 @@ function operationFor(r: AnyRoute, visibility: "public" | "internal"): Doc {
     success["x-sse-events"] = Object.keys(r.stream.events);
   } else if (r.response) {
     success.content = { "application/json": { schema: r.response } };
+  } else if (r.binaryResponse) {
+    // stage 3 — billing: raw bytes (invoice PDFs)
+    success.content = {
+      [r.binaryResponse.contentType]: {
+        schema: {
+          type: "string",
+          contentMediaType: r.binaryResponse.contentType,
+          description: r.binaryResponse.description,
+        },
+      },
+    };
   }
   if (r.responseHeaders) success.headers = r.responseHeaders;
   const requestParams: Record<string, unknown> = {};

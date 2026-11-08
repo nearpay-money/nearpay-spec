@@ -303,8 +303,11 @@ describe("stage 2 payments: intents, filters, review, links", () => {
   });
 
   it("ships every new payments route in Stage 2", () => {
-    const stage2 = [...PUBLIC_ROUTES, ...INTERNAL_ROUTES].filter((r) =>
-      /(Refund|PaymentLink|Customer|Reconciliation|createPaymentIntent|reviewPaymentIntent|IntentsTransfer)/.test(r.id),
+    const stage2 = [...PUBLIC_ROUTES, ...INTERNAL_ROUTES].filter(
+      (r) =>
+        /(Refund|PaymentLink|Customer|Reconciliation|createPaymentIntent|reviewPaymentIntent|IntentsTransfer)/.test(
+          r.id,
+        ) && r.id !== "getInternalCustomer" /* stage 3 — billing */,
     );
     expect(stage2.length).toBe(30); // + getOpsRefund (contracts integration)
     for (const r of stage2) expect(r.stage, r.id).toBe(2);

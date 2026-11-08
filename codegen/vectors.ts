@@ -8,6 +8,7 @@
  *   attestation-ticket.json     payments (signer) ↔ sentinel (verifier)
  *   webhook-signatures.json     webhooks (signer) ↔ @nearpay/node (verifier)
  *   intents-payloads.json       checkout, agent-signer (signers) ↔ agentpay, sandbox (verifiers)
+ *   billing-tax.json            billing (invoices, PDF) ↔ dashboard, checkout (display): tax + periods
  *
  * Keys here are TEST-ONLY seeds derived from fixed strings; never use them for anything else.
  * Usage: tsx codegen/vectors.ts [--check]
@@ -22,15 +23,18 @@ import canonicalize from "canonicalize";
 import {
   Attestation,
   AttestationTicketPayload,
+  computeInvoiceTotals,
   formatSignatureHeader,
   ID_ALPHABET,
   INTENTS_CONTRACT,
   type IntentMessage,
   MultiPayload,
   type MultiPayload as MultiPayloadT,
+  periodBoundary,
   routeQuoteDepositKey,
   SignedAttestation,
   signedPayload,
+  taxPercentageToPpm,
 } from "../src/public-entry.js";
 import { type Output, toJson, writeOutputs } from "./lib.js";
 
@@ -410,6 +414,103 @@ function intentsVectors() {
 }
 
 // ---------------------------------------------------------------------------------------------
+// stage 3 — billing: tax arithmetic and billing periods (lld/billing.md §11)
+// ---------------------------------------------------------------------------------------------
+
+function billingTaxVectors() {
+  const rate = (id: string, percentage: string, inclusive: boolean) => ({
+    id,
+    percentage,
+    rate_ppm: taxPercentageToPpm(percentage),
+    inclusive,
+  });
+  const vat19 = rate("txr_vat19", "19", true);
+  const vat7 = rate("txr_vat7", "7", true);
+  const nyc = rate("txr_nyc", "8.875", false);
+  const ca = rate("txr_ca", "7.25", false);
+  const city = rate("txr_city", "1.5", false);
+  const cases: { name: string; lines: { unit_amount: string; quantity: number; rates: (typeof vat19)[] }[] }[] = [
+    { name: "no tax", lines: [{ unit_amount: "4999", quantity: 2, rates: [] }] },
+    { name: "exclusive 8.875%: 88.75 rounds to 89", lines: [{ unit_amount: "1000", quantity: 1, rates: [nyc] }] },
+    {
+      name: "exclusive 1.5%: exact half 1.5 rounds up to 2",
+      lines: [{ unit_amount: "100", quantity: 1, rates: [city] }],
+    },
+    { name: "inclusive 19%", lines: [{ unit_amount: "11900", quantity: 1, rates: [vat19] }] },
+    {
+      name: "inclusive 19%: exact half 478.5 rounds up to 479",
+      lines: [{ unit_amount: "999", quantity: 3, rates: [vat19] }],
+    },
+    { name: "two exclusive rates on one line", lines: [{ unit_amount: "1999", quantity: 1, rates: [ca, city] }] },
+    { name: "two inclusive rates on one line", lines: [{ unit_amount: "10000", quantity: 1, rates: [vat19, vat7] }] },
+    {
+      name: "mixed lines: inclusive, exclusive, untaxed; per-line rounding (2 × 0.62 → 1 + 1, not 1)",
+      lines: [
+        { unit_amount: "333", quantity: 3, rates: [vat19] },
+        { unit_amount: "1", quantity: 7, rates: [nyc] },
+        { unit_amount: "1", quantity: 7, rates: [nyc] },
+        { unit_amount: "500", quantity: 1, rates: [] },
+      ],
+    },
+    {
+      name: "asset base units beyond 2^53",
+      lines: [{ unit_amount: "25000000000000000000", quantity: 3, rates: [nyc] }],
+    },
+  ];
+  const s = (n: bigint) => n.toString();
+  const anchor = Date.UTC(2026, 0, 31, 12, 0, 0) / 1000;
+  const leap = Date.UTC(2028, 1, 29, 0, 0, 0) / 1000;
+  return {
+    description:
+      "Normative billing arithmetic (lld/billing.md §11, `computeInvoiceTotals`, `periodBoundary`). Amounts are integer strings in the invoice currency (fiat minor units or asset base units). Tax per line: exclusive `round_half_up(amount × ppm / 10^6)`; inclusive `round_half_up(amount × ppm / (10^6 + Σppm))`; totals sum the rounded line taxes. Period boundaries are computed from the anchor with calendar months clamped to the month's last day.",
+    tax_cases: cases.map((c) => {
+      const totals = computeInvoiceTotals(
+        c.lines.map((l) => ({ amount: BigInt(l.unit_amount) * BigInt(l.quantity), tax_rates: l.rates })),
+      );
+      return {
+        name: c.name,
+        lines: c.lines.map((l) => ({ ...l, rates: l.rates.map((r) => r.id) })),
+        tax_rates: [vat19, vat7, nyc, ca, city].filter((r) => c.lines.some((l) => l.rates.includes(r))),
+        expected: {
+          lines: totals.lines.map((l) => ({
+            amount: s(l.amount),
+            taxes: l.taxes.map((t) => ({
+              tax_rate: t.tax_rate,
+              inclusive: t.inclusive,
+              amount: s(t.amount),
+              taxable_amount: s(t.taxable_amount),
+            })),
+          })),
+          subtotal: s(totals.subtotal),
+          tax: s(totals.tax),
+          total: s(totals.total),
+          total_excluding_tax: s(totals.total_excluding_tax),
+          total_tax_amounts: totals.total_tax_amounts.map((t) => ({
+            tax_rate: t.tax_rate,
+            inclusive: t.inclusive,
+            amount: s(t.amount),
+            taxable_amount: s(t.taxable_amount),
+          })),
+        },
+      };
+    }),
+    period_cases: [
+      { anchor, interval: "month" as const, interval_count: 1, n: [0, 1, 2, 3, 13] },
+      { anchor, interval: "month" as const, interval_count: 3, n: [1, 2] },
+      { anchor: leap, interval: "year" as const, interval_count: 1, n: [1, 4] },
+      { anchor, interval: "week" as const, interval_count: 2, n: [1, 2] },
+      { anchor, interval: "day" as const, interval_count: 1, n: [1, 30] },
+    ].map((p) => ({
+      ...p,
+      boundaries: p.n.map((n) => {
+        const t = periodBoundary(p.anchor, p.interval, p.interval_count, n);
+        return { n, unix: t, iso: new Date(t * 1000).toISOString() };
+      }),
+    })),
+  };
+}
+
+// ---------------------------------------------------------------------------------------------
 
 export function vectorOutputs(): Output[] {
   return [
@@ -419,6 +520,8 @@ export function vectorOutputs(): Output[] {
     { path: "test-vectors/attestation-ticket.json", content: toJson(ticketVectors()) },
     { path: "test-vectors/webhook-signatures.json", content: toJson(webhookVectors()) },
     { path: "test-vectors/intents-payloads.json", content: toJson(intentsVectors()) },
+    // stage 3 — billing
+    { path: "test-vectors/billing-tax.json", content: toJson(billingTaxVectors()) },
   ];
 }
 
