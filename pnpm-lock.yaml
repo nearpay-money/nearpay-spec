@@ -24,6 +24,12 @@ importers:
       '@noble/hashes':
         specifier: 2.4.0
         version: 2.4.0
+      '@scure/base':
+        specifier: 2.4.0
+        version: 2.4.0
+      '@scure/btc-signer':
+        specifier: 2.4.1
+        version: 2.4.1
       '@seriousme/openapi-schema-validator':
         specifier: 2.11.0
         version: 2.11.0
@@ -648,6 +654,12 @@ packages:
 
   '@scarf/scarf@1.4.0':
     resolution: {integrity: sha512-xxeapPiUXdZAE3che6f3xogoJPeZgig6omHEy1rIY5WVsB3H2BHNnZH+gHG6x91SCWyQCzWGsuL2Hh3ClO5/qQ==}
+
+  '@scure/base@2.4.0':
+    resolution: {integrity: sha512-thZ1TuJwFwBblOhgsjDKvvGirBxNp+wSvY/DR6tJBJOTDhdAAcHJ8Vbr2eFnqaxeca4+t0i9KBf+uHYGWwZORg==}
+
+  '@scure/btc-signer@2.4.1':
+    resolution: {integrity: sha512-ch6h66o9nPhEoe/KciMMUJeH2MBPB8UAJI1if35Fxl6885lKTsc9YoCRqTW0/RjI0Vv9GSg1tmKtHHODyAw81g==}
 
   '@seriousme/openapi-schema-validator@2.11.0':
     resolution: {integrity: sha512-DL8TjmjkUS76OaK/TinoRtf6PrirsWfMZiv62ifP9eq3UOpoLqSGZKpCErxMzz0i1pjECSPYY+qZ1SRYEgiEvg==}
@@ -1289,6 +1301,10 @@ packages:
   math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
     engines: {node: '>= 0.4'}
+
+  micro-packed@0.11.1:
+    resolution: {integrity: sha512-agQGBnBCw8OoKQZMUxcaQPaOowdfxyEmBsq4CNAXAXCyB8KxlRG0lTl5GADJIsMEDaFb0trhXBHKYsjTWa5kuw==}
+    engines: {node: '>= 20.19.0'}
 
   minimatch@10.2.6:
     resolution: {integrity: sha512-vpLQEs+VLCr1nU0BXS07maYoFwlDAH0gngQuuttxIwutDFEMHq2blX+8vpgxDdK3J1PwjCJiep77OitTZ4Ll1A==}
@@ -2064,6 +2080,15 @@ snapshots:
     optional: true
 
   '@scarf/scarf@1.4.0': {}
+
+  '@scure/base@2.4.0': {}
+
+  '@scure/btc-signer@2.4.1':
+    dependencies:
+      '@noble/curves': 2.4.0
+      '@noble/hashes': 2.4.0
+      '@scure/base': 2.4.0
+      micro-packed: 0.11.1
 
   '@seriousme/openapi-schema-validator@2.11.0':
     dependencies:
@@ -2915,6 +2940,10 @@ snapshots:
       semver: 7.8.6
 
   math-intrinsics@1.1.0: {}
+
+  micro-packed@0.11.1:
+    dependencies:
+      '@scure/base': 2.4.0
 
   minimatch@10.2.6:
     dependencies:

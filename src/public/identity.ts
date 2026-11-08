@@ -688,13 +688,21 @@ export const attestSettlementDestination = route({
   params: DestinationIdParams,
   body: inp({
     challenge_id: id("chl"),
-    standard: closedEnum(["nep413", "eip191"], "Signing standard used (Stage 1: NEAR and EVM)."),
+    // stage 4 — chains: `solana` and `bip322` (spec 0.4.0)
+    standard: closedEnum(
+      ["nep413", "eip191", "solana", "bip322"],
+      "Signing standard used: `nep413` (NEAR), `eip191` (EVM), `solana` and `bip322` (Bitcoin) since spec 0.4.0.",
+    ),
     signature: z
       .string()
       .min(16)
       .max(1024)
-      .describe("NEP-413: base64 ed25519 signature. EIP-191: 0x-prefixed 65-byte hex signature."),
-    public_key: CurvePublicKey.optional().describe("NEP-413 only: `ed25519:<base58>` key that signed."),
+      .describe(
+        'NEP-413: base64 ed25519 signature. EIP-191: 0x-prefixed 65-byte hex signature. Solana (spec 0.4.0): base58 of the 64-byte ed25519 signature over the exact UTF-8 bytes of the challenge message (wallet-standard `solana:signMessage`; no off-chain message header). BIP-322 (spec 0.4.0): base64 of the "simple" encoding (the consensus-serialized witness stack of the virtual `to_sign` transaction) for a P2WPKH or P2TR address.',
+      ),
+    public_key: CurvePublicKey.optional().describe(
+      "NEP-413 only: `ed25519:<base58>` key that signed. Ignored for other standards (Solana: the address is the key; BIP-322: the witness carries it).",
+    ),
   }),
   response: SettlementDestination,
   status: 200,

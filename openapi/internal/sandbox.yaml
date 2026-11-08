@@ -1921,6 +1921,21 @@ components:
       additionalProperties: {}
       description: A simulated chain transaction (sandbox verifiers).
       properties:
+        block_ref:
+          description: Simulated slot (Solana) or block height (Bitcoin, EVM, NEAR); null/absent when unknown. Spec 0.4.0.
+          type:
+            - string
+            - "null"
+        confirmations:
+          anyOf:
+            - maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: "Bitcoin: confirmations now (0 = in the mempool; `finalized` is then false); null/absent on chains with a finality flag. Spec 0.4.0."
+        failed:
+          description: "Solana: the transaction landed but failed (`meta.err` set; `transfers` empty). Absent = false. Spec 0.4.0."
+          type: boolean
         finalized:
           description: Final on the simulated chain.
           type: boolean
@@ -1954,6 +1969,18 @@ components:
                 maxLength: 256
                 pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
                 type: string
+              token_account:
+                description: "Solana SPL: recipient token account (the ATA of `to` for the mint); null/absent for SOL and other chains. Spec 0.4.0."
+                type:
+                  - string
+                  - "null"
+              vout:
+                anyOf:
+                  - maximum: 9007199254740991
+                    minimum: 0
+                    type: integer
+                  - type: "null"
+                description: "Bitcoin: output index of this transfer; null/absent on other chains. Spec 0.4.0."
             required:
               - token
               - to

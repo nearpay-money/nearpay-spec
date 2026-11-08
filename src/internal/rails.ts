@@ -9,6 +9,7 @@ import {
   Bps,
   ChainAddress,
   ChainId,
+  ConfirmationTier,
   Currency,
   closedEnum,
   Evidence,
@@ -501,6 +502,19 @@ export const ChainProfile = out({
   verification_timeout_s: z.int().min(0).describe("Evidence timeout before `held`."),
   memo_mode: closedEnum(["none", "required"], "Memo mode."),
   explorer_tx_url: z.string().describe("Explorer URL template with `{tx}`."),
+  // stage 4 — chains
+  explorer_address_url: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("Explorer URL template with `{address}`; null/absent when not configured. Spec 0.4.0."),
+  confirmation_tiers: z
+    .array(ConfirmationTier)
+    .nullable()
+    .optional()
+    .describe(
+      "Confirmations required by settlement value, ascending, last tier unbounded (Bitcoin: 1 below USD 1,000, else 2); null/absent for chains with a finality flag (EVM `finalized`, NEAR `final`, Solana `finalized`). Spec 0.4.0.",
+    ),
 }).meta({ id: "ChainProfile", description: "Chain profile (public subset)." });
 
 export const listChainProfiles = route({
