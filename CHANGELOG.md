@@ -3,6 +3,54 @@
 `@nearpay/spec` and `@nearpay-internal/spec` share one version. Within a version line changes are
 additive only (`pnpm compat` gates every release against `test/compat/baseline/`, the last release).
 
+## Unreleased
+
+### billing
+
+Stage 3 billing contracts (step 3.1; `lld/billing.md` v1.2 §11, ADR-0008). Additive over 0.2.1:
++30 public routes, +6 internal routes, +13 domain event subjects, +12 webhook types, +10 error codes
+(since 0.3.0), +3 ID prefixes (`txr_`, `il_`, `si_`).
+
+- **Catalogue** (`billing-catalog.ts`, scope `products.*`, roles owner/admin/developer/finance): `Product`,
+  `Price` (one-time or recurring `{interval: day|week|month|year, interval_count 1–12}`, fiat or asset
+  pricing, immutable except `active`/`nickname`/`metadata`), `TaxRate` (exact decimal `percentage` ≤ 4
+  decimals + `rate_ppm`, `inclusive`, `jurisdiction`, `country`; percentage/inclusive immutable).
+  Create/get/list/update for each; no deletes (archive with `active: false`).
+- **Normative arithmetic** exported from `@nearpay/spec`: `taxPercentageToPpm`, `divRoundHalfUp`,
+  `computeLineTax`, `computeInvoiceTotals` (bigint; tax per line, round half-up; inclusive
+  `amount × ppm / (10⁶ + Σppm)`; no mixing inclusive/exclusive on one line) and `periodBoundary`
+  (anchor-based calendar months, clamped to month end). Vectors: `test-vectors/billing-tax.json`.
+- **Invoices** (`invoices.ts`, scope `invoices.*`, roles owner/admin/finance): `Invoice` (+ `InvoiceLineItem`,
+  `InvoiceTaxAmount`; totals `subtotal`, `tax`, `total`, `total_excluding_tax`, `total_tax_amounts`,
+  `amount_due|paid|remaining`; `collection_method` open enum, `send_invoice` only in v1; `reminder_days`;
+  `hosted_invoice_url`; `payment_intents`; `sequence`), create/get/list/update (drafts; metadata always)/
+  delete (drafts)/`finalize`/`send`/`void`/`mark_uncollectible`, and `GET /v1/invoices/{id}/pdf`
+  (`application/pdf`). No "paid out of band" (INV-2).
+- **Hosted invoice payer routes** (anonymous at the gateway, header `X-NearPay-Invoice-Secret`, error
+  `invoice_secret_invalid`): `getPublicInvoice` (read-only `PublicInvoice`), `createPublicInvoiceSession`
+  (create or continue the invoice's checkout session → `InvoicePaymentSession`), `getPublicInvoicePdf`.
+  `PUBLIC_ANONYMOUS_ROUTES` gains `GET|POST /v1/invoices/{id}/public/**`.
+- **Subscriptions** (`subscriptions.ts`, scope `subscriptions.*`): `Subscription` (+ `SubscriptionItem`,
+  `DunningSettings`), create/get/list/update (`PATCH`, applies from the next renewal;
+  `proration_behavior` accepts only `none`)/`cancel` (`at_period_end`). Trials via `trial_period_days`.
+- **Payments pieces**: `PaymentIntent.invoice`, `CheckoutSession.invoice` (optional, nullable),
+  `listPaymentIntents?invoice=`; internal `createInvoiceCheckoutSession` (`POST /internal/checkout_sessions`),
+  `getInternalCheckoutSession`, `expireInvoiceCheckoutSession`, `getInternalCustomer`. Billing consumes
+  `evt.payments.payment_intent.succeeded|payment_failed` and `evt.payments.checkout_session.expired`.
+- **Events** (`EVT_BILLING`): `evt.billing.invoice.{created,finalized,sent,paid,payment_failed,overdue,voided,marked_uncollectible}`
+  (`InvoiceEvent`: `hosted_invoice_url` always null), `evt.billing.invoice.reminder` (`InvoiceReminderEvent`,
+  notify only), `evt.billing.subscription.{created,updated,deleted,renewal_upcoming}`. Webhook types
+  `invoice.*` (8) and `customer.subscription.*` (4); `invoice.sent` is new to api-conventions §9.
+- **Billing emails** (event-driven): notify reads `getInvoiceNotificationContext` /
+  `getSubscriptionNotificationContext` (`service:billing.read`); `BILLING_EMAIL_TEMPLATES` maps
+  `invoice.issued|reminder|paid|voided` and `subscription.renewal_upcoming` to subjects and contexts.
+- **Scopes**: billing's service client also holds `identity.context.read` and `rails.read`.
+- **Errors** (0.3.0): `currency_mismatch`, `interval_mismatch`, `price_inactive`, `price_type_invalid`,
+  `tax_rate_inactive`, `tax_rates_mixed`, `invoice_empty`, `customer_email_missing`,
+  `invoice_secret_invalid`, `invoice_not_payable`.
+- **Route helper**: optional `binaryResponse {contentType, description}` (non-JSON success bodies; emitted
+  as that media type); header constant `HEADERS.invoiceSecret`.
+
 ## 0.2.1 — 2026-11-08
 
 Additive patch collecting the Stage 2 builders' change requests (step 2.2/2.3 reports and the lead's

@@ -133,6 +133,22 @@
           "pattern": "^cs_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
           "type": "string"
         },
+        "invoice": {
+          "anyOf": [
+            {
+              "description": "invoice id (`in_` + 26 base32 chars).",
+              "examples": [
+                "in_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^in_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Invoice the session pays (opened by the hosted invoice page, Stage 3); null otherwise."
+        },
         "late": {
           "description": "Completed by a settlement after expiry.",
           "type": "boolean"
@@ -793,6 +809,22 @@
           ],
           "pattern": "^pi_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
           "type": "string"
+        },
+        "invoice": {
+          "anyOf": [
+            {
+              "description": "invoice id (`in_` + 26 base32 chars).",
+              "examples": [
+                "in_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^in_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Invoice the intent pays (`source: invoice`, Stage 3); null otherwise. Servers from 0.3.0 send it."
         },
         "late": {
           "description": "Settled after its checkout session expired (INV-3).",

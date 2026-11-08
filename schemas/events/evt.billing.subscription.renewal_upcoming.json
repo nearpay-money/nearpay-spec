@@ -1,0 +1,711 @@
+{
+  "$defs": {
+    "DunningSettings": {
+      "additionalProperties": {},
+      "description": "Reminder schedule and what happens when it runs out (FR-BIL-03).",
+      "properties": {
+        "on_exhausted": {
+          "description": "After the last reminder of an unpaid invoice: `cancel` the subscription, or keep it as `unpaid` (no new invoices until paid or canceled).",
+          "type": "string",
+          "x-extensible-enum": [
+            "cancel",
+            "unpaid"
+          ]
+        },
+        "reminder_days": {
+          "description": "When reminders go out, in days relative to the due date (negative = before), strictly increasing, at most 10; `[]` sends none.",
+          "items": {
+            "description": "Days relative to the due date (negative = before).",
+            "maximum": 60,
+            "minimum": -30,
+            "type": "integer"
+          },
+          "maxItems": 10,
+          "type": "array"
+        }
+      },
+      "required": [
+        "reminder_days",
+        "on_exhausted"
+      ],
+      "type": "object"
+    },
+    "Price": {
+      "additionalProperties": {},
+      "description": "How much and how often a product costs (immutable pricing, INV-6).",
+      "properties": {
+        "active": {
+          "description": "Inactive prices cannot be used on new invoices or subscriptions.",
+          "type": "boolean"
+        },
+        "asset_id": {
+          "anyOf": [
+            {
+              "description": "NEAR Intents asset id, e.g. `nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1`.",
+              "examples": [
+                "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1"
+              ],
+              "maxLength": 256,
+              "pattern": "^(nep141:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+|nep245:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+:[\\x21-\\x7e]{1,128})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Pricing asset when `currency` is `asset`."
+        },
+        "created": {
+          "description": "Unix time in seconds.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "currency": {
+          "anyOf": [
+            {
+              "description": "ISO 4217 currency code, lower-case (e.g. `usd`).",
+              "pattern": "^[a-z]{3}$",
+              "type": "string"
+            },
+            {
+              "const": "asset",
+              "type": "string"
+            }
+          ],
+          "description": "ISO 4217 code for fiat pricing, or `asset` when priced in an asset (then `asset_id` is set)."
+        },
+        "id": {
+          "description": "price id (`price_` + 26 base32 chars).",
+          "examples": [
+            "price_01jbz9k3m4n5p6q7r8s9t0v1w2"
+          ],
+          "pattern": "^price_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+          "type": "string"
+        },
+        "livemode": {
+          "description": "`true` for live mode, `false` for test mode.",
+          "type": "boolean"
+        },
+        "metadata": {
+          "additionalProperties": {
+            "maxLength": 500,
+            "type": "string"
+          },
+          "description": "Up to 50 key/value pairs (key ≤ 40 chars, value ≤ 500 chars) for your own use.",
+          "propertyNames": {
+            "maxLength": 40,
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "nickname": {
+          "description": "Internal label (never shown to customers).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "object": {
+          "const": "price",
+          "description": "Always `price`.",
+          "type": "string"
+        },
+        "product": {
+          "description": "product id (`prod_` + 26 base32 chars).",
+          "examples": [
+            "prod_01jbz9k3m4n5p6q7r8s9t0v1w2"
+          ],
+          "pattern": "^prod_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+          "type": "string"
+        },
+        "recurring": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PriceRecurring"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Billing period of a `recurring` price; null for `one_time`."
+        },
+        "type": {
+          "description": "One-time charge or a recurring (subscription) price.",
+          "type": "string",
+          "x-extensible-enum": [
+            "one_time",
+            "recurring"
+          ]
+        },
+        "unit_amount": {
+          "anyOf": [
+            {
+              "description": "Fiat amount in minor units (e.g. cents), integer.",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "description": "Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).",
+              "pattern": "^(0|[1-9][0-9]{0,77})$",
+              "type": "string"
+            }
+          ],
+          "description": "Price per unit. Fiat: integer minor units. Asset: base units as a string."
+        }
+      },
+      "required": [
+        "id",
+        "object",
+        "created",
+        "livemode",
+        "product",
+        "active",
+        "type",
+        "unit_amount",
+        "currency",
+        "asset_id",
+        "recurring",
+        "nickname",
+        "metadata"
+      ],
+      "type": "object"
+    },
+    "PriceRecurring": {
+      "additionalProperties": {},
+      "description": "How often a recurring price bills.",
+      "properties": {
+        "interval": {
+          "description": "Unit of a billing period.",
+          "type": "string",
+          "x-extensible-enum": [
+            "day",
+            "week",
+            "month",
+            "year"
+          ]
+        },
+        "interval_count": {
+          "description": "Number of `interval` units per period, 1–12.",
+          "maximum": 12,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "interval",
+        "interval_count"
+      ],
+      "type": "object"
+    },
+    "Subscription": {
+      "additionalProperties": {},
+      "description": "A customer billed every period by emailed invoice (FR-BIL-02).",
+      "properties": {
+        "asset_id": {
+          "anyOf": [
+            {
+              "description": "NEAR Intents asset id, e.g. `nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1`.",
+              "examples": [
+                "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1"
+              ],
+              "maxLength": 256,
+              "pattern": "^(nep141:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+|nep245:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+:[\\x21-\\x7e]{1,128})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Pricing asset when `currency` is `asset`."
+        },
+        "billing_cycle_anchor": {
+          "description": "Period boundaries are computed from this instant (`periodBoundary`).",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "cancel_at_period_end": {
+          "description": "Cancels at `current_period_end` instead of renewing.",
+          "type": "boolean"
+        },
+        "canceled_at": {
+          "anyOf": [
+            {
+              "description": "Unix time in seconds.",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "When cancellation was requested or happened."
+        },
+        "cancellation_reason": {
+          "anyOf": [
+            {
+              "description": "Why it was canceled: by the merchant, unpaid after the reminders, or the first invoice was never paid.",
+              "type": "string",
+              "x-extensible-enum": [
+                "requested",
+                "dunning_exhausted",
+                "incomplete_expired"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Set once canceled or scheduled to cancel."
+        },
+        "collection_method": {
+          "description": "How the invoice is collected: `send_invoice` = the customer pays the hosted invoice (v1).",
+          "type": "string",
+          "x-extensible-enum": [
+            "send_invoice"
+          ]
+        },
+        "created": {
+          "description": "Unix time in seconds.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "currency": {
+          "anyOf": [
+            {
+              "description": "ISO 4217 currency code, lower-case (e.g. `usd`).",
+              "pattern": "^[a-z]{3}$",
+              "type": "string"
+            },
+            {
+              "const": "asset",
+              "type": "string"
+            }
+          ],
+          "description": "ISO 4217 code for fiat pricing, or `asset` when priced in an asset (then `asset_id` is set)."
+        },
+        "current_period_end": {
+          "description": "End of the current period: the next renewal invoice is created then.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "current_period_start": {
+          "description": "Start of the current period.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "customer": {
+          "description": "Customer billed (owned by payments).",
+          "examples": [
+            "cus_01jbz9k3m4n5p6q7r8s9t0v1w2"
+          ],
+          "pattern": "^cus_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+          "type": "string"
+        },
+        "days_until_due": {
+          "description": "Each invoice is due this many days after it is finalized.",
+          "maximum": 90,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "default_tax_rates": {
+          "description": "Tax rates for items without their own.",
+          "items": {
+            "description": "tax_rate id (`txr_` + 26 base32 chars).",
+            "examples": [
+              "txr_01jbz9k3m4n5p6q7r8s9t0v1w2"
+            ],
+            "pattern": "^txr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "description": {
+          "description": "Shown on every invoice of the subscription.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dunning": {
+          "$ref": "#/$defs/DunningSettings"
+        },
+        "ended_at": {
+          "anyOf": [
+            {
+              "description": "Unix time in seconds.",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "When the subscription ended (`status: canceled`)."
+        },
+        "id": {
+          "description": "subscription id (`sub_` + 26 base32 chars).",
+          "examples": [
+            "sub_01jbz9k3m4n5p6q7r8s9t0v1w2"
+          ],
+          "pattern": "^sub_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+          "type": "string"
+        },
+        "items": {
+          "description": "Items billed from the next renewal invoice on.",
+          "items": {
+            "$ref": "#/$defs/SubscriptionItem"
+          },
+          "type": "array"
+        },
+        "latest_invoice": {
+          "anyOf": [
+            {
+              "description": "invoice id (`in_` + 26 base32 chars).",
+              "examples": [
+                "in_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^in_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Most recent invoice of the subscription."
+        },
+        "livemode": {
+          "description": "`true` for live mode, `false` for test mode.",
+          "type": "boolean"
+        },
+        "metadata": {
+          "additionalProperties": {
+            "maxLength": 500,
+            "type": "string"
+          },
+          "description": "Copied onto every invoice of the subscription.",
+          "propertyNames": {
+            "maxLength": 40,
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "object": {
+          "const": "subscription",
+          "description": "Always `subscription`.",
+          "type": "string"
+        },
+        "recurring": {
+          "$ref": "#/$defs/PriceRecurring",
+          "description": "Billing period shared by every item."
+        },
+        "sequence": {
+          "description": "Increases with every change; discard webhook objects with a lower sequence.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "settlement_destination": {
+          "anyOf": [
+            {
+              "description": "settlement_destination id (`sd_` + 26 base32 chars).",
+              "examples": [
+                "sd_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^sd_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Destination for its invoices; null = the account default when each payment session opens."
+        },
+        "status": {
+          "description": "Subscription status (domain-model §4.5).",
+          "type": "string",
+          "x-extensible-enum": [
+            "incomplete",
+            "trialing",
+            "active",
+            "past_due",
+            "canceled",
+            "unpaid"
+          ]
+        },
+        "trial_end": {
+          "anyOf": [
+            {
+              "description": "Unix time in seconds.",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Trial end: the first invoice is created then."
+        },
+        "trial_start": {
+          "anyOf": [
+            {
+              "description": "Unix time in seconds.",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Trial start."
+        }
+      },
+      "required": [
+        "id",
+        "object",
+        "created",
+        "livemode",
+        "customer",
+        "status",
+        "collection_method",
+        "items",
+        "currency",
+        "asset_id",
+        "recurring",
+        "billing_cycle_anchor",
+        "current_period_start",
+        "current_period_end",
+        "days_until_due",
+        "default_tax_rates",
+        "dunning",
+        "trial_start",
+        "trial_end",
+        "cancel_at_period_end",
+        "canceled_at",
+        "ended_at",
+        "cancellation_reason",
+        "latest_invoice",
+        "settlement_destination",
+        "description",
+        "metadata",
+        "sequence"
+      ],
+      "type": "object"
+    },
+    "SubscriptionItem": {
+      "additionalProperties": {},
+      "description": "One price billed every period.",
+      "properties": {
+        "id": {
+          "description": "subscription_item id (`si_` + 26 base32 chars).",
+          "examples": [
+            "si_01jbz9k3m4n5p6q7r8s9t0v1w2"
+          ],
+          "pattern": "^si_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+          "type": "string"
+        },
+        "object": {
+          "const": "subscription_item",
+          "description": "Always `subscription_item`.",
+          "type": "string"
+        },
+        "price": {
+          "$ref": "#/$defs/Price",
+          "description": "The recurring price (snapshot of the price object)."
+        },
+        "quantity": {
+          "description": "Quantity.",
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "tax_rates": {
+          "anyOf": [
+            {
+              "items": {
+                "description": "tax_rate id (`txr_` + 26 base32 chars).",
+                "examples": [
+                  "txr_01jbz9k3m4n5p6q7r8s9t0v1w2"
+                ],
+                "pattern": "^txr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Tax rates of this item; null = the subscription's `default_tax_rates`."
+        }
+      },
+      "required": [
+        "id",
+        "object",
+        "price",
+        "quantity",
+        "tax_rates"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": {},
+  "description": "Envelope of `evt.billing.subscription.renewal_upcoming`.",
+  "properties": {
+    "account_id": {
+      "anyOf": [
+        {
+          "description": "UUID (RFC 9562).",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Merchant account UUID (null for platform events)."
+    },
+    "aggregate": {
+      "additionalProperties": {},
+      "description": "The aggregate that changed.",
+      "properties": {
+        "id": {
+          "description": "Aggregate id (prefixed).",
+          "type": "string"
+        },
+        "type": {
+          "description": "Aggregate type.",
+          "type": "string"
+        },
+        "version": {
+          "description": "Aggregate version after the change.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "version"
+      ],
+      "type": "object"
+    },
+    "data": {
+      "additionalProperties": {},
+      "description": "Payload.",
+      "properties": {
+        "object": {
+          "$ref": "#/$defs/Subscription"
+        },
+        "previous": {
+          "additionalProperties": {},
+          "description": "Changed fields with previous values.",
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "object"
+      ],
+      "type": "object"
+    },
+    "id": {
+      "description": "Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+      "type": "string"
+    },
+    "livemode": {
+      "description": "Mode (null for platform events).",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "occurred_at": {
+      "description": "When the state change committed.",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+      "type": "string"
+    },
+    "request": {
+      "additionalProperties": {},
+      "description": "Request context (copied into public events).",
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "description": "Request id, also returned in the `X-Request-Id` header.",
+              "examples": [
+                "req_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "API request that caused the change."
+        },
+        "idempotency_key": {
+          "description": "Its Idempotency-Key.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "idempotency_key"
+      ],
+      "type": "object"
+    },
+    "subject": {
+      "const": "evt.billing.subscription.renewal_upcoming",
+      "description": "Subject.",
+      "type": "string"
+    },
+    "trace": {
+      "additionalProperties": {},
+      "description": "Trace context.",
+      "properties": {
+        "traceparent": {
+          "description": "W3C traceparent.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "traceparent"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "id",
+    "occurred_at",
+    "account_id",
+    "livemode",
+    "aggregate",
+    "subject",
+    "data"
+  ],
+  "type": "object"
+}

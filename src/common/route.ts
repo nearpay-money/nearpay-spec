@@ -25,6 +25,12 @@ export interface SseStream {
   readonly retryMs: number;
 }
 
+/** A raw (non-JSON) success body, e.g. `application/pdf` (stage 3 — billing). */
+export interface BinaryResponse {
+  readonly contentType: string;
+  readonly description: string;
+}
+
 export interface RouteDefinition<
   P extends z.ZodType | undefined = z.ZodType | undefined,
   Q extends z.ZodType | undefined = z.ZodType | undefined,
@@ -65,6 +71,11 @@ export interface RouteDefinition<
   readonly responseHeaders?: z.ZodType;
   /** Server-sent events instead of a JSON body. */
   readonly stream?: SseStream;
+  /**
+   * A non-JSON success body (stage 3 — billing: invoice PDFs). `response` must be `null`; the body
+   * is the raw bytes of `contentType`.
+   */
+  readonly binaryResponse?: BinaryResponse;
   /** Route-specific error codes (generic codes apply to every route). */
   readonly errors: readonly ErrorCode[];
   /** Test-mode only (rejects live mode with `livemode_forbidden`). */
@@ -94,6 +105,10 @@ export function route<
   if (def.auth.length === 0) throw new Error(`route ${def.id}: auth must not be empty`);
   if (def.status === 204 && def.response !== null) throw new Error(`route ${def.id}: 204 must not have a body`);
   if (def.body && def.method === "GET") throw new Error(`route ${def.id}: GET must not have a body`);
+  // stage 3 — billing
+  if (def.binaryResponse && (def.response !== null || def.stream)) {
+    throw new Error(`route ${def.id}: a binary response has no JSON body or stream`);
+  }
   if (def.visibility === "public" && !def.path.startsWith("/v1/") && !def.path.startsWith("/x402/")) {
     throw new Error(`route ${def.id}: public paths start with /v1/ or /x402/`);
   }

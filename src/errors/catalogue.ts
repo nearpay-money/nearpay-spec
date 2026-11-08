@@ -39,6 +39,8 @@ export interface ErrorDefinition {
 const e = (d: Omit<ErrorDefinition, "since">): ErrorDefinition => ({ ...d, since: "0.1.0" });
 /** Codes introduced with the Stage 2 contract freeze. */
 const e2 = (d: Omit<ErrorDefinition, "since">): ErrorDefinition => ({ ...d, since: "0.2.0" });
+/** Codes introduced with the Stage 3 contract freeze (stage 3 — billing). */
+const e3 = (d: Omit<ErrorDefinition, "since">): ErrorDefinition => ({ ...d, since: "0.3.0" });
 
 export const ERRORS = {
   // ------------------------------------------------------------------ generic (every route)
@@ -624,6 +626,78 @@ export const ERRORS = {
     retryable: true,
     message: "A current exchange rate for {currency} is not available right now.",
     example: "A current exchange rate for eur is not available right now.",
+  }),
+  // stage 3 — billing
+  // ------------------------------------------------------------------ billing: catalogue, invoices, subscriptions
+  currency_mismatch: e3({
+    status: 422,
+    type: "invalid_request_error",
+    retryable: false,
+    message: "Price {price} is in {currency}, but this {object} is in {expected}.",
+    example: "Price price_01jbz9k3m4n5p6q7r8s9t0v1w2 is in eur, but this invoice is in usd.",
+  }),
+  interval_mismatch: e3({
+    status: 422,
+    type: "invalid_request_error",
+    retryable: false,
+    message: "Price {price} bills every {interval}; this subscription bills every {expected}.",
+    example: "Price price_01jbz9k3m4n5p6q7r8s9t0v1w2 bills every 1 year; this subscription bills every 1 month.",
+  }),
+  price_inactive: e3({
+    status: 409,
+    type: "state_conflict",
+    retryable: false,
+    message: "Price {price} is inactive and cannot be used on new invoices or subscriptions.",
+    example: "Price price_01jbz9k3m4n5p6q7r8s9t0v1w2 is inactive and cannot be used on new invoices or subscriptions.",
+  }),
+  price_type_invalid: e3({
+    status: 422,
+    type: "invalid_request_error",
+    retryable: false,
+    message: "Price {price} is {type}; this {object} needs {expected} prices.",
+    example: "Price price_01jbz9k3m4n5p6q7r8s9t0v1w2 is recurring; this invoice needs one_time prices.",
+  }),
+  tax_rate_inactive: e3({
+    status: 409,
+    type: "state_conflict",
+    retryable: false,
+    message: "Tax rate {tax_rate} is inactive.",
+    example: "Tax rate txr_01jbz9k3m4n5p6q7r8s9t0v1w2 is inactive.",
+  }),
+  tax_rates_mixed: e3({
+    status: 422,
+    type: "invalid_request_error",
+    retryable: false,
+    message: "A line cannot combine inclusive and exclusive tax rates ({param}).",
+    example: "A line cannot combine inclusive and exclusive tax rates (lines.0.tax_rates).",
+  }),
+  invoice_empty: e3({
+    status: 422,
+    type: "invalid_request_error",
+    retryable: false,
+    message: "Invoice {invoice} cannot be finalized: it has no lines or its total is zero.",
+    example: "Invoice in_01jbz9k3m4n5p6q7r8s9t0v1w2 cannot be finalized: it has no lines or its total is zero.",
+  }),
+  customer_email_missing: e3({
+    status: 422,
+    type: "invalid_request_error",
+    retryable: false,
+    message: "Customer {customer} has no email address to send invoices to.",
+    example: "Customer cus_01jbz9k3m4n5p6q7r8s9t0v1w2 has no email address to send invoices to.",
+  }),
+  invoice_secret_invalid: e3({
+    status: 401,
+    type: "authentication_error",
+    retryable: false,
+    message: "The invoice secret does not match this invoice.",
+    example: "The invoice secret does not match this invoice.",
+  }),
+  invoice_not_payable: e3({
+    status: 409,
+    type: "state_conflict",
+    retryable: false,
+    message: "Invoice {invoice} is {status} and cannot be paid.",
+    example: "Invoice in_01jbz9k3m4n5p6q7r8s9t0v1w2 is void and cannot be paid.",
   }),
 } as const satisfies Record<string, ErrorDefinition>;
 

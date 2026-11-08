@@ -189,6 +189,11 @@ export const PaymentIntent = out({
     .nullable()
     .optional()
     .describe("Merchant decision on a `requires_review` intent (Stage 2)."),
+  // stage 3 — billing
+  invoice: id("in")
+    .nullable()
+    .optional()
+    .describe("Invoice the intent pays (`source: invoice`, Stage 3); null otherwise. Servers from 0.3.0 send it."),
 }).meta({ id: "PaymentIntent", description: "One payment the merchant expects (FR-PAY-01)." });
 export type PaymentIntent = z.infer<typeof PaymentIntent>;
 
@@ -239,6 +244,11 @@ export const CheckoutSession = out({
   // stage 2 — payments
   customer: id("cus").nullable().optional().describe("Customer attached to the session (Stage 2)."),
   payment_link: id("plink").nullable().optional().describe("Payment link that opened the session (Stage 2)."),
+  // stage 3 — billing
+  invoice: id("in")
+    .nullable()
+    .optional()
+    .describe("Invoice the session pays (opened by the hosted invoice page, Stage 3); null otherwise."),
 }).meta({ id: "CheckoutSession", description: "A checkout page or embed for one payment intent." });
 export type CheckoutSession = z.infer<typeof CheckoutSession>;
 
@@ -420,6 +430,8 @@ export const listPaymentIntents = route({
     customer: id("cus").optional().describe("Only intents of this customer."),
     payment_link: id("plink").optional().describe("Only intents created through this payment link."),
     checkout_session: id("cs").optional().describe("Only the intent of this checkout session."),
+    // stage 3 — billing
+    invoice: id("in").optional().describe("Only intents opened for this invoice (Stage 3)."),
   }),
   response: listOf(PaymentIntent, "PaymentIntentList", "A page of payment intents."),
   status: 200,

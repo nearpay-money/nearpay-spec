@@ -28,6 +28,8 @@ export const HEADERS = {
   x402PaymentRequired: "PAYMENT-REQUIRED",
   x402PaymentSignature: "PAYMENT-SIGNATURE",
   x402PaymentResponse: "PAYMENT-RESPONSE",
+  // stage 3 — billing: hosted invoice payer routes (`/i/<in_…>#<invoice secret>`)
+  invoiceSecret: "X-NearPay-Invoice-Secret",
 } as const;
 
 /** Dashboard session cookie (identity LLD §4). */
@@ -186,7 +188,14 @@ export const SERVICE_CLIENT_SCOPES: Record<ServiceName, readonly ServiceScope[]>
     "sentinel.read" /* spec 0.2.1 — kill-switch state at boot */,
   ],
   sentinel: ["rails.read", "sandbox.use"],
-  billing: ["payments.sessions.create", "payments.read", "notify.send"],
+  billing: [
+    "payments.sessions.create",
+    "payments.read",
+    "notify.send",
+    // stage 3 — billing: merchant name/destinations (hosted invoice, PDF, notification context) and asset display
+    "identity.context.read",
+    "rails.read",
+  ],
   notify: ["identity.recipients.read", "payments.receipts.read", "billing.read"],
   compliance: ["identity.operators.read" /* spec 0.2.1 — active-operator check on case assignment */],
   webhooks: [],

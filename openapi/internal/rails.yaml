@@ -596,6 +596,16 @@ components:
             - customer_deleted
             - reconciliation_day_open
             - fx_rate_unavailable
+            - currency_mismatch
+            - interval_mismatch
+            - price_inactive
+            - price_type_invalid
+            - tax_rate_inactive
+            - tax_rates_mixed
+            - invoice_empty
+            - customer_email_missing
+            - invoice_secret_invalid
+            - invoice_not_payable
         doc_url:
           description: Documentation page for this error code.
           format: uri
