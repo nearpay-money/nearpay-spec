@@ -63,6 +63,8 @@ nearpay-spec/
 
 ## Status
 
+`0.4.0` — Stage 4 contracts (step 4.1, contract freeze; additive over 0.3.1, see `CHANGELOG.md`): auto-debit (subscription-vault mirror and shared vault test vectors, billing mandates, hosted mandate funding, mandate events, webhooks and emails, the sandbox vault stand-in) and Solana + Bitcoin as Tier A chains (chain helpers, chain evidence, Solana and BIP-322 destination attestation, chain test vectors). 151 public, 62 internal and 47 console routes, 80 domain event subjects, 41 webhook types, 89 error codes.
+
 `0.3.1` — Stage 3.2 change requests (additive; see `CHANGELOG.md`): owner filter on rails evidence summaries, sandbox transfer senders, missing route error codes (invoice sessions, subscriptions, FX/pricing), invoice-mail totals and destination fingerprint, and a test-mode billing clock helper (`POST /v1/test_helpers/subscriptions/{id}/advance_clock`). 143 public, 57 internal and 47 console routes, 71 domain event subjects, 33 webhook types, 87 error codes.
 
 `0.3.0` — Stage 3 contracts (step 3.1, contract freeze; additive over 0.2.1, see `CHANGELOG.md`): billing (products, prices, tax rates with normative tax arithmetic, invoices and hosted invoices, subscriptions, billing emails) and agent commerce (cross-chain x402 `near-intents`, events SSE stream, CLI device login, `nearpay trigger` test helper). 142 public, 57 internal and 47 console routes, 71 domain event subjects, 33 webhook types, 87 error codes.

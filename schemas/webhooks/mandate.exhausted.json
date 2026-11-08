@@ -1,0 +1,522 @@
+{
+  "$defs": {
+    "EventMandateExhausted": {
+      "additionalProperties": {},
+      "description": "`mandate.exhausted` event.",
+      "properties": {
+        "api_version": {
+          "description": "API version the payload is rendered in.",
+          "enum": [
+            "2026-11-01"
+          ],
+          "type": "string"
+        },
+        "created": {
+          "description": "Unix time in seconds.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "data": {
+          "additionalProperties": {},
+          "description": "Event data.",
+          "properties": {
+            "object": {
+              "$ref": "#/$defs/Mandate"
+            },
+            "previous_attributes": {
+              "additionalProperties": {},
+              "description": "Changed fields with their previous values (update events).",
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            }
+          },
+          "required": [
+            "object"
+          ],
+          "type": "object"
+        },
+        "id": {
+          "description": "event id (`evt_` + 26 base32 chars).",
+          "examples": [
+            "evt_01jbz9k3m4n5p6q7r8s9t0v1w2"
+          ],
+          "pattern": "^evt_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+          "type": "string"
+        },
+        "livemode": {
+          "description": "`true` for live mode, `false` for test mode.",
+          "type": "boolean"
+        },
+        "object": {
+          "const": "event",
+          "description": "Always `event`.",
+          "type": "string"
+        },
+        "request": {
+          "additionalProperties": {},
+          "description": "Request that caused the event.",
+          "properties": {
+            "id": {
+              "anyOf": [
+                {
+                  "description": "request id (`req_` + 26 base32 chars).",
+                  "examples": [
+                    "req_01jbz9k3m4n5p6q7r8s9t0v1w2"
+                  ],
+                  "pattern": "^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "API request that caused the event, if any."
+            },
+            "idempotency_key": {
+              "description": "Idempotency-Key of that request, if any.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "id",
+            "idempotency_key"
+          ],
+          "type": "object"
+        },
+        "type": {
+          "const": "mandate.exhausted",
+          "description": "Event type.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "object",
+        "type",
+        "api_version",
+        "created",
+        "livemode",
+        "data",
+        "request"
+      ],
+      "type": "object"
+    },
+    "Mandate": {
+      "additionalProperties": {},
+      "description": "An auto-debit mandate: NearPay's mirror of a subscription-vault mandate the payer funded (FR-BIL-02/04).",
+      "properties": {
+        "amount_per_period": {
+          "description": "Tokens collected per period.",
+          "pattern": "^(0|[1-9][0-9]{0,77})$",
+          "type": "string"
+        },
+        "asset_id": {
+          "description": "The token as a NEAR Intents asset id (`nep141:<token>`).",
+          "examples": [
+            "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1"
+          ],
+          "maxLength": 256,
+          "pattern": "^(nep141:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+|nep245:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+:[\\x21-\\x7e]{1,128})$",
+          "type": "string"
+        },
+        "balance": {
+          "description": "Tokens on the mandate available for the next periods (mirror of the vault events).",
+          "pattern": "^(0|[1-9][0-9]{0,77})$",
+          "type": "string"
+        },
+        "canceled": {
+          "anyOf": [
+            {
+              "additionalProperties": {},
+              "properties": {
+                "by": {
+                  "description": "Who canceled (the payer or the merchant receiver).",
+                  "pattern": "^(?=.{2,64}$)(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+$",
+                  "type": "string"
+                },
+                "by_role": {
+                  "description": "Role of `by`.",
+                  "type": "string",
+                  "x-extensible-enum": [
+                    "payer",
+                    "merchant_receiver"
+                  ]
+                },
+                "canceled_at": {
+                  "description": "Block time of the `canceled` event.",
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "refunded": {
+                  "description": "Returned to the payer by the cancel; `\"0\"` if that refund failed (then withdrawable).",
+                  "pattern": "^(0|[1-9][0-9]{0,77})$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "by",
+                "by_role",
+                "refunded",
+                "canceled_at"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Set once canceled."
+        },
+        "collect_failures": {
+          "description": "Consecutive `collect_failed` outcomes (merchant leg delivered nothing); reset by a collection.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "collected_periods": {
+          "description": "Periods the vault has counted.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "collecting": {
+          "description": "Billing's keeper collects renewal invoices from this mandate: linked, on-chain active, and its subscription is active and `auto_debit`. Turns false for good when the subscription ends or leaves `auto_debit` (`mandate.released`).",
+          "type": "boolean"
+        },
+        "created": {
+          "description": "Block time of `mandate_created`.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "customer": {
+          "description": "Customer of that subscription.",
+          "examples": [
+            "cus_01jbz9k3m4n5p6q7r8s9t0v1w2"
+          ],
+          "pattern": "^cus_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+          "type": "string"
+        },
+        "ext_ref": {
+          "description": "The mandate's on-chain reference (the subscription id for NearPay mandates).",
+          "maxLength": 64,
+          "type": "string"
+        },
+        "fee_bps": {
+          "description": "NearPay fee in basis points, fixed on chain at creation.",
+          "maximum": 10000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "funded_periods": {
+          "description": "`floor(balance / amount_per_period)`: periods the balance still covers.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "id": {
+          "description": "mandate id (`md_` + 26 base32 chars).",
+          "examples": [
+            "md_01jbz9k3m4n5p6q7r8s9t0v1w2"
+          ],
+          "pattern": "^md_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+          "type": "string"
+        },
+        "last_collection": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MandateCollection"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Most recent collected period."
+        },
+        "link_status": {
+          "description": "`linked`: billing collects this mandate for its subscription. `unlinked`: the on-chain terms do not match what billing prepared; billing never collects it and the payer is asked to cancel it.",
+          "type": "string",
+          "x-extensible-enum": [
+            "linked",
+            "unlinked"
+          ]
+        },
+        "livemode": {
+          "description": "`true` for the mainnet vault, `false` for the sandbox vault stand-in.",
+          "type": "boolean"
+        },
+        "max_periods": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Maximum periods; null = until canceled."
+        },
+        "merchant_receiver": {
+          "description": "Receiver of the merchant share (the merchant's NEAR Intents account).",
+          "pattern": "^(?=.{2,64}$)(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+$",
+          "type": "string"
+        },
+        "next_collect_at": {
+          "anyOf": [
+            {
+              "description": "Unix time in seconds.",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "When the next vault period becomes due; null unless on-chain active below `max_periods`."
+        },
+        "object": {
+          "const": "mandate",
+          "description": "Always `mandate`.",
+          "type": "string"
+        },
+        "onchain_id": {
+          "description": "The vault's `mandate_id`.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "payer": {
+          "description": "Payer: the NEAR account that signed the funding transaction (always its owner).",
+          "pattern": "^(?=.{2,64}$)(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+$",
+          "type": "string"
+        },
+        "period_secs": {
+          "description": "Vault period length (seconds).",
+          "maximum": 9007199254740991,
+          "minimum": 86400,
+          "type": "integer"
+        },
+        "receiver_kind": {
+          "description": "How the merchant share is delivered: `intents_account` = `ft_transfer_call(intents.near, msg = merchant_receiver)` (credits the merchant's NEAR Intents balance); `near_account` = plain `ft_transfer`.",
+          "enum": [
+            "intents_account",
+            "near_account"
+          ],
+          "type": "string"
+        },
+        "sequence": {
+          "description": "Increases with every change; discard webhook objects with a lower sequence.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "settlement_destination": {
+          "anyOf": [
+            {
+              "description": "settlement_destination id (`sd_` + 26 base32 chars).",
+              "examples": [
+                "sd_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^sd_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Settlement destination that matches `merchant_receiver` (linked mandates); null otherwise."
+        },
+        "start_at": {
+          "description": "When vault period 1 became (or becomes) due.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "status": {
+          "description": "Mandate status (domain-model §4.5): `active` = on-chain active with at least one period funded; `insufficient` = on-chain active but the balance is below one period (top up, or the due invoice falls back to `send_invoice`); `exhausted` = `max_periods` collected; `canceled` = canceled by the payer or the merchant receiver.",
+          "type": "string",
+          "x-extensible-enum": [
+            "active",
+            "insufficient",
+            "exhausted",
+            "canceled"
+          ]
+        },
+        "subscription": {
+          "description": "Subscription named by the mandate's `ext_ref`.",
+          "examples": [
+            "sub_01jbz9k3m4n5p6q7r8s9t0v1w2"
+          ],
+          "pattern": "^sub_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+          "type": "string"
+        },
+        "token": {
+          "description": "NEP-141 token contract.",
+          "pattern": "^(?=.{2,64}$)(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+$",
+          "type": "string"
+        },
+        "unlinked_reason": {
+          "anyOf": [
+            {
+              "description": "Why a mandate is `unlinked` (billing §6 linkage rule): the subscription is not `auto_debit` or has ended, another mandate is already linked, or a term differs from the prepared one (receiver kind, receiver = an active Intents-account destination of the account, token, amount per period, period, fee, `start_at` after the current period end, `max_periods` below the remaining periods), or a test-vault mandate names a live subscription (or the reverse).",
+              "type": "string",
+              "x-extensible-enum": [
+                "subscription_not_auto_debit",
+                "subscription_ended",
+                "already_linked",
+                "receiver_kind_mismatch",
+                "receiver_not_destination",
+                "token_mismatch",
+                "amount_mismatch",
+                "period_mismatch",
+                "fee_mismatch",
+                "start_too_late",
+                "max_periods_too_low",
+                "mode_mismatch"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Set when `link_status` is `unlinked`."
+        },
+        "vault_contract": {
+          "description": "Vault account (`v1.vault.nearpay.near`; the stand-in's in test mode).",
+          "pattern": "^(?=.{2,64}$)(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+$",
+          "type": "string"
+        },
+        "withdrawn": {
+          "description": "Total the payer withdrew after cancel/exhaustion (`withdrawn` events).",
+          "pattern": "^(0|[1-9][0-9]{0,77})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "object",
+        "created",
+        "livemode",
+        "status",
+        "link_status",
+        "unlinked_reason",
+        "collecting",
+        "subscription",
+        "customer",
+        "vault_contract",
+        "onchain_id",
+        "payer",
+        "token",
+        "asset_id",
+        "merchant_receiver",
+        "receiver_kind",
+        "settlement_destination",
+        "amount_per_period",
+        "period_secs",
+        "start_at",
+        "max_periods",
+        "fee_bps",
+        "collected_periods",
+        "balance",
+        "funded_periods",
+        "next_collect_at",
+        "last_collection",
+        "collect_failures",
+        "canceled",
+        "withdrawn",
+        "ext_ref",
+        "sequence"
+      ],
+      "type": "object"
+    },
+    "MandateCollection": {
+      "additionalProperties": {},
+      "description": "A period collected by the vault (evidence: the `collected` event).",
+      "properties": {
+        "amount": {
+          "description": "`merchant_share + fee` actually paid (token base units).",
+          "pattern": "^(0|[1-9][0-9]{0,77})$",
+          "type": "string"
+        },
+        "collected_at": {
+          "description": "Block time of the receipt.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "fee": {
+          "description": "NearPay fee; `\"0\"` when the fee leg failed (the fee stayed with the payer).",
+          "pattern": "^(0|[1-9][0-9]{0,77})$",
+          "type": "string"
+        },
+        "invoice": {
+          "anyOf": [
+            {
+              "description": "invoice id (`in_` + 26 base32 chars).",
+              "examples": [
+                "in_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^in_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Invoice the collection paid (or applied to)."
+        },
+        "merchant_share": {
+          "description": "Share delivered to the merchant receiver.",
+          "pattern": "^(0|[1-9][0-9]{0,77})$",
+          "type": "string"
+        },
+        "period": {
+          "description": "1-based vault period.",
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "receipt_id": {
+          "description": "Vault receipt that logged `collected` (evidence).",
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "short": {
+          "description": "The merchant share was below the expected share (partial delivery): the invoice is not marked paid; billing issues a `send_invoice` balance invoice for the shortfall.",
+          "type": "boolean"
+        },
+        "tx_hash": {
+          "description": "NEAR transaction of the `collect`.",
+          "maxLength": 128,
+          "minLength": 8,
+          "type": "string"
+        }
+      },
+      "required": [
+        "period",
+        "amount",
+        "merchant_share",
+        "fee",
+        "short",
+        "invoice",
+        "tx_hash",
+        "receipt_id",
+        "collected_at"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/EventMandateExhausted",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

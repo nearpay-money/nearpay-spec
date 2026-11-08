@@ -15,7 +15,17 @@
 import { HEADERS } from "../common/auth.js";
 import { id } from "../common/ids.js";
 import { createdFilterShape, listOf, listQueryShape } from "../common/pagination.js";
-import { AssetId, ChainId, Livemode, Metadata, Timestamp, UnixTime, Url } from "../common/primitives.js";
+import {
+  AssetId,
+  BaseUnits,
+  ChainId,
+  Livemode,
+  Metadata,
+  Timestamp,
+  TxHash,
+  UnixTime,
+  Url,
+} from "../common/primitives.js";
 import { route } from "../common/route.js";
 import { inp, openEnum, out, z } from "../common/schema.js";
 import { refineAmountForCurrency, TaxPercentage } from "./billing-catalog.js";
@@ -32,10 +42,10 @@ export const InvoiceStatus = openEnum(
   "Invoice status (domain-model §4.5): `uncollectible` invoices can still be paid (INV-3).",
 );
 
-/** v1: `send_invoice` only (ADR-0008); `auto_debit` arrives with Stage 4 mandates. */
+/** `send_invoice` (Stage 3) and `auto_debit` (stage 4 — autodebit: vault mandates, ADR-0008). */
 export const CollectionMethod = openEnum(
-  ["send_invoice"],
-  "How the invoice is collected: `send_invoice` = the customer pays the hosted invoice (v1).",
+  ["send_invoice", "auto_debit"],
+  "How the invoice is collected: `send_invoice` = the customer pays the hosted invoice; `auto_debit` (Stage 4) = billing's keeper collects it from the subscription's vault mandate, falling back to `send_invoice` (emailed) when the mandate cannot pay it (lld/billing.md §7.1, §14).",
 );
 
 export const BillingReason = openEnum(
@@ -163,6 +173,24 @@ export const Invoice = out({
     .describe("Set when `status` is or was `uncollectible`."),
   metadata: Metadata,
   sequence: z.int().min(0).describe("Increases with every change; discard webhook objects with a lower sequence."),
+  // stage 4 — autodebit (lld/billing.md §14)
+  mandate: id("md")
+    .nullable()
+    .optional()
+    .describe("Mandate the keeper collects (or collected) this invoice from; null/absent when none (Stage 4)."),
+  mandate_collection: out({
+    mandate: id("md"),
+    period: z.int().min(1).describe("Vault period that paid the invoice."),
+    token: AssetId.describe("Token received, as a NEAR Intents asset id."),
+    merchant_share: BaseUnits.describe("Tokens delivered to the merchant's Intents account."),
+    fee: BaseUnits.describe("NearPay fee taken by the vault."),
+    tx_hash: TxHash.describe("NEAR transaction of the `collect`."),
+    receipt_id: z.string().min(1).max(64).describe("Vault receipt that logged `collected` (the evidence, INV-2)."),
+  })
+    .nullable()
+    .optional()
+    .describe("Set when the invoice was paid by a vault collection instead of a payment intent (Stage 4)."),
+  // end stage 4 — autodebit
 }).meta({ id: "Invoice", description: "A bill for a customer, paid on a hosted invoice page (FR-BIL-01)." });
 export type Invoice = z.infer<typeof Invoice>;
 
@@ -592,6 +620,21 @@ export const PublicInvoice = out({
   checkout_session: id("cs")
     .nullable()
     .describe("Open checkout session of the invoice, if any (continue it with `createPublicInvoiceSession`)."),
+  // stage 4 — autodebit
+  auto_debit: out({
+    available: z
+      .boolean()
+      .describe(
+        "The payer can set up auto-debit here (`createPublicInvoiceMandateFunding`): the subscription is `auto_debit` and has no linked active mandate.",
+      ),
+    mandate: id("md")
+      .nullable()
+      .describe("The subscription's newest mandate (`getPublicInvoiceMandate`); null when none."),
+    collecting: z.boolean().describe("The keeper will collect this invoice from that mandate (no action needed)."),
+  })
+    .nullable()
+    .optional()
+    .describe("Auto-debit state for invoices of `auto_debit` subscriptions; null/absent otherwise (Stage 4)."),
 }).meta({ id: "PublicInvoice", description: "A finalized invoice as the hosted invoice page shows it." });
 
 export const getPublicInvoice = route({

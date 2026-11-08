@@ -137,7 +137,9 @@ export const TokenContract = out({
     .min(1)
     .max(256)
     .nullable()
-    .describe("Contract address (EVM `0x…`) or token account (NEAR); null for `native`."),
+    .describe(
+      "Contract address (EVM `0x…`), token account (NEAR) or SPL mint (Solana, base58; spec 0.4.0 wallet path); null for `native`.",
+    ),
 }).meta({ id: "TokenContract", description: "How to transfer an asset on its chain (wallet path)." });
 // end stage 2 — rails-fx
 

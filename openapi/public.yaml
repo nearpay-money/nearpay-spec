@@ -1199,6 +1199,67 @@ components:
         - has_more
         - url
       type: object
+    BitcoinEvidence:
+      additionalProperties: {}
+      description: Bitcoin-specific settlement detail (outputs and confirmations).
+      properties:
+        block_hash:
+          description: Hash of the confirming block, hex.
+          pattern: ^[0-9a-f]{64}$
+          type: string
+        block_height:
+          description: Height of the confirming block (= `Evidence.block_ref`).
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        confirmations:
+          description: Confirmations when the evidence was accepted (`tip − block_height + 1`).
+          maximum: 9007199254740991
+          minimum: 1
+          type: integer
+        outputs:
+          description: Outputs of the transaction that pay the destination address.
+          items:
+            additionalProperties: {}
+            description: An output paying the destination.
+            properties:
+              script_pubkey:
+                description: Output scriptPubKey, hex (`0014…` P2WPKH, `5120…` P2TR).
+                pattern: ^[0-9a-f]{2,200}$
+                type: string
+              value:
+                description: Output value, satoshis.
+                pattern: ^(0|[1-9][0-9]{0,77})$
+                type: string
+              vout:
+                description: Output index.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+            required:
+              - vout
+              - value
+              - script_pubkey
+            type: object
+          minItems: 1
+          type: array
+        required_confirmations:
+          description: Confirmations the chain profile required for this settlement's USD value (`confirmation_tiers`).
+          maximum: 9007199254740991
+          minimum: 1
+          type: integer
+        txid:
+          description: Transaction id (= `Evidence.tx_hash`).
+          pattern: ^[0-9a-f]{64}$
+          type: string
+      required:
+        - txid
+        - outputs
+        - block_height
+        - block_hash
+        - confirmations
+        - required_confirmations
+      type: object
     BusinessAddress:
       additionalProperties: {}
       description: Registered business address.
@@ -2803,6 +2864,8 @@ components:
             - customer_email_missing
             - invoice_secret_invalid
             - invoice_not_payable
+            - auto_debit_unavailable
+            - vault_cap_exceeded
         doc_url:
           description: Documentation page for this error code.
           format: uri
@@ -2860,6 +2923,14 @@ components:
           invoice.payment_failed: "#/components/schemas/EventInvoicePaymentFailed"
           invoice.sent: "#/components/schemas/EventInvoiceSent"
           invoice.voided: "#/components/schemas/EventInvoiceVoided"
+          mandate.activated: "#/components/schemas/EventMandateActivated"
+          mandate.canceled: "#/components/schemas/EventMandateCanceled"
+          mandate.collected: "#/components/schemas/EventMandateCollected"
+          mandate.exhausted: "#/components/schemas/EventMandateExhausted"
+          mandate.insufficient_funds: "#/components/schemas/EventMandateInsufficientFunds"
+          mandate.released: "#/components/schemas/EventMandateReleased"
+          mandate.unlinked: "#/components/schemas/EventMandateUnlinked"
+          mandate.updated: "#/components/schemas/EventMandateUpdated"
           payment_intent.canceled: "#/components/schemas/EventPaymentIntentCanceled"
           payment_intent.created: "#/components/schemas/EventPaymentIntentCreated"
           payment_intent.overpaid: "#/components/schemas/EventPaymentIntentOverpaid"
@@ -2911,6 +2982,14 @@ components:
         - $ref: "#/components/schemas/EventCustomerSubscriptionUpdated"
         - $ref: "#/components/schemas/EventCustomerSubscriptionDeleted"
         - $ref: "#/components/schemas/EventCustomerSubscriptionRenewalUpcoming"
+        - $ref: "#/components/schemas/EventMandateActivated"
+        - $ref: "#/components/schemas/EventMandateCollected"
+        - $ref: "#/components/schemas/EventMandateInsufficientFunds"
+        - $ref: "#/components/schemas/EventMandateCanceled"
+        - $ref: "#/components/schemas/EventMandateExhausted"
+        - $ref: "#/components/schemas/EventMandateUpdated"
+        - $ref: "#/components/schemas/EventMandateUnlinked"
+        - $ref: "#/components/schemas/EventMandateReleased"
       type: object
     EventAccountUpdated:
       additionalProperties: {}
@@ -4262,6 +4341,630 @@ components:
         - data
         - has_more
         - url
+      type: object
+    EventMandateActivated:
+      additionalProperties: {}
+      description: "`mandate.activated` event."
+      properties:
+        api_version:
+          description: API version the payload is rendered in.
+          enum:
+            - 2026-11-01
+          type: string
+        created:
+          description: Unix time in seconds.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        data:
+          additionalProperties: {}
+          description: Event data.
+          properties:
+            object:
+              $ref: "#/components/schemas/Mandate"
+            previous_attributes:
+              additionalProperties: {}
+              description: Changed fields with their previous values (update events).
+              propertyNames:
+                type: string
+              type: object
+          required:
+            - object
+          type: object
+        id:
+          description: event id (`evt_` + 26 base32 chars).
+          examples:
+            - evt_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^evt_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        livemode:
+          description: "`true` for live mode, `false` for test mode."
+          type: boolean
+        object:
+          const: event
+          description: Always `event`.
+          type: string
+        request:
+          additionalProperties: {}
+          description: Request that caused the event.
+          properties:
+            id:
+              anyOf:
+                - description: request id (`req_` + 26 base32 chars).
+                  examples:
+                    - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                  pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                  type: string
+                - type: "null"
+              description: API request that caused the event, if any.
+            idempotency_key:
+              description: Idempotency-Key of that request, if any.
+              type:
+                - string
+                - "null"
+          required:
+            - id
+            - idempotency_key
+          type: object
+        type:
+          const: mandate.activated
+          description: Event type.
+          type: string
+      required:
+        - id
+        - object
+        - type
+        - api_version
+        - created
+        - livemode
+        - data
+        - request
+      type: object
+    EventMandateCanceled:
+      additionalProperties: {}
+      description: "`mandate.canceled` event."
+      properties:
+        api_version:
+          description: API version the payload is rendered in.
+          enum:
+            - 2026-11-01
+          type: string
+        created:
+          description: Unix time in seconds.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        data:
+          additionalProperties: {}
+          description: Event data.
+          properties:
+            object:
+              $ref: "#/components/schemas/Mandate"
+            previous_attributes:
+              additionalProperties: {}
+              description: Changed fields with their previous values (update events).
+              propertyNames:
+                type: string
+              type: object
+          required:
+            - object
+          type: object
+        id:
+          description: event id (`evt_` + 26 base32 chars).
+          examples:
+            - evt_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^evt_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        livemode:
+          description: "`true` for live mode, `false` for test mode."
+          type: boolean
+        object:
+          const: event
+          description: Always `event`.
+          type: string
+        request:
+          additionalProperties: {}
+          description: Request that caused the event.
+          properties:
+            id:
+              anyOf:
+                - description: request id (`req_` + 26 base32 chars).
+                  examples:
+                    - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                  pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                  type: string
+                - type: "null"
+              description: API request that caused the event, if any.
+            idempotency_key:
+              description: Idempotency-Key of that request, if any.
+              type:
+                - string
+                - "null"
+          required:
+            - id
+            - idempotency_key
+          type: object
+        type:
+          const: mandate.canceled
+          description: Event type.
+          type: string
+      required:
+        - id
+        - object
+        - type
+        - api_version
+        - created
+        - livemode
+        - data
+        - request
+      type: object
+    EventMandateCollected:
+      additionalProperties: {}
+      description: "`mandate.collected` event."
+      properties:
+        api_version:
+          description: API version the payload is rendered in.
+          enum:
+            - 2026-11-01
+          type: string
+        created:
+          description: Unix time in seconds.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        data:
+          additionalProperties: {}
+          description: Event data.
+          properties:
+            object:
+              $ref: "#/components/schemas/Mandate"
+            previous_attributes:
+              additionalProperties: {}
+              description: Changed fields with their previous values (update events).
+              propertyNames:
+                type: string
+              type: object
+          required:
+            - object
+          type: object
+        id:
+          description: event id (`evt_` + 26 base32 chars).
+          examples:
+            - evt_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^evt_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        livemode:
+          description: "`true` for live mode, `false` for test mode."
+          type: boolean
+        object:
+          const: event
+          description: Always `event`.
+          type: string
+        request:
+          additionalProperties: {}
+          description: Request that caused the event.
+          properties:
+            id:
+              anyOf:
+                - description: request id (`req_` + 26 base32 chars).
+                  examples:
+                    - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                  pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                  type: string
+                - type: "null"
+              description: API request that caused the event, if any.
+            idempotency_key:
+              description: Idempotency-Key of that request, if any.
+              type:
+                - string
+                - "null"
+          required:
+            - id
+            - idempotency_key
+          type: object
+        type:
+          const: mandate.collected
+          description: Event type.
+          type: string
+      required:
+        - id
+        - object
+        - type
+        - api_version
+        - created
+        - livemode
+        - data
+        - request
+      type: object
+    EventMandateExhausted:
+      additionalProperties: {}
+      description: "`mandate.exhausted` event."
+      properties:
+        api_version:
+          description: API version the payload is rendered in.
+          enum:
+            - 2026-11-01
+          type: string
+        created:
+          description: Unix time in seconds.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        data:
+          additionalProperties: {}
+          description: Event data.
+          properties:
+            object:
+              $ref: "#/components/schemas/Mandate"
+            previous_attributes:
+              additionalProperties: {}
+              description: Changed fields with their previous values (update events).
+              propertyNames:
+                type: string
+              type: object
+          required:
+            - object
+          type: object
+        id:
+          description: event id (`evt_` + 26 base32 chars).
+          examples:
+            - evt_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^evt_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        livemode:
+          description: "`true` for live mode, `false` for test mode."
+          type: boolean
+        object:
+          const: event
+          description: Always `event`.
+          type: string
+        request:
+          additionalProperties: {}
+          description: Request that caused the event.
+          properties:
+            id:
+              anyOf:
+                - description: request id (`req_` + 26 base32 chars).
+                  examples:
+                    - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                  pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                  type: string
+                - type: "null"
+              description: API request that caused the event, if any.
+            idempotency_key:
+              description: Idempotency-Key of that request, if any.
+              type:
+                - string
+                - "null"
+          required:
+            - id
+            - idempotency_key
+          type: object
+        type:
+          const: mandate.exhausted
+          description: Event type.
+          type: string
+      required:
+        - id
+        - object
+        - type
+        - api_version
+        - created
+        - livemode
+        - data
+        - request
+      type: object
+    EventMandateInsufficientFunds:
+      additionalProperties: {}
+      description: "`mandate.insufficient_funds` event."
+      properties:
+        api_version:
+          description: API version the payload is rendered in.
+          enum:
+            - 2026-11-01
+          type: string
+        created:
+          description: Unix time in seconds.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        data:
+          additionalProperties: {}
+          description: Event data.
+          properties:
+            object:
+              $ref: "#/components/schemas/Mandate"
+            previous_attributes:
+              additionalProperties: {}
+              description: Changed fields with their previous values (update events).
+              propertyNames:
+                type: string
+              type: object
+          required:
+            - object
+          type: object
+        id:
+          description: event id (`evt_` + 26 base32 chars).
+          examples:
+            - evt_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^evt_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        livemode:
+          description: "`true` for live mode, `false` for test mode."
+          type: boolean
+        object:
+          const: event
+          description: Always `event`.
+          type: string
+        request:
+          additionalProperties: {}
+          description: Request that caused the event.
+          properties:
+            id:
+              anyOf:
+                - description: request id (`req_` + 26 base32 chars).
+                  examples:
+                    - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                  pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                  type: string
+                - type: "null"
+              description: API request that caused the event, if any.
+            idempotency_key:
+              description: Idempotency-Key of that request, if any.
+              type:
+                - string
+                - "null"
+          required:
+            - id
+            - idempotency_key
+          type: object
+        type:
+          const: mandate.insufficient_funds
+          description: Event type.
+          type: string
+      required:
+        - id
+        - object
+        - type
+        - api_version
+        - created
+        - livemode
+        - data
+        - request
+      type: object
+    EventMandateReleased:
+      additionalProperties: {}
+      description: "`mandate.released` event."
+      properties:
+        api_version:
+          description: API version the payload is rendered in.
+          enum:
+            - 2026-11-01
+          type: string
+        created:
+          description: Unix time in seconds.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        data:
+          additionalProperties: {}
+          description: Event data.
+          properties:
+            object:
+              $ref: "#/components/schemas/Mandate"
+            previous_attributes:
+              additionalProperties: {}
+              description: Changed fields with their previous values (update events).
+              propertyNames:
+                type: string
+              type: object
+          required:
+            - object
+          type: object
+        id:
+          description: event id (`evt_` + 26 base32 chars).
+          examples:
+            - evt_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^evt_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        livemode:
+          description: "`true` for live mode, `false` for test mode."
+          type: boolean
+        object:
+          const: event
+          description: Always `event`.
+          type: string
+        request:
+          additionalProperties: {}
+          description: Request that caused the event.
+          properties:
+            id:
+              anyOf:
+                - description: request id (`req_` + 26 base32 chars).
+                  examples:
+                    - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                  pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                  type: string
+                - type: "null"
+              description: API request that caused the event, if any.
+            idempotency_key:
+              description: Idempotency-Key of that request, if any.
+              type:
+                - string
+                - "null"
+          required:
+            - id
+            - idempotency_key
+          type: object
+        type:
+          const: mandate.released
+          description: Event type.
+          type: string
+      required:
+        - id
+        - object
+        - type
+        - api_version
+        - created
+        - livemode
+        - data
+        - request
+      type: object
+    EventMandateUnlinked:
+      additionalProperties: {}
+      description: "`mandate.unlinked` event."
+      properties:
+        api_version:
+          description: API version the payload is rendered in.
+          enum:
+            - 2026-11-01
+          type: string
+        created:
+          description: Unix time in seconds.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        data:
+          additionalProperties: {}
+          description: Event data.
+          properties:
+            object:
+              $ref: "#/components/schemas/Mandate"
+            previous_attributes:
+              additionalProperties: {}
+              description: Changed fields with their previous values (update events).
+              propertyNames:
+                type: string
+              type: object
+          required:
+            - object
+          type: object
+        id:
+          description: event id (`evt_` + 26 base32 chars).
+          examples:
+            - evt_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^evt_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        livemode:
+          description: "`true` for live mode, `false` for test mode."
+          type: boolean
+        object:
+          const: event
+          description: Always `event`.
+          type: string
+        request:
+          additionalProperties: {}
+          description: Request that caused the event.
+          properties:
+            id:
+              anyOf:
+                - description: request id (`req_` + 26 base32 chars).
+                  examples:
+                    - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                  pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                  type: string
+                - type: "null"
+              description: API request that caused the event, if any.
+            idempotency_key:
+              description: Idempotency-Key of that request, if any.
+              type:
+                - string
+                - "null"
+          required:
+            - id
+            - idempotency_key
+          type: object
+        type:
+          const: mandate.unlinked
+          description: Event type.
+          type: string
+      required:
+        - id
+        - object
+        - type
+        - api_version
+        - created
+        - livemode
+        - data
+        - request
+      type: object
+    EventMandateUpdated:
+      additionalProperties: {}
+      description: "`mandate.updated` event."
+      properties:
+        api_version:
+          description: API version the payload is rendered in.
+          enum:
+            - 2026-11-01
+          type: string
+        created:
+          description: Unix time in seconds.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        data:
+          additionalProperties: {}
+          description: Event data.
+          properties:
+            object:
+              $ref: "#/components/schemas/Mandate"
+            previous_attributes:
+              additionalProperties: {}
+              description: Changed fields with their previous values (update events).
+              propertyNames:
+                type: string
+              type: object
+          required:
+            - object
+          type: object
+        id:
+          description: event id (`evt_` + 26 base32 chars).
+          examples:
+            - evt_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^evt_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        livemode:
+          description: "`true` for live mode, `false` for test mode."
+          type: boolean
+        object:
+          const: event
+          description: Always `event`.
+          type: string
+        request:
+          additionalProperties: {}
+          description: Request that caused the event.
+          properties:
+            id:
+              anyOf:
+                - description: request id (`req_` + 26 base32 chars).
+                  examples:
+                    - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                  pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                  type: string
+                - type: "null"
+              description: API request that caused the event, if any.
+            idempotency_key:
+              description: Idempotency-Key of that request, if any.
+              type:
+                - string
+                - "null"
+          required:
+            - id
+            - idempotency_key
+          type: object
+        type:
+          const: mandate.updated
+          description: Event type.
+          type: string
+      required:
+        - id
+        - object
+        - type
+        - api_version
+        - created
+        - livemode
+        - data
+        - request
       type: object
     EventPaymentIntentCanceled:
       additionalProperties: {}
@@ -5616,6 +6319,11 @@ components:
           maxLength: 256
           pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
           type: string
+        bitcoin:
+          anyOf:
+            - $ref: "#/components/schemas/BitcoinEvidence"
+            - type: "null"
+          description: Bitcoin detail (txid, outputs, confirmations) when `chain` is Bitcoin; null/absent otherwise. Spec 0.4.0.
         block_ref:
           description: Block height or hash containing the transaction.
           type:
@@ -5658,6 +6366,11 @@ components:
               type: string
             - type: "null"
           description: "Account that sent the settlement transfer, when the detector saw it (NEAR Intents: the transferring Intents account); null if unknown. Spec 0.3.0."
+        solana:
+          anyOf:
+            - $ref: "#/components/schemas/SolanaEvidence"
+            - type: "null"
+          description: Solana detail (signature, slot, mint, token-balance delta) when `chain` is Solana; null/absent otherwise. Spec 0.4.0.
         source:
           description: Detector that produced the evidence.
           type: string
@@ -5990,10 +6703,11 @@ components:
             - type: "null"
           description: Open payments checkout session paying the invoice (created on demand by the hosted page).
         collection_method:
-          description: "How the invoice is collected: `send_invoice` = the customer pays the hosted invoice (v1)."
+          description: "How the invoice is collected: `send_invoice` = the customer pays the hosted invoice; `auto_debit` (Stage 4) = billing's keeper collects it from the subscription's vault mandate, falling back to `send_invoice` (emailed) when the mandate cannot pay it (lld/billing.md §7.1, §14)."
           type: string
           x-extensible-enum:
             - send_invoice
+            - auto_debit
         created:
           description: Unix time in seconds.
           maximum: 9007199254740991
@@ -6077,6 +6791,66 @@ components:
         livemode:
           description: "`true` for live mode, `false` for test mode."
           type: boolean
+        mandate:
+          anyOf:
+            - description: mandate id (`md_` + 26 base32 chars).
+              examples:
+                - md_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^md_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Mandate the keeper collects (or collected) this invoice from; null/absent when none (Stage 4).
+        mandate_collection:
+          anyOf:
+            - additionalProperties: {}
+              properties:
+                fee:
+                  description: NearPay fee taken by the vault.
+                  pattern: ^(0|[1-9][0-9]{0,77})$
+                  type: string
+                mandate:
+                  description: mandate id (`md_` + 26 base32 chars).
+                  examples:
+                    - md_01jbz9k3m4n5p6q7r8s9t0v1w2
+                  pattern: ^md_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                  type: string
+                merchant_share:
+                  description: Tokens delivered to the merchant's Intents account.
+                  pattern: ^(0|[1-9][0-9]{0,77})$
+                  type: string
+                period:
+                  description: Vault period that paid the invoice.
+                  maximum: 9007199254740991
+                  minimum: 1
+                  type: integer
+                receipt_id:
+                  description: Vault receipt that logged `collected` (the evidence, INV-2).
+                  maxLength: 64
+                  minLength: 1
+                  type: string
+                token:
+                  description: Token received, as a NEAR Intents asset id.
+                  examples:
+                    - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+                  maxLength: 256
+                  pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+                  type: string
+                tx_hash:
+                  description: NEAR transaction of the `collect`.
+                  maxLength: 128
+                  minLength: 8
+                  type: string
+              required:
+                - mandate
+                - period
+                - token
+                - merchant_share
+                - fee
+                - tx_hash
+                - receipt_id
+              type: object
+            - type: "null"
+          description: Set when the invoice was paid by a vault collection instead of a payment intent (Stage 4).
         metadata:
           additionalProperties:
             maxLength: 500
@@ -7160,6 +7934,606 @@ components:
             - type: "null"
           description: Website (https).
       type: object
+    Mandate:
+      additionalProperties: {}
+      description: "An auto-debit mandate: NearPay's mirror of a subscription-vault mandate the payer funded (FR-BIL-02/04)."
+      properties:
+        amount_per_period:
+          description: Tokens collected per period.
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        asset_id:
+          description: The token as a NEAR Intents asset id (`nep141:<token>`).
+          examples:
+            - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+          maxLength: 256
+          pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+          type: string
+        balance:
+          description: Tokens on the mandate available for the next periods (mirror of the vault events).
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        canceled:
+          anyOf:
+            - additionalProperties: {}
+              properties:
+                by:
+                  description: Who canceled (the payer or the merchant receiver).
+                  pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+                  type: string
+                by_role:
+                  description: Role of `by`.
+                  type: string
+                  x-extensible-enum:
+                    - payer
+                    - merchant_receiver
+                canceled_at:
+                  description: Block time of the `canceled` event.
+                  maximum: 9007199254740991
+                  minimum: 0
+                  type: integer
+                refunded:
+                  description: Returned to the payer by the cancel; `"0"` if that refund failed (then withdrawable).
+                  pattern: ^(0|[1-9][0-9]{0,77})$
+                  type: string
+              required:
+                - by
+                - by_role
+                - refunded
+                - canceled_at
+              type: object
+            - type: "null"
+          description: Set once canceled.
+        collect_failures:
+          description: Consecutive `collect_failed` outcomes (merchant leg delivered nothing); reset by a collection.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        collected_periods:
+          description: Periods the vault has counted.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        collecting:
+          description: "Billing's keeper collects renewal invoices from this mandate: linked, on-chain active, and its subscription is active and `auto_debit`. Turns false for good when the subscription ends or leaves `auto_debit` (`mandate.released`)."
+          type: boolean
+        created:
+          description: Block time of `mandate_created`.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        customer:
+          description: Customer of that subscription.
+          examples:
+            - cus_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^cus_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        ext_ref:
+          description: The mandate's on-chain reference (the subscription id for NearPay mandates).
+          maxLength: 64
+          type: string
+        fee_bps:
+          description: NearPay fee in basis points, fixed on chain at creation.
+          maximum: 10000
+          minimum: 0
+          type: integer
+        funded_periods:
+          description: "`floor(balance / amount_per_period)`: periods the balance still covers."
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        id:
+          description: mandate id (`md_` + 26 base32 chars).
+          examples:
+            - md_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^md_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        last_collection:
+          anyOf:
+            - $ref: "#/components/schemas/MandateCollection"
+            - type: "null"
+          description: Most recent collected period.
+        link_status:
+          description: "`linked`: billing collects this mandate for its subscription. `unlinked`: the on-chain terms do not match what billing prepared; billing never collects it and the payer is asked to cancel it."
+          type: string
+          x-extensible-enum:
+            - linked
+            - unlinked
+        livemode:
+          description: "`true` for the mainnet vault, `false` for the sandbox vault stand-in."
+          type: boolean
+        max_periods:
+          anyOf:
+            - maximum: 9007199254740991
+              minimum: 1
+              type: integer
+            - type: "null"
+          description: Maximum periods; null = until canceled.
+        merchant_receiver:
+          description: Receiver of the merchant share (the merchant's NEAR Intents account).
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        next_collect_at:
+          anyOf:
+            - description: Unix time in seconds.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: When the next vault period becomes due; null unless on-chain active below `max_periods`.
+        object:
+          const: mandate
+          description: Always `mandate`.
+          type: string
+        onchain_id:
+          description: The vault's `mandate_id`.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        payer:
+          description: "Payer: the NEAR account that signed the funding transaction (always its owner)."
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        period_secs:
+          description: Vault period length (seconds).
+          maximum: 9007199254740991
+          minimum: 86400
+          type: integer
+        receiver_kind:
+          description: "How the merchant share is delivered: `intents_account` = `ft_transfer_call(intents.near, msg = merchant_receiver)` (credits the merchant's NEAR Intents balance); `near_account` = plain `ft_transfer`."
+          enum:
+            - intents_account
+            - near_account
+          type: string
+        sequence:
+          description: Increases with every change; discard webhook objects with a lower sequence.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        settlement_destination:
+          anyOf:
+            - description: settlement_destination id (`sd_` + 26 base32 chars).
+              examples:
+                - sd_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^sd_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Settlement destination that matches `merchant_receiver` (linked mandates); null otherwise.
+        start_at:
+          description: When vault period 1 became (or becomes) due.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        status:
+          description: "Mandate status (domain-model §4.5): `active` = on-chain active with at least one period funded; `insufficient` = on-chain active but the balance is below one period (top up, or the due invoice falls back to `send_invoice`); `exhausted` = `max_periods` collected; `canceled` = canceled by the payer or the merchant receiver."
+          type: string
+          x-extensible-enum:
+            - active
+            - insufficient
+            - exhausted
+            - canceled
+        subscription:
+          description: Subscription named by the mandate's `ext_ref`.
+          examples:
+            - sub_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^sub_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        token:
+          description: NEP-141 token contract.
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        unlinked_reason:
+          anyOf:
+            - description: "Why a mandate is `unlinked` (billing §6 linkage rule): the subscription is not `auto_debit` or has ended, another mandate is already linked, or a term differs from the prepared one (receiver kind, receiver = an active Intents-account destination of the account, token, amount per period, period, fee, `start_at` after the current period end, `max_periods` below the remaining periods), or a test-vault mandate names a live subscription (or the reverse)."
+              type: string
+              x-extensible-enum:
+                - subscription_not_auto_debit
+                - subscription_ended
+                - already_linked
+                - receiver_kind_mismatch
+                - receiver_not_destination
+                - token_mismatch
+                - amount_mismatch
+                - period_mismatch
+                - fee_mismatch
+                - start_too_late
+                - max_periods_too_low
+                - mode_mismatch
+            - type: "null"
+          description: Set when `link_status` is `unlinked`.
+        vault_contract:
+          description: Vault account (`v1.vault.nearpay.near`; the stand-in's in test mode).
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        withdrawn:
+          description: Total the payer withdrew after cancel/exhaustion (`withdrawn` events).
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+      required:
+        - id
+        - object
+        - created
+        - livemode
+        - status
+        - link_status
+        - unlinked_reason
+        - collecting
+        - subscription
+        - customer
+        - vault_contract
+        - onchain_id
+        - payer
+        - token
+        - asset_id
+        - merchant_receiver
+        - receiver_kind
+        - settlement_destination
+        - amount_per_period
+        - period_secs
+        - start_at
+        - max_periods
+        - fee_bps
+        - collected_periods
+        - balance
+        - funded_periods
+        - next_collect_at
+        - last_collection
+        - collect_failures
+        - canceled
+        - withdrawn
+        - ext_ref
+        - sequence
+      type: object
+    MandateCancelInstructions:
+      additionalProperties: {}
+      description: The transaction the merchant receiver signs to cancel a mandate. NearPay cannot cancel (it holds no key the vault accepts, INV-1).
+      properties:
+        mandate:
+          description: mandate id (`md_` + 26 base32 chars).
+          examples:
+            - md_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^md_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        object:
+          const: mandate_cancel_instructions
+          description: Always `mandate_cancel_instructions`.
+          type: string
+        transaction:
+          $ref: "#/components/schemas/NearTransactionRequest"
+          description: "`cancel({mandate_id})` on the vault, signed by `merchant_receiver` (100 Tgas, 1 yoctoNEAR): the whole balance returns to the payer."
+      required:
+        - object
+        - mandate
+        - transaction
+      type: object
+    MandateCollection:
+      additionalProperties: {}
+      description: "A period collected by the vault (evidence: the `collected` event)."
+      properties:
+        amount:
+          description: "`merchant_share + fee` actually paid (token base units)."
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        collected_at:
+          description: Block time of the receipt.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        fee:
+          description: NearPay fee; `"0"` when the fee leg failed (the fee stayed with the payer).
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        invoice:
+          anyOf:
+            - description: invoice id (`in_` + 26 base32 chars).
+              examples:
+                - in_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^in_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Invoice the collection paid (or applied to).
+        merchant_share:
+          description: Share delivered to the merchant receiver.
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        period:
+          description: 1-based vault period.
+          maximum: 9007199254740991
+          minimum: 1
+          type: integer
+        receipt_id:
+          description: Vault receipt that logged `collected` (evidence).
+          maxLength: 64
+          minLength: 1
+          type: string
+        short:
+          description: "The merchant share was below the expected share (partial delivery): the invoice is not marked paid; billing issues a `send_invoice` balance invoice for the shortfall."
+          type: boolean
+        tx_hash:
+          description: NEAR transaction of the `collect`.
+          maxLength: 128
+          minLength: 8
+          type: string
+      required:
+        - period
+        - amount
+        - merchant_share
+        - fee
+        - short
+        - invoice
+        - tx_hash
+        - receipt_id
+        - collected_at
+      type: object
+    MandateFundingInstructions:
+      additionalProperties: {}
+      description: What the payer signs to authorise auto-debit for a subscription (lld/billing.md §5, §14). Computing it has no side effects.
+      properties:
+        amount:
+          description: "Initial funding: `periods × amount_per_period`."
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        amount_per_period:
+          description: "Tokens per period: the subscription's per-period total (items and tax) in the token (USD at par for USDC/USDT, or the pricing asset itself)."
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        asset_id:
+          description: The token as a NEAR Intents asset id.
+          examples:
+            - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+          maxLength: 256
+          pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+          type: string
+        ext_ref:
+          description: The subscription id, written as the mandate's `ext_ref`.
+          maxLength: 64
+          type: string
+        fee_bps:
+          description: The account's agreed NearPay fee (ADR-0006).
+          maximum: 10000
+          minimum: 0
+          type: integer
+        livemode:
+          description: "`true` for live mode, `false` for test mode."
+          type: boolean
+        merchant_receiver:
+          description: The merchant's NEAR Intents account (an active destination).
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        msg:
+          description: Exact `ft_transfer_call` msg (`{"create_mandate":{…}}`, compact JSON, the contract's key order). A mandate whose on-chain terms differ is not linked.
+          maxLength: 2048
+          type: string
+        object:
+          const: mandate_funding_instructions
+          description: Always `mandate_funding_instructions`.
+          type: string
+        payer:
+          anyOf:
+            - description: NEAR account id (named, implicit or eth-implicit), 2–64 chars.
+              pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+              type: string
+            - type: "null"
+          description: Payer the storage check was made for; null when none was given.
+        payer_notice:
+          description: "Text the funding UI must show before signing (billing v1.9 §5): sign from your own NEAR account and pay your own gas; relayer/gasless wallets (NEP-366 meta-transactions), NEAR Intents balances, bridges and smart wallets cannot fund (the vault refunds such deposits). Cancel and withdraw work from any wallet, including meta-transactions."
+          type: string
+        period_secs:
+          description: Vault period for the subscription's interval (billing §14 d3).
+          maximum: 9007199254740991
+          minimum: 86400
+          type: integer
+        periods:
+          description: Periods the initial funding covers.
+          maximum: 9007199254740991
+          minimum: 1
+          type: integer
+        receiver_kind:
+          description: "How the merchant share is delivered: `intents_account` = `ft_transfer_call(intents.near, msg = merchant_receiver)` (credits the merchant's NEAR Intents balance); `near_account` = plain `ft_transfer`."
+          enum:
+            - intents_account
+            - near_account
+          type: string
+        settlement_destination:
+          description: Destination `merchant_receiver` belongs to.
+          examples:
+            - sd_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^sd_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        start_at:
+          anyOf:
+            - pattern: ^(0|[1-9][0-9]{0,19})$
+              type: string
+            - type: "null"
+          description: Period 1 due time in ns as written in `msg`; null = the block time (the mandate pays the subscription's open invoice right away).
+        storage:
+          additionalProperties: {}
+          description: Vault storage (NEP-145) the payer pays for.
+          properties:
+            deposit:
+              description: yoctoNEAR the payer must add with `storage_deposit` before funding (0.002 NEAR registration + 0.01 NEAR per open mandate, minus what is available); `"0"` = none.
+              pattern: ^(0|[1-9][0-9]{0,38})$
+              type: string
+            payer_registered:
+              description: Whether the payer has a vault storage balance; null when no payer was given.
+              type:
+                - boolean
+                - "null"
+          required:
+            - payer_registered
+            - deposit
+          type: object
+        subscription:
+          description: subscription id (`sub_` + 26 base32 chars).
+          examples:
+            - sub_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^sub_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        token:
+          description: NEP-141 token the payer funds with.
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        transactions:
+          description: "Transactions to sign from the payer's own NEAR account, in order: `storage_deposit` on the vault (only when `storage.deposit` > 0 or the payer is unknown), then `ft_transfer_call` on the token (`receiver_id` = the vault, `amount`, `msg`; 100 Tgas, 1 yoctoNEAR). Deposits relayed by contracts, smart wallets or NEP-366 meta-transactions are refunded (`ERR_UNSUPPORTED_SENDER`)."
+          items:
+            $ref: "#/components/schemas/NearTransactionRequest"
+          maxItems: 2
+          minItems: 1
+          type: array
+        vault_contract:
+          description: Vault the mandate is created in.
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+      required:
+        - object
+        - livemode
+        - subscription
+        - vault_contract
+        - token
+        - asset_id
+        - amount
+        - periods
+        - amount_per_period
+        - period_secs
+        - start_at
+        - fee_bps
+        - merchant_receiver
+        - receiver_kind
+        - settlement_destination
+        - ext_ref
+        - msg
+        - payer
+        - storage
+        - payer_notice
+        - transactions
+      type: object
+    MandateFundingSimulation:
+      additionalProperties: false
+      description: Parameters of a simulated mandate funding.
+      properties:
+        payer:
+          description: "Payer's NEAR account, if known: billing reads its vault storage balance and leaves out `storage_deposit` when it is enough."
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        periods:
+          description: Periods to fund up front (default 3).
+          maximum: 36
+          minimum: 1
+          type: integer
+        subscription:
+          description: The `auto_debit` subscription.
+          examples:
+            - sub_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^sub_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        token:
+          description: "Token to fund with (an allowed vault token). USD subscriptions: USDC or USDT at par (default USDC); asset subscriptions: the pricing asset's token only."
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+      required:
+        - subscription
+      type: object
+    MandateList:
+      additionalProperties: {}
+      description: A page of mandates.
+      properties:
+        data:
+          description: Objects on this page.
+          items:
+            $ref: "#/components/schemas/Mandate"
+          type: array
+        has_more:
+          description: Whether more objects exist after this page.
+          type: boolean
+        object:
+          const: list
+          description: Always `list`.
+          type: string
+        url:
+          description: Path of this list endpoint.
+          type: string
+      required:
+        - object
+        - data
+        - has_more
+        - url
+      type: object
+    MandatePrepare:
+      additionalProperties: false
+      description: Parameters to prepare a mandate's funding.
+      properties:
+        payer:
+          description: "Payer's NEAR account, if known: billing reads its vault storage balance and leaves out `storage_deposit` when it is enough."
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        periods:
+          description: Periods to fund up front (default 3).
+          maximum: 36
+          minimum: 1
+          type: integer
+        subscription:
+          description: The `auto_debit` subscription.
+          examples:
+            - sub_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^sub_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        token:
+          description: "Token to fund with (an allowed vault token). USD subscriptions: USDC or USDT at par (default USDC); asset subscriptions: the pricing asset's token only."
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+      required:
+        - subscription
+      type: object
+    MandateSimulation:
+      additionalProperties: {}
+      description: Result of a simulated payer action on the sandbox vault.
+      properties:
+        accepted:
+          description: "The vault accepted it (`fund`/`top_up`: not refunded; `cancel`/`withdraw`: no failure). The mirror follows asynchronously from the forwarded events."
+          type: boolean
+        action:
+          description: What the simulated payer did.
+          type: string
+          x-extensible-enum:
+            - fund
+            - top_up
+            - cancel
+            - withdraw
+        logs:
+          description: Every log line of the vault's receipts, in order.
+          items:
+            type: string
+          type: array
+        object:
+          const: mandate_simulation
+          description: Always `mandate_simulation`.
+          type: string
+        onchain_id:
+          anyOf:
+            - maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: Vault `mandate_id` (from `mandate_created` / the mandate).
+        rejection:
+          description: "The vault's error or rejection log line (`ERR_…[: detail]`) when not accepted."
+          type:
+            - string
+            - "null"
+        tx_hash:
+          description: Sandbox NEAR transaction.
+          maxLength: 128
+          minLength: 8
+          type: string
+      required:
+        - object
+        - action
+        - tx_hash
+        - accepted
+        - rejection
+        - onchain_id
+        - logs
+      type: object
     Member:
       additionalProperties: {}
       description: A user's membership in the account (FR-ACC-01).
@@ -7336,6 +8710,67 @@ components:
         - $ref: "#/components/schemas/Nep413MultiPayload"
         - $ref: "#/components/schemas/Erc191MultiPayload"
         - $ref: "#/components/schemas/RawEd25519MultiPayload"
+      type: object
+    NearFunctionCallAction:
+      additionalProperties: {}
+      description: A NEAR function-call action to sign as is.
+      properties:
+        args:
+          additionalProperties: {}
+          description: JSON arguments, exactly as they must be sent.
+          propertyNames:
+            type: string
+          type: object
+        deposit:
+          description: Attached deposit in yoctoNEAR as a decimal string.
+          pattern: ^(0|[1-9][0-9]{0,38})$
+          type: string
+        gas:
+          description: Gas in gas units as a decimal string (1 Tgas = 10^12).
+          pattern: ^[1-9][0-9]{0,17}$
+          type: string
+        method_name:
+          description: Contract method.
+          maxLength: 256
+          minLength: 1
+          type: string
+        type:
+          const: FunctionCall
+          description: Always `FunctionCall`.
+          type: string
+      required:
+        - type
+        - method_name
+        - args
+        - gas
+        - deposit
+      type: object
+    NearTransactionRequest:
+      additionalProperties: {}
+      description: A NEAR transaction for a wallet to sign (snake_case; NEAR Connect / wallet-selector take the same fields in camelCase). Clients show a summary and never edit receiver, method, args, gas or deposit.
+      properties:
+        actions:
+          description: Actions, in order.
+          items:
+            $ref: "#/components/schemas/NearFunctionCallAction"
+          maxItems: 4
+          minItems: 1
+          type: array
+        receiver_id:
+          description: Contract the transaction calls.
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        signer_id:
+          anyOf:
+            - description: NEAR account id (named, implicit or eth-implicit), 2–64 chars.
+              pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+              type: string
+            - type: "null"
+          description: Account that must sign; null = the connected wallet's account (it becomes the payer).
+      required:
+        - signer_id
+        - receiver_id
+        - actions
       type: object
     Nep413MultiPayload:
       additionalProperties: {}
@@ -9003,6 +10438,32 @@ components:
               type: string
             - type: "null"
           description: Pricing asset when `currency` is `asset`.
+        auto_debit:
+          anyOf:
+            - additionalProperties: {}
+              properties:
+                available:
+                  description: "The payer can set up auto-debit here (`createPublicInvoiceMandateFunding`): the subscription is `auto_debit` and has no linked active mandate."
+                  type: boolean
+                collecting:
+                  description: The keeper will collect this invoice from that mandate (no action needed).
+                  type: boolean
+                mandate:
+                  anyOf:
+                    - description: mandate id (`md_` + 26 base32 chars).
+                      examples:
+                        - md_01jbz9k3m4n5p6q7r8s9t0v1w2
+                      pattern: ^md_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                      type: string
+                    - type: "null"
+                  description: The subscription's newest mandate (`getPublicInvoiceMandate`); null when none.
+              required:
+                - available
+                - mandate
+                - collecting
+              type: object
+            - type: "null"
+          description: Auto-debit state for invoices of `auto_debit` subscriptions; null/absent otherwise (Stage 4).
         bill_to:
           additionalProperties: {}
           description: Who is billed (only the holder of the invoice secret sees it).
@@ -9351,6 +10812,139 @@ components:
         - percentage
         - inclusive
         - amount
+      type: object
+    PublicMandate:
+      additionalProperties: {}
+      description: A mandate as the hosted invoice page shows it to the payer (holder of the invoice secret).
+      properties:
+        amount_per_period:
+          description: Tokens per period.
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        asset_id:
+          description: Token as a NEAR Intents asset id.
+          examples:
+            - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+          maxLength: 256
+          pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+          type: string
+        balance:
+          description: Remaining balance.
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        collected_periods:
+          description: Periods collected.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        collecting:
+          description: The merchant still collects from it.
+          type: boolean
+        funded_periods:
+          description: Periods the balance still covers.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        id:
+          description: mandate id (`md_` + 26 base32 chars).
+          examples:
+            - md_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^md_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        link_status:
+          description: "`linked`: billing collects this mandate for its subscription. `unlinked`: the on-chain terms do not match what billing prepared; billing never collects it and the payer is asked to cancel it."
+          type: string
+          x-extensible-enum:
+            - linked
+            - unlinked
+        livemode:
+          description: "`true` for live mode, `false` for test mode."
+          type: boolean
+        next_collect_at:
+          anyOf:
+            - description: Unix time in seconds.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: Next due time; null when none.
+        object:
+          const: mandate
+          description: Always `mandate`.
+          type: string
+        onchain_id:
+          description: The vault's `mandate_id`.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        payer:
+          description: Payer account.
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        period_secs:
+          description: Period length (seconds).
+          maximum: 9007199254740991
+          minimum: 86400
+          type: integer
+        status:
+          description: "Mandate status (domain-model §4.5): `active` = on-chain active with at least one period funded; `insufficient` = on-chain active but the balance is below one period (top up, or the due invoice falls back to `send_invoice`); `exhausted` = `max_periods` collected; `canceled` = canceled by the payer or the merchant receiver."
+          type: string
+          x-extensible-enum:
+            - active
+            - insufficient
+            - exhausted
+            - canceled
+        token:
+          description: Token contract.
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        top_up_msg:
+          description: "`ft_transfer_call` msg to top up (`{\"top_up\":{\"mandate_id\":n}}`) while on-chain active; send it to the vault from the payer's account with any amount."
+          type:
+            - string
+            - "null"
+        transactions:
+          additionalProperties: {}
+          description: Payer transactions the page offers.
+          properties:
+            cancel:
+              anyOf:
+                - $ref: "#/components/schemas/NearTransactionRequest"
+                - type: "null"
+              description: "`cancel` signed by the payer (100 Tgas, 1 yoctoNEAR); null unless on-chain active."
+            withdraw:
+              anyOf:
+                - $ref: "#/components/schemas/NearTransactionRequest"
+                - type: "null"
+              description: "`withdraw` signed by the payer after cancel/exhaustion while a balance remains; null otherwise."
+          required:
+            - cancel
+            - withdraw
+          type: object
+        vault_contract:
+          description: Vault account.
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+      required:
+        - id
+        - object
+        - livemode
+        - status
+        - link_status
+        - payer
+        - vault_contract
+        - onchain_id
+        - token
+        - asset_id
+        - amount_per_period
+        - period_secs
+        - balance
+        - funded_periods
+        - collected_periods
+        - next_collect_at
+        - collecting
+        - top_up_msg
+        - transactions
       type: object
     PublicPaymentLink:
       additionalProperties: {}
@@ -10508,6 +12102,84 @@ components:
         - kid
         - signature
       type: object
+    SolanaEvidence:
+      additionalProperties: {}
+      description: Solana-specific settlement detail (token-balance delta).
+      properties:
+        block_time:
+          anyOf:
+            - maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: Block time, unix seconds; null when the node has none.
+        mint:
+          anyOf:
+            - description: "Solana address: base58 of 32 bytes (ed25519 public key or program-derived address)."
+              examples:
+                - EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+              pattern: ^[1-9A-HJ-NP-Za-km-z]{32,44}$
+              type: string
+            - type: "null"
+          description: SPL mint that settled; null for native SOL (lamports).
+        owner:
+          description: Wallet whose balance rose (= `Evidence.recipient`, the merchant destination).
+          examples:
+            - EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+          pattern: ^[1-9A-HJ-NP-Za-km-z]{32,44}$
+          type: string
+        post_amount:
+          anyOf:
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+            - type: "null"
+          description: Owner's balance of the mint after the transaction; null when the detector did not read balances (test mode).
+        pre_amount:
+          anyOf:
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+            - type: "null"
+          description: Owner's balance of the mint before the transaction (`meta.preTokenBalances` / `preBalances`); null when the detector did not read balances (test mode).
+        signature:
+          description: Transaction signature (= `Evidence.tx_hash`).
+          pattern: ^[1-9A-HJ-NP-Za-km-z]{64,88}$
+          type: string
+        slot:
+          description: Slot of the block that contains the transaction (= `Evidence.block_ref`).
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        token_accounts:
+          description: Token accounts of `owner` for `mint` whose balance changed (usually its ATA); empty for SOL.
+          items:
+            description: "Solana address: base58 of 32 bytes (ed25519 public key or program-derived address)."
+            examples:
+              - EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+            pattern: ^[1-9A-HJ-NP-Za-km-z]{32,44}$
+            type: string
+          type: array
+        token_program:
+          anyOf:
+            - description: "Solana address: base58 of 32 bytes (ed25519 public key or program-derived address)."
+              examples:
+                - EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+              pattern: ^[1-9A-HJ-NP-Za-km-z]{32,44}$
+              type: string
+            - type: "null"
+          description: Owner program of the mint (`TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA` in v1); null for SOL.
+      required:
+        - signature
+        - slot
+        - block_time
+        - mint
+        - token_program
+        - owner
+        - token_accounts
+        - pre_amount
+        - post_amount
+      type: object
     StepUp:
       additionalProperties: {}
       description: A fresh step-up confirmation.
@@ -10566,10 +12238,11 @@ components:
             - type: "null"
           description: Set once canceled or scheduled to cancel.
         collection_method:
-          description: "How the invoice is collected: `send_invoice` = the customer pays the hosted invoice (v1)."
+          description: "How the invoice is collected: `send_invoice` = the customer pays the hosted invoice; `auto_debit` (Stage 4) = billing's keeper collects it from the subscription's vault mandate, falling back to `send_invoice` (emailed) when the mandate cannot pay it (lld/billing.md §7.1, §14)."
           type: string
           x-extensible-enum:
             - send_invoice
+            - auto_debit
         created:
           description: Unix time in seconds.
           maximum: 9007199254740991
@@ -10651,6 +12324,15 @@ components:
         livemode:
           description: "`true` for live mode, `false` for test mode."
           type: boolean
+        mandate:
+          anyOf:
+            - description: mandate id (`md_` + 26 base32 chars).
+              examples:
+                - md_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^md_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: "The linked vault mandate renewals are collected from (`collection_method: auto_debit`); null/absent when none (Stage 4)."
         metadata:
           additionalProperties:
             maxLength: 500
@@ -10781,8 +12463,10 @@ components:
       description: Parameters to create a subscription.
       properties:
         collection_method:
-          const: send_invoice
-          description: "`send_invoice` (the only method in v1; default)."
+          description: "`send_invoice` (default): each invoice is emailed and paid on the hosted page. `auto_debit` (Stage 4): the payer funds a NEAR vault mandate (`prepareMandate`, or from the hosted page of the first invoice) and billing's keeper collects each renewal from it; invoices fall back to `send_invoice` when the mandate cannot pay. Needs vault-compatible pricing (`auto_debit_unavailable`)."
+          enum:
+            - send_invoice
+            - auto_debit
           type: string
         customer:
           description: Customer to bill (not deleted).
@@ -10959,6 +12643,12 @@ components:
         cancel_at_period_end:
           description: Schedule (`true`) or undo (`false`) cancellation at period end.
           type: boolean
+        collection_method:
+          description: Switch how later invoices are collected (Stage 4). Leaving `auto_debit` releases a linked mandate (`mandate.released`). While a linked mandate is active, changes to `items` or `default_tax_rates` that change the per-period total are `state_conflict` (the payer authorised a fixed amount).
+          enum:
+            - send_invoice
+            - auto_debit
+          type: string
         days_until_due:
           description: Due days for later invoices.
           maximum: 90
@@ -11311,7 +13001,7 @@ components:
               minLength: 1
               type: string
             - type: "null"
-          description: Contract address (EVM `0x…`) or token account (NEAR); null for `native`.
+          description: Contract address (EVM `0x…`), token account (NEAR) or SPL mint (Solana, base58; spec 0.4.0 wallet path); null for `native`.
         standard:
           description: "`erc20`: ERC-20 contract on an EVM chain; `native`: the chain's native coin (no contract); `nep141`: NEP-141 token on NEAR; `spl`: SPL mint on Solana; `other`: no wallet transfer recipe (manual path)."
           type: string
@@ -11731,6 +13421,14 @@ components:
             - customer.subscription.updated
             - customer.subscription.deleted
             - customer.subscription.renewal_upcoming
+            - mandate.activated
+            - mandate.collected
+            - mandate.insufficient_funds
+            - mandate.canceled
+            - mandate.exhausted
+            - mandate.updated
+            - mandate.unlinked
+            - mandate.released
         id:
           description: webhook_delivery id (`whd_` + 26 base32 chars).
           examples:
@@ -12825,7 +14523,7 @@ info:
     identifier: Apache-2.0
     name: Apache-2.0
   title: NearPay API
-  version: 0.3.1
+  version: 0.4.0
 openapi: 3.1.0
 paths:
   /v1/account:
@@ -17470,6 +19168,7 @@ paths:
             type: string
             x-extensible-enum:
               - send_invoice
+              - auto_debit
         - description: Only invoices due at or after this time.
           in: query
           name: due_date[gte]
@@ -18110,6 +19809,184 @@ paths:
         idempotent: false
         service: billing
         stage: 3
+  /v1/invoices/{id}/public/mandate:
+    get:
+      description: "Anonymous; billing checks the invoice secret. Returns the newest mandate linked to the invoice's subscription (or unlinked for it), else `404 resource_missing`. The payer may also cancel straight from any NEAR wallet: the vault needs no NearPay involvement."
+      operationId: getPublicInvoiceMandate
+      parameters:
+        - description: invoice id (`in_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: invoice id (`in_` + 26 base32 chars).
+            examples:
+              - in_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^in_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Invoice secret from the hosted URL fragment (`/i/<id>#<secret>`); long-lived, independent of sessions.
+          in: header
+          name: x-nearpay-invoice-secret
+          required: true
+          schema:
+            description: Invoice secret from the hosted URL fragment (`/i/<id>#<secret>`); long-lived, independent of sessions.
+            pattern: ^in_[0-7][0-9a-z]{25}_secret_[0-9A-Za-z]{32}$
+            type: string
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicMandate"
+          description: "Hosted invoice page: the subscription's mandate with the payer's cancel/withdraw transactions."
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `invoice_secret_invalid`."
+          x-error-codes:
+            - invoice_secret_invalid
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - {}
+      summary: "Hosted invoice page: the subscription's mandate with the payer's cancel/withdraw transactions."
+      tags:
+        - billing
+      x-nearpay:
+        auth:
+          - anonymous
+        idempotent: false
+        service: billing
+        stage: 4
+  /v1/invoices/{id}/public/mandate_funding:
+    post:
+      description: "Anonymous; billing checks the invoice secret. Offered when `PublicInvoice.auto_debit.available`: the invoice belongs to an `auto_debit` subscription without a linked active mandate. Same computation as `prepareMandate` (no side effects); paid or void invoices answer `invoice_not_payable`."
+      operationId: createPublicInvoiceMandateFunding
+      parameters:
+        - description: invoice id (`in_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: invoice id (`in_` + 26 base32 chars).
+            examples:
+              - in_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^in_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Invoice secret from the hosted URL fragment (`/i/<id>#<secret>`); long-lived, independent of sessions.
+          in: header
+          name: x-nearpay-invoice-secret
+          required: true
+          schema:
+            description: Invoice secret from the hosted URL fragment (`/i/<id>#<secret>`); long-lived, independent of sessions.
+            pattern: ^in_[0-7][0-9a-z]{25}_secret_[0-9A-Za-z]{32}$
+            type: string
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                payer:
+                  description: "Payer's NEAR account, if known: billing reads its vault storage balance and leaves out `storage_deposit` when it is enough."
+                  pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+                  type: string
+                periods:
+                  description: Periods to fund up front (default 3).
+                  maximum: 36
+                  minimum: 1
+                  type: integer
+                token:
+                  description: "Token to fund with (an allowed vault token). USD subscriptions: USDC or USDT at par (default USDC); asset subscriptions: the pricing asset's token only."
+                  pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+                  type: string
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MandateFundingInstructions"
+          description: "Hosted invoice page: compute the payer's auto-debit funding transactions."
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `invoice_secret_invalid`."
+          x-error-codes:
+            - invoice_secret_invalid
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `account_not_live`."
+          x-error-codes:
+            - account_not_live
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `invoice_not_payable`, `state_conflict`, `destination_not_intents_account`."
+          x-error-codes:
+            - invoice_not_payable
+            - state_conflict
+            - destination_not_intents_account
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `auto_debit_unavailable`, `vault_cap_exceeded`."
+          x-error-codes:
+            - auto_debit_unavailable
+            - vault_cap_exceeded
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `rail_unavailable`."
+          x-error-codes:
+            - rail_unavailable
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - {}
+      summary: "Hosted invoice page: compute the payer's auto-debit funding transactions."
+      tags:
+        - billing
+      x-nearpay:
+        auth:
+          - anonymous
+        idempotent: false
+        service: billing
+        stage: 4
   /v1/invoices/{id}/public/pdf:
     get:
       description: Same document as `getInvoicePdf`; the page fetches it with the invoice-secret header and saves the blob.
@@ -18457,6 +20334,328 @@ paths:
           - finance
         service: billing
         stage: 3
+  /v1/mandates:
+    get:
+      operationId: listMandates
+      parameters:
+        - description: Number of objects to return, 1–100 (default 10).
+          in: query
+          name: limit
+          schema:
+            default: 10
+            description: Number of objects to return, 1–100 (default 10).
+            maximum: 100
+            minimum: 1
+            type: integer
+        - description: "Cursor: id of the last object of the previous page."
+          in: query
+          name: starting_after
+          schema:
+            description: "Cursor: id of the last object of the previous page."
+            maxLength: 64
+            type: string
+        - description: "Cursor: id of the first object of the next page."
+          in: query
+          name: ending_before
+          schema:
+            description: "Cursor: id of the first object of the next page."
+            maxLength: 64
+            type: string
+        - description: Only objects created at or after this time.
+          in: query
+          name: created[gte]
+          schema:
+            description: Only objects created at or after this time.
+            type: number
+        - description: Only objects created at or before this time.
+          in: query
+          name: created[lte]
+          schema:
+            description: Only objects created at or before this time.
+            type: number
+        - description: Only mandates of this subscription.
+          in: query
+          name: subscription
+          schema:
+            description: Only mandates of this subscription.
+            examples:
+              - sub_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^sub_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Only mandates of this customer.
+          in: query
+          name: customer
+          schema:
+            description: Only mandates of this customer.
+            examples:
+              - cus_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^cus_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Only mandates in this status.
+          in: query
+          name: status
+          schema:
+            description: Only mandates in this status.
+            type: string
+            x-extensible-enum:
+              - active
+              - insufficient
+              - exhausted
+              - canceled
+        - description: Only linked or only unlinked mandates.
+          in: query
+          name: link_status
+          schema:
+            description: Only linked or only unlinked mandates.
+            type: string
+            x-extensible-enum:
+              - linked
+              - unlinked
+        - description: Only mandates funded by this NEAR account.
+          in: query
+          name: payer
+          schema:
+            description: Only mandates funded by this NEAR account.
+            pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+            type: string
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MandateList"
+          description: List mandates.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - apiKey: []
+        - session: []
+      summary: List mandates.
+      tags:
+        - billing
+      x-nearpay:
+        auth:
+          - secret_key
+          - restricted_key:subscriptions.read
+          - session
+        idempotent: false
+        service: billing
+        stage: 4
+  /v1/mandates/prepare:
+    post:
+      description: "The subscription must be `auto_debit`, not canceled, and without a linked active mandate (`state_conflict`). Its pricing must be vault-compatible: USD (paid at par in USDC/USDT) or an asset whose token the vault allows, with a per-period total within the vault's per-mandate cap (`auto_debit_unavailable`). The merchant receiver is the subscription's settlement destination if it is an active NEAR Intents account for the token, else the account's default one (`destination_not_intents_account`). `start_at` is null (block time) while the subscription's latest invoice is open — the first collection pays it — else the current period end (or `trial_end`). Funding above the vault's per-mandate or TVL cap is `vault_cap_exceeded`; the NEAR RPC being unreachable is `rail_unavailable`. No mandate exists until the payer's transaction lands and rails forwards `mandate_created`."
+      operationId: prepareMandate
+      parameters:
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MandatePrepare"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MandateFundingInstructions"
+          description: Compute what a payer signs to fund an auto-debit mandate for a subscription.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `account_not_live`."
+          x-error-codes:
+            - account_not_live
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `state_conflict`, `destination_not_intents_account`."
+          x-error-codes:
+            - state_conflict
+            - destination_not_intents_account
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `auto_debit_unavailable`, `vault_cap_exceeded`."
+          x-error-codes:
+            - auto_debit_unavailable
+            - vault_cap_exceeded
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `rail_unavailable`."
+          x-error-codes:
+            - rail_unavailable
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - apiKey: []
+        - session: []
+      summary: Compute what a payer signs to fund an auto-debit mandate for a subscription.
+      tags:
+        - billing
+      x-nearpay:
+        auth:
+          - secret_key
+          - restricted_key:subscriptions.write
+          - session
+        idempotent: true
+        roles:
+          - owner
+          - admin
+          - finance
+        service: billing
+        stage: 4
+  /v1/mandates/{id}:
+    get:
+      operationId: getMandate
+      parameters:
+        - description: mandate id (`md_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: mandate id (`md_` + 26 base32 chars).
+            examples:
+              - md_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^md_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Mandate"
+          description: Retrieve a mandate.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - apiKey: []
+        - session: []
+      summary: Retrieve a mandate.
+      tags:
+        - billing
+      x-nearpay:
+        auth:
+          - secret_key
+          - restricted_key:subscriptions.read
+          - session
+        idempotent: false
+        service: billing
+        stage: 4
+  /v1/mandates/{id}/prepare_cancel:
+    post:
+      description: The vault accepts `cancel` from the payer or the merchant receiver only, so the merchant signs it with the wallet of its NEAR Intents account (accounts that cannot sign NEAR transactions, e.g. EVM-keyed implicit accounts without a wallet contract, cannot cancel; the payer always can). Canceled or exhausted mandates answer `state_conflict`. Ending the subscription instead stops collection (`mandate.released`) and asks the payer to cancel.
+      operationId: prepareMandateCancel
+      parameters:
+        - description: mandate id (`md_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: mandate id (`md_` + 26 base32 chars).
+            examples:
+              - md_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^md_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MandateCancelInstructions"
+          description: Get the transaction the merchant receiver signs to cancel a mandate.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `state_conflict`."
+          x-error-codes:
+            - state_conflict
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - apiKey: []
+        - session: []
+      summary: Get the transaction the merchant receiver signs to cancel a mandate.
+      tags:
+        - billing
+      x-nearpay:
+        auth:
+          - secret_key
+          - restricted_key:subscriptions.write
+          - session
+        idempotent: true
+        roles:
+          - owner
+          - admin
+          - finance
+        service: billing
+        stage: 4
   /v1/payment_intents:
     get:
       description: "Typed filters (ADR-0018): `status`, `created[…]` (Stage 1); `amount[gte|gt|lte|lt]`, `currency`, `asset_id`, `settlement_asset_id`, `source`, `customer`, `payment_link`, `checkout_session` and `metadata[key]=value` (exact match, up to 10) from Stage 2. Filters combine with AND."
@@ -20964,19 +23163,21 @@ paths:
                   pattern: ^chl_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
                   type: string
                 public_key:
-                  description: "NEP-413 only: `ed25519:<base58>` key that signed."
+                  description: "NEP-413 only: `ed25519:<base58>` key that signed. Ignored for other standards (Solana: the address is the key; BIP-322: the witness carries it)."
                   pattern: ^(ed25519|secp256k1):[1-9A-HJ-NP-Za-km-z]{32,90}$
                   type: string
                 signature:
-                  description: "NEP-413: base64 ed25519 signature. EIP-191: 0x-prefixed 65-byte hex signature."
+                  description: 'NEP-413: base64 ed25519 signature. EIP-191: 0x-prefixed 65-byte hex signature. Solana (spec 0.4.0): base58 of the 64-byte ed25519 signature over the exact UTF-8 bytes of the challenge message (wallet-standard `solana:signMessage`; no off-chain message header). BIP-322 (spec 0.4.0): base64 of the "simple" encoding (the consensus-serialized witness stack of the virtual `to_sign` transaction) for a P2WPKH or P2TR address.'
                   maxLength: 1024
                   minLength: 16
                   type: string
                 standard:
-                  description: "Signing standard used (Stage 1: NEAR and EVM)."
+                  description: "Signing standard used: `nep413` (NEAR), `eip191` (EVM), `solana` and `bip322` (Bitcoin) since spec 0.4.0."
                   enum:
                     - nep413
                     - eip191
+                    - solana
+                    - bip322
                   type: string
               required:
                 - challenge_id
@@ -21425,7 +23626,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-          description: "Error: `customer_email_missing`, `price_type_invalid`, `currency_mismatch`, `interval_mismatch`, `tax_rates_mixed`, `amount_below_destination_minimum`, `invoice_empty`."
+          description: "Error: `customer_email_missing`, `price_type_invalid`, `currency_mismatch`, `interval_mismatch`, `tax_rates_mixed`, `amount_below_destination_minimum`, `invoice_empty`, `auto_debit_unavailable`."
           x-error-codes:
             - customer_email_missing
             - price_type_invalid
@@ -21434,6 +23635,7 @@ paths:
             - tax_rates_mixed
             - amount_below_destination_minimum
             - invoice_empty
+            - auto_debit_unavailable
         default:
           content:
             application/json:
@@ -21561,12 +23763,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-          description: "Error: `price_type_invalid`, `currency_mismatch`, `interval_mismatch`, `tax_rates_mixed`."
+          description: "Error: `price_type_invalid`, `currency_mismatch`, `interval_mismatch`, `tax_rates_mixed`, `auto_debit_unavailable`."
           x-error-codes:
             - price_type_invalid
             - currency_mismatch
             - interval_mismatch
             - tax_rates_mixed
+            - auto_debit_unavailable
         default:
           content:
             application/json:
@@ -22057,6 +24260,188 @@ paths:
         service: payments
         stage: 3
         test_mode_only: true
+  /v1/test_helpers/mandates/fund:
+    post:
+      description: "Prepares the funding like `prepareMandate` and submits it to the sandbox vault stand-in as `payer` (default the simulated NEAR payer `sandbox-payer.near`, sandbox §4.1): storage is registered and the payer's test tokens are minted as needed, then `ft_transfer_call` runs with the prepared `msg`. Outcome scenarios follow the last two digits of `amount_per_period` (sandbox §4.2: `91` merchant leg fails, `92` fee leg fails, `93` first refund fails, `94` partial delivery)."
+      operationId: simulateMandateFunding
+      parameters:
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MandateFundingSimulation"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MandateSimulation"
+          description: "Test mode: fund a mandate for a subscription as the simulated payer."
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `livemode_forbidden`."
+          x-error-codes:
+            - livemode_forbidden
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `state_conflict`, `destination_not_intents_account`."
+          x-error-codes:
+            - state_conflict
+            - destination_not_intents_account
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `auto_debit_unavailable`, `vault_cap_exceeded`."
+          x-error-codes:
+            - auto_debit_unavailable
+            - vault_cap_exceeded
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `rail_unavailable`."
+          x-error-codes:
+            - rail_unavailable
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - apiKey: []
+        - session: []
+      summary: "Test mode: fund a mandate for a subscription as the simulated payer."
+      tags:
+        - billing
+      x-nearpay:
+        auth:
+          - secret_key
+          - restricted_key:subscriptions.write
+          - session
+        idempotent: true
+        roles:
+          - owner
+          - admin
+          - developer
+        service: billing
+        stage: 4
+        test_mode_only: true
+  /v1/test_helpers/mandates/{id}/payer_action:
+    post:
+      description: "Submits the payer's transaction to the sandbox vault stand-in (`top_up`: `periods × amount_per_period`, default 1; `cancel` and `withdraw` with 100 Tgas and 1 yoctoNEAR). The vault's own errors come back in `rejection` with `accepted: false` (e.g. `ERR_STILL_ACTIVE` for a withdraw before cancel), not as API errors."
+      operationId: simulateMandatePayerAction
+      parameters:
+        - description: mandate id (`md_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: mandate id (`md_` + 26 base32 chars).
+            examples:
+              - md_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^md_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                action:
+                  description: Payer action.
+                  enum:
+                    - top_up
+                    - cancel
+                    - withdraw
+                  type: string
+                periods:
+                  description: "`top_up` only: periods to add (default 1)."
+                  maximum: 36
+                  minimum: 1
+                  type: integer
+              required:
+                - action
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MandateSimulation"
+          description: "Test mode: top up, cancel or withdraw a mandate as its payer."
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `livemode_forbidden`."
+          x-error-codes:
+            - livemode_forbidden
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - apiKey: []
+        - session: []
+      summary: "Test mode: top up, cancel or withdraw a mandate as its payer."
+      tags:
+        - billing
+      x-nearpay:
+        auth:
+          - secret_key
+          - restricted_key:subscriptions.write
+          - session
+        idempotent: true
+        roles:
+          - owner
+          - admin
+          - developer
+        service: billing
+        stage: 4
+        test_mode_only: true
   /v1/test_helpers/payment_attempts/{attempt}/advance:
     post:
       operationId: advancePaymentAttempt
@@ -22456,6 +24841,14 @@ paths:
                           - customer.subscription.updated
                           - customer.subscription.deleted
                           - customer.subscription.renewal_upcoming
+                          - mandate.activated
+                          - mandate.collected
+                          - mandate.insufficient_funds
+                          - mandate.canceled
+                          - mandate.exhausted
+                          - mandate.updated
+                          - mandate.unlinked
+                          - mandate.released
                       - description: Any other type string; the service answers `event_type_unknown`.
                         maxLength: 100
                         minLength: 1
@@ -22695,6 +25088,14 @@ paths:
                           - customer.subscription.updated
                           - customer.subscription.deleted
                           - customer.subscription.renewal_upcoming
+                          - mandate.activated
+                          - mandate.collected
+                          - mandate.insufficient_funds
+                          - mandate.canceled
+                          - mandate.exhausted
+                          - mandate.updated
+                          - mandate.unlinked
+                          - mandate.released
                       - description: Any other type string; the service answers `event_type_unknown`.
                         maxLength: 100
                         minLength: 1

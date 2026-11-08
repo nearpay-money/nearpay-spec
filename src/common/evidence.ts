@@ -1,4 +1,5 @@
 /** Settlement evidence (ADR-0012, lld/rails.md §5, §8.8). */
+import { BitcoinEvidence, SolanaEvidence } from "./chains.js";
 import { AssetId, BaseUnits, ChainAddress, ChainId, Timestamp, TxHash } from "./primitives.js";
 import { openEnum, out, z } from "./schema.js";
 
@@ -27,6 +28,17 @@ export const Evidence = out({
     .optional()
     .describe(
       "Account that sent the settlement transfer, when the detector saw it (NEAR Intents: the transferring Intents account); null if unknown. Spec 0.3.0.",
+    ),
+  // stage 4 — chains
+  solana: SolanaEvidence.nullable()
+    .optional()
+    .describe(
+      "Solana detail (signature, slot, mint, token-balance delta) when `chain` is Solana; null/absent otherwise. Spec 0.4.0.",
+    ),
+  bitcoin: BitcoinEvidence.nullable()
+    .optional()
+    .describe(
+      "Bitcoin detail (txid, outputs, confirmations) when `chain` is Bitcoin; null/absent otherwise. Spec 0.4.0.",
     ),
 }).meta({ id: "Evidence", description: "Independent on-chain proof that a settlement reached the merchant (INV-2)." });
 export type Evidence = z.infer<typeof Evidence>;

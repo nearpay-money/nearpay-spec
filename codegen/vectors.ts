@@ -10,6 +10,8 @@
  *   intents-payloads.json       checkout, agent-signer (signers) ↔ agentpay, sandbox (verifiers)
  *   billing-tax.json            billing (invoices, PDF) ↔ dashboard, checkout (display): tax + periods
  *   x402-near-intents.json      agentpay (binding, operation token) ↔ @nearpay/x402, agent-signer (wire shapes)
+ *   vault.json                  subscription vault (events, errors, views) ↔ rails, billing keeper, sandbox stand-in
+ *   chains-solana-bitcoin.json, destination-attestation.json, solana-transfer.json — stage 4 chains (vectors-chains.ts)
  *
  * Keys here are TEST-ONLY seeds derived from fixed strings; never use them for anything else.
  * Usage: tsx codegen/vectors.ts [--check]
@@ -22,15 +24,25 @@ import { keccak_256 } from "@noble/hashes/sha3.js";
 import bs58 from "bs58";
 import canonicalize from "canonicalize";
 import {
+  nearPanicStatus,
+  SANDBOX_VAULT_DEFAULTS,
+  VAULT_KEEPER_ON_TX_FAILURE,
+  VAULT_KEEPER_RULES,
+  VAULT_SANDBOX_SCENARIOS,
+} from "../src/internal-entry.js";
+import {
   Attestation,
   AttestationTicketPayload,
   computeInvoiceTotals,
+  EVENT_JSON_PREFIX,
   formatSignatureHeader,
+  formatVaultEventLog,
   ID_ALPHABET,
   INTENTS_CONTRACT,
   type IntentMessage,
   MultiPayload,
   type MultiPayload as MultiPayloadT,
+  NEAR_SDK_GUARD_MESSAGES,
   NearIntentsPaymentPayload,
   NearIntentsSettleResponse,
   NearIntentsVerifyResponse,
@@ -39,13 +51,35 @@ import {
   quotedRequirements,
   routeQuoteDepositKey,
   SignedAttestation,
+  SMART_CONTRACT_PANICKED_PREFIX,
   signedPayload,
   taxPercentageToPpm,
+  VAULT_CANCEL_ERRORS,
+  VAULT_CAP_EXCEEDED_LOGS,
+  VAULT_COLLECT_ERRORS,
+  VAULT_ERRORS,
+  VAULT_EVENT_STANDARD,
+  VAULT_EVENT_VERSION,
+  VAULT_FUNDING_REJECTIONS,
+  VAULT_GAS,
+  VAULT_LIMITS,
+  VAULT_PERIOD_SECS_PER_INTERVAL,
+  VAULT_WITHDRAW_ERRORS,
+  type VaultEvent,
+  VaultEvent as VaultEventSchema,
+  vaultMsgJson,
+  vaultSplit,
   X402NearIntentsBindingInput,
   X402OperationTokenInput,
   X402PaymentRequiredAny,
 } from "../src/public-entry.js";
 import { type Output, toJson, writeOutputs } from "./lib.js";
+// stage 4 — chains
+import {
+  chainsVectors,
+  attestationVectors as destinationAttestationVectors,
+  solanaTransferVectors,
+} from "./vectors-chains.js";
 
 const enc = new TextEncoder();
 const hex = (b: Uint8Array) => Buffer.from(b).toString("hex");
@@ -644,6 +678,256 @@ function nearIntentsVectors() {
 }
 
 // ---------------------------------------------------------------------------------------------
+// stage 4 — autodebit: subscription vault wire strings (lld/contracts-vault.md §3–§4, OQ-T-03)
+// ---------------------------------------------------------------------------------------------
+
+/** Every value below is reproduced byte for byte by the contract (test/fixtures/vault-contract-wire.json). */
+function vaultVectors() {
+  const payer = "alice.near";
+  const merchant = "merchant-demo.near";
+  const usdc = "17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1";
+  const usdt = "usdt.tether-token.near";
+  const ext = "sub_01jbz9k3m4n5p6q7r8s9t0v1w2";
+  const start = "1794268800000000000"; // 2026-11-10T00:00:00Z
+  const ev = <E extends VaultEvent>(e: E): E => VaultEventSchema.parse(e) as E;
+  const env = { standard: VAULT_EVENT_STANDARD, version: VAULT_EVENT_VERSION } as const;
+  const events: Record<string, VaultEvent> = {
+    mandate_created: ev({
+      ...env,
+      event: "mandate_created",
+      data: [
+        {
+          mandate_id: 7,
+          payer,
+          merchant_receiver: merchant,
+          token: usdc,
+          amount_per_period: "10000000",
+          period_secs: 2_629_746,
+          start_at: start,
+          max_periods: null,
+          fee_bps: 100,
+          ext_ref: ext,
+          receiver_kind: "intents_account",
+          balance: "30000000",
+        },
+      ],
+    }),
+    mandate_created_max_periods_near_account: ev({
+      ...env,
+      event: "mandate_created",
+      data: [
+        {
+          mandate_id: 8,
+          payer,
+          merchant_receiver: merchant,
+          token: usdt,
+          amount_per_period: "5000000",
+          period_secs: 604_800,
+          start_at: start,
+          max_periods: 12,
+          fee_bps: 0,
+          ext_ref: "",
+          receiver_kind: "near_account",
+          balance: "5000000",
+        },
+      ],
+    }),
+    topped_up: ev({ ...env, event: "topped_up", data: [{ mandate_id: 7, amount: "10000000", balance: "40000000" }] }),
+    collected: ev({
+      ...env,
+      event: "collected",
+      data: [
+        { mandate_id: 7, period: 1, amount: "10000000", merchant_share: "9900000", fee: "100000", balance: "30000000" },
+      ],
+    }),
+    collected_fee_leg_failed: ev({
+      ...env,
+      event: "collected",
+      data: [{ mandate_id: 7, period: 2, amount: "9900000", merchant_share: "9900000", fee: "0", balance: "20100000" }],
+    }),
+    collected_partial: ev({
+      ...env,
+      event: "collected",
+      data: [{ mandate_id: 7, period: 3, amount: "4950000", merchant_share: "4950000", fee: "0", balance: "15150000" }],
+    }),
+    collect_failed: ev({
+      ...env,
+      event: "collect_failed",
+      data: [{ mandate_id: 7, period: 4, reason: "merchant_transfer_failed" }],
+    }),
+    canceled: ev({ ...env, event: "canceled", data: [{ mandate_id: 7, by: payer, refunded: "15150000" }] }),
+    canceled_refund_failed: ev({ ...env, event: "canceled", data: [{ mandate_id: 7, by: merchant, refunded: "0" }] }),
+    withdrawn: ev({ ...env, event: "withdrawn", data: [{ mandate_id: 7, amount: "15150000" }] }),
+    exhausted: ev({ ...env, event: "exhausted", data: [{ mandate_id: 8 }] }),
+  };
+
+  // Views, keys in the contract's struct order (JSON.stringify keeps insertion order).
+  const view7 = {
+    mandate_id: 7,
+    payer,
+    merchant_receiver: merchant,
+    receiver_kind: "intents_account",
+    token: usdc,
+    amount_per_period: "10000000",
+    period_secs: 2_629_746,
+    start_at: start,
+    max_periods: null,
+    fee_bps: 100,
+    collected_periods: 1,
+    balance: "30000000",
+    status: "active",
+    in_flight: false,
+    refund_in_flight: "0",
+    ext_ref: ext,
+    next_collect_at: (BigInt(start) + 2_629_746n * 1_000_000_000n).toString(),
+  };
+  const view8 = {
+    mandate_id: 8,
+    payer,
+    merchant_receiver: merchant,
+    receiver_kind: "near_account",
+    token: usdt,
+    amount_per_period: "5000000",
+    period_secs: 604_800,
+    start_at: start,
+    max_periods: 12,
+    fee_bps: 0,
+    collected_periods: 12,
+    balance: "1",
+    status: "exhausted",
+    in_flight: false,
+    refund_in_flight: "0",
+    ext_ref: "",
+    next_collect_at: null,
+  };
+  const caps = (token: string) => ({ token, cap: "1000000000000", mandate_cap: "100000000000" });
+  const views: Record<string, { method: string; args: Record<string, unknown>; result: unknown }> = {
+    get_mandate: { method: "get_mandate", args: { mandate_id: 7 }, result: view7 },
+    get_mandate_exhausted: { method: "get_mandate", args: { mandate_id: 8 }, result: view8 },
+    get_mandate_missing: { method: "get_mandate", args: { mandate_id: 999 }, result: null },
+    get_mandates_by_payer: { method: "get_mandates_by_payer", args: { payer }, result: [view7, view8] },
+    next_collect_at: { method: "next_collect_at", args: { mandate_id: 7 }, result: view7.next_collect_at },
+    next_collect_at_none: { method: "next_collect_at", args: { mandate_id: 8 }, result: null },
+    get_config: {
+      method: "get_config",
+      args: {},
+      result: {
+        allowed_tokens: [usdc, usdt],
+        fee_receiver: "treasury.nearpay.near",
+        max_fee_bps: 500,
+        intents_account: "intents.near",
+        min_period_secs: VAULT_LIMITS.min_period_secs,
+        caps: [caps(usdc), caps(usdt)],
+        mandate_storage_cost: VAULT_LIMITS.mandate_storage_cost,
+        storage_registration_cost: VAULT_LIMITS.storage_registration_cost,
+      },
+    },
+    get_token_tvl: {
+      method: "get_token_tvl",
+      args: { token: usdc },
+      result: { token: usdc, tvl: "30000000", cap: "1000000000000", mandate_cap: "100000000000" },
+    },
+    storage_balance_of: {
+      method: "storage_balance_of",
+      args: { account_id: payer },
+      result: { total: "12000000000000000000000", available: "0" },
+    },
+    storage_balance_bounds: {
+      method: "storage_balance_bounds",
+      args: {},
+      result: { min: VAULT_LIMITS.storage_registration_cost, max: null },
+    },
+  };
+
+  const createMsg = {
+    create_mandate: {
+      merchant_receiver: merchant,
+      receiver_kind: "intents_account" as const,
+      amount_per_period: "10000000",
+      period_secs: 2_629_746,
+      start_at: null,
+      max_periods: null,
+      fee_bps: 100,
+      ext_ref: ext,
+    },
+  };
+  const rejectionLines = [
+    ...VAULT_FUNDING_REJECTIONS.filter((c) => c !== "ERR_CAP_EXCEEDED"),
+    ...VAULT_CAP_EXCEEDED_LOGS,
+  ];
+  const collectLog = formatVaultEventLog(events.collected as VaultEvent);
+  const b64 = (s: string) => Buffer.from(s, "utf8").toString("base64");
+  const share = vaultSplit(10_000_000n, 100);
+  return {
+    description:
+      "Subscription vault wire strings (lld/contracts-vault.md §3–§4.1): NEP-297 event lines exactly as the contract logs them (formatVaultEventLog), the stable error strings and rejection log lines, view results as the contract serialises them (`result_json` is the exact byte string a `query call_function` returns), the msg serialisation billing prepares, and the NEAR RPC shapes of a vault panic and of a collect outcome. The vault's unit tests and the sandbox stand-in's contract tests both assert against this file (OQ-T-03).",
+    standard: VAULT_EVENT_STANDARD,
+    version: VAULT_EVENT_VERSION,
+    event_json_prefix: EVENT_JSON_PREFIX,
+    events: Object.entries(events).map(([name, event]) => ({ case: name, event, log: formatVaultEventLog(event) })),
+    errors: {
+      codes: VAULT_ERRORS,
+      funding_rejection_log_lines: rejectionLines,
+      cap_exceeded_log_lines: VAULT_CAP_EXCEEDED_LOGS,
+      collect_check_order: VAULT_COLLECT_ERRORS,
+      cancel_check_order: VAULT_CANCEL_ERRORS,
+      withdraw_check_order: VAULT_WITHDRAW_ERRORS,
+      panic_messages: VAULT_ERRORS.map((c) => `${SMART_CONTRACT_PANICKED_PREFIX}${c}`),
+      near_sdk_guards: NEAR_SDK_GUARD_MESSAGES,
+    },
+    views: Object.entries(views).map(([name, v]) => ({
+      case: name,
+      method: v.method,
+      args: v.args,
+      result_json: JSON.stringify(v.result),
+    })),
+    msgs: [
+      { case: "create_mandate_start_now", msg: createMsg, json: vaultMsgJson(createMsg) },
+      {
+        case: "create_mandate_start_at",
+        msg: { create_mandate: { ...createMsg.create_mandate, start_at: start, max_periods: 12 } },
+        json: vaultMsgJson({ create_mandate: { ...createMsg.create_mandate, start_at: start, max_periods: 12 } }),
+      },
+      { case: "top_up", msg: { top_up: { mandate_id: 7 } }, json: vaultMsgJson({ top_up: { mandate_id: 7 } }) },
+    ],
+    split: [
+      [10_000_000n, 100],
+      [1n, 0],
+      [1n, 1],
+      [9_999n, 1],
+      [0n, 500],
+      [340282366920938463463374607431768211455n, 0],
+      [100n, 10_000],
+    ].map(([amount, bps]) => {
+      const r = vaultSplit(amount as bigint, bps as number);
+      return {
+        amount_per_period: String(amount),
+        fee_bps: bps,
+        merchant_share: String(r.merchantShare),
+        fee: String(r.fee),
+      };
+    }),
+    period_secs_per_interval: VAULT_PERIOD_SECS_PER_INTERVAL,
+    limits: VAULT_LIMITS,
+    gas: VAULT_GAS,
+    rpc: {
+      collect_not_due_status: nearPanicStatus("ERR_NOT_DUE"),
+      collect_success: {
+        status: { SuccessValue: b64("true") },
+        vault_receipt: {
+          executor_id: "v1.vault.nearpay.near",
+          logs: [collectLog],
+          status_success_value_base64: b64("true"),
+        },
+        merchant_share: String(share.merchantShare),
+        fee: String(share.fee),
+      },
+      call_function_result_bytes_get_mandate_missing: [...Buffer.from("null", "utf8")],
+    },
+    keeper: { on_tx_failure: VAULT_KEEPER_ON_TX_FAILURE, rules: VAULT_KEEPER_RULES },
+    sandbox: { defaults: SANDBOX_VAULT_DEFAULTS, scenarios_by_amount_suffix: VAULT_SANDBOX_SCENARIOS },
+  };
+}
 
 export function vectorOutputs(): Output[] {
   return [
@@ -657,6 +941,12 @@ export function vectorOutputs(): Output[] {
     { path: "test-vectors/billing-tax.json", content: toJson(billingTaxVectors()) },
     // stage 3 — agent-commerce
     { path: "test-vectors/x402-near-intents.json", content: toJson(nearIntentsVectors()) },
+    // stage 4 — autodebit
+    { path: "test-vectors/vault.json", content: toJson(vaultVectors()) },
+    // stage 4 — chains
+    { path: "test-vectors/chains-solana-bitcoin.json", content: toJson(chainsVectors()) },
+    { path: "test-vectors/destination-attestation.json", content: toJson(destinationAttestationVectors()) },
+    { path: "test-vectors/solana-transfer.json", content: toJson(solanaTransferVectors()) },
   ];
 }
 

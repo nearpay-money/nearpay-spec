@@ -15,6 +15,7 @@ import {
   Invoice,
   id,
   KybStatus,
+  Mandate,
   OpsRoleSchema,
   openEnum,
   out,
@@ -32,6 +33,7 @@ import {
 import { InternalSettlementDestination } from "../internal/identity.js";
 import { OpsApproval } from "../internal/ops-approval.js";
 import { Execution } from "../internal/rails.js";
+import { VaultEventRecord } from "../internal/vault.js"; // stage 4 — autodebit
 
 // ---------------------------------------------------------------------------------------------
 // Payload objects that only exist on the bus
@@ -765,6 +767,72 @@ export const SUBJECTS = {
     consumers: ["webhooks", "notify"],
     stage: 3,
   }),
+
+  // stage 4 — autodebit (rails §8.6, billing §6, §14)
+  "evt.rails.vault.event": s({
+    object: VaultEventRecord,
+    aggregate: "vault_mandate",
+    producer: "rails",
+    consumers: ["billing"],
+    stage: 4,
+  }),
+  "evt.billing.mandate.activated": s({
+    object: Mandate,
+    aggregate: "mandate",
+    producer: "billing",
+    consumers: ["webhooks", "notify"],
+    stage: 4,
+  }),
+  "evt.billing.mandate.collected": s({
+    object: Mandate,
+    aggregate: "mandate",
+    producer: "billing",
+    consumers: ["webhooks"],
+    stage: 4,
+  }),
+  "evt.billing.mandate.insufficient_funds": s({
+    object: Mandate,
+    aggregate: "mandate",
+    producer: "billing",
+    consumers: ["webhooks", "notify"],
+    stage: 4,
+  }),
+  "evt.billing.mandate.canceled": s({
+    object: Mandate,
+    aggregate: "mandate",
+    producer: "billing",
+    consumers: ["webhooks", "notify"],
+    stage: 4,
+  }),
+  "evt.billing.mandate.exhausted": s({
+    object: Mandate,
+    aggregate: "mandate",
+    producer: "billing",
+    consumers: ["webhooks"],
+    stage: 4,
+  }),
+  "evt.billing.mandate.updated": s({
+    object: Mandate,
+    aggregate: "mandate",
+    producer: "billing",
+    consumers: ["webhooks"],
+    stage: 4,
+  }),
+  "evt.billing.mandate.unlinked": s({
+    object: Mandate,
+    aggregate: "mandate",
+    producer: "billing",
+    consumers: ["webhooks", "notify"],
+    stage: 4,
+  }),
+  "evt.billing.mandate.released": s({
+    object: Mandate,
+    aggregate: "mandate",
+    producer: "billing",
+    consumers: ["webhooks", "notify"],
+    stage: 4,
+  }),
+  // end stage 4 — autodebit
 } as const satisfies Record<string, SubjectDefinition>;
 
 export type Subject = keyof typeof SUBJECTS;
@@ -921,6 +989,9 @@ export const AggregateType = closedEnum(
     // stage 3 — billing
     "invoice",
     "subscription",
+    // stage 4 — autodebit
+    "mandate",
+    "vault_mandate",
   ],
   "Aggregate type.",
 );

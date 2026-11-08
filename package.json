@@ -1,7 +1,7 @@
 {
   "name": "nearpay-spec",
   "private": true,
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "NearPay contracts: zod schemas authored in TypeScript, emitted as OpenAPI 3.1, AsyncAPI and JSON Schema.",
   "license": "Apache-2.0",
   "type": "module",
@@ -31,6 +31,8 @@
     "@biomejs/biome": "2.6.5",
     "@noble/curves": "2.4.0",
     "@noble/hashes": "2.4.0",
+    "@scure/base": "2.4.0",
+    "@scure/btc-signer": "2.4.1",
     "@seriousme/openapi-schema-validator": "2.11.0",
     "@types/node": "22.20.5",
     "@vitest/coverage-v8": "2.1.9",

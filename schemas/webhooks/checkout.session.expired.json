@@ -1,5 +1,81 @@
 {
   "$defs": {
+    "BitcoinEvidence": {
+      "additionalProperties": {},
+      "description": "Bitcoin-specific settlement detail (outputs and confirmations).",
+      "properties": {
+        "block_hash": {
+          "description": "Hash of the confirming block, hex.",
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "block_height": {
+          "description": "Height of the confirming block (= `Evidence.block_ref`).",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "confirmations": {
+          "description": "Confirmations when the evidence was accepted (`tip − block_height + 1`).",
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "outputs": {
+          "description": "Outputs of the transaction that pay the destination address.",
+          "items": {
+            "additionalProperties": {},
+            "description": "An output paying the destination.",
+            "properties": {
+              "script_pubkey": {
+                "description": "Output scriptPubKey, hex (`0014…` P2WPKH, `5120…` P2TR).",
+                "pattern": "^[0-9a-f]{2,200}$",
+                "type": "string"
+              },
+              "value": {
+                "description": "Output value, satoshis.",
+                "pattern": "^(0|[1-9][0-9]{0,77})$",
+                "type": "string"
+              },
+              "vout": {
+                "description": "Output index.",
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "vout",
+              "value",
+              "script_pubkey"
+            ],
+            "type": "object"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "required_confirmations": {
+          "description": "Confirmations the chain profile required for this settlement's USD value (`confirmation_tiers`).",
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "txid": {
+          "description": "Transaction id (= `Evidence.tx_hash`).",
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "txid",
+        "outputs",
+        "block_height",
+        "block_hash",
+        "confirmations",
+        "required_confirmations"
+      ],
+      "type": "object"
+    },
     "CheckoutSession": {
       "additionalProperties": {},
       "description": "A checkout page or embed for one payment intent.",
@@ -496,6 +572,17 @@
           "pattern": "^(nep141:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+|nep245:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+:[\\x21-\\x7e]{1,128})$",
           "type": "string"
         },
+        "bitcoin": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BitcoinEvidence"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Bitcoin detail (txid, outputs, confirmations) when `chain` is Bitcoin; null/absent otherwise. Spec 0.4.0."
+        },
         "block_ref": {
           "description": "Block height or hash containing the transaction.",
           "type": [
@@ -557,6 +644,17 @@
             }
           ],
           "description": "Account that sent the settlement transfer, when the detector saw it (NEAR Intents: the transferring Intents account); null if unknown. Spec 0.3.0."
+        },
+        "solana": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SolanaEvidence"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Solana detail (signature, slot, mint, token-balance delta) when `chain` is Solana; null/absent otherwise. Spec 0.4.0."
         },
         "source": {
           "description": "Detector that produced the evidence.",
@@ -1199,6 +1297,126 @@
         "overpayments",
         "sequence",
         "metadata"
+      ],
+      "type": "object"
+    },
+    "SolanaEvidence": {
+      "additionalProperties": {},
+      "description": "Solana-specific settlement detail (token-balance delta).",
+      "properties": {
+        "block_time": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Block time, unix seconds; null when the node has none."
+        },
+        "mint": {
+          "anyOf": [
+            {
+              "description": "Solana address: base58 of 32 bytes (ed25519 public key or program-derived address).",
+              "examples": [
+                "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+              ],
+              "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "SPL mint that settled; null for native SOL (lamports)."
+        },
+        "owner": {
+          "description": "Wallet whose balance rose (= `Evidence.recipient`, the merchant destination).",
+          "examples": [
+            "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+          ],
+          "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$",
+          "type": "string"
+        },
+        "post_amount": {
+          "anyOf": [
+            {
+              "description": "Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).",
+              "pattern": "^(0|[1-9][0-9]{0,77})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Owner's balance of the mint after the transaction; null when the detector did not read balances (test mode)."
+        },
+        "pre_amount": {
+          "anyOf": [
+            {
+              "description": "Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).",
+              "pattern": "^(0|[1-9][0-9]{0,77})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Owner's balance of the mint before the transaction (`meta.preTokenBalances` / `preBalances`); null when the detector did not read balances (test mode)."
+        },
+        "signature": {
+          "description": "Transaction signature (= `Evidence.tx_hash`).",
+          "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$",
+          "type": "string"
+        },
+        "slot": {
+          "description": "Slot of the block that contains the transaction (= `Evidence.block_ref`).",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "token_accounts": {
+          "description": "Token accounts of `owner` for `mint` whose balance changed (usually its ATA); empty for SOL.",
+          "items": {
+            "description": "Solana address: base58 of 32 bytes (ed25519 public key or program-derived address).",
+            "examples": [
+              "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+            ],
+            "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "token_program": {
+          "anyOf": [
+            {
+              "description": "Solana address: base58 of 32 bytes (ed25519 public key or program-derived address).",
+              "examples": [
+                "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+              ],
+              "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Owner program of the mint (`TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA` in v1); null for SOL."
+        }
+      },
+      "required": [
+        "signature",
+        "slot",
+        "block_time",
+        "mint",
+        "token_program",
+        "owner",
+        "token_accounts",
+        "pre_amount",
+        "post_amount"
       ],
       "type": "object"
     }
