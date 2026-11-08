@@ -40,6 +40,21 @@ export const InvoiceNotificationContext = out({
   asset_id: AssetId.nullable().describe("Pricing asset when `currency` is `asset`."),
   pricing_asset: PricingAssetDisplay.nullable().describe("Display data of the pricing asset; null for fiat."),
   total: PricingAmount.describe("Invoice total."),
+  // spec 0.3.1 — mail body totals and the destination check line
+  subtotal: PricingAmount.optional().describe("Sum of the lines before tax (spec 0.3.1)."),
+  tax: PricingAmount.optional().describe("Tax total (spec 0.3.1)."),
+  line_count: z
+    .int()
+    .min(0)
+    .optional()
+    .describe("Number of invoice lines (`lines` holds at most the first 20; spec 0.3.1)."),
+  destination_fingerprint: z
+    .string()
+    .nullable()
+    .optional()
+    .describe(
+      "Fingerprint of the settlement destination the invoice pays to, for the mail's verification line; null when none (spec 0.3.1).",
+    ),
   amount_due: PricingAmount.describe("Amount due."),
   amount_remaining: PricingAmount.describe("Amount still to pay."),
   due_date: Timestamp.nullable().describe("Due date."),

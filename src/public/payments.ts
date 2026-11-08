@@ -310,6 +310,8 @@ export const createCheckoutSession = route({
     "amount_above_unverified_cap",
     "currency_unsupported",
     "allowed_origins_required",
+    // spec 0.3.1 — fiat-priced session without a usable FX rate
+    "fx_rate_unavailable",
   ],
   stage: 1,
 });

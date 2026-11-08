@@ -2762,6 +2762,14 @@ paths:
           x-error-codes:
             - amount_below_destination_minimum
             - amount_above_unverified_cap
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `fx_rate_unavailable`."
+          x-error-codes:
+            - fx_rate_unavailable
         default:
           content:
             application/json:

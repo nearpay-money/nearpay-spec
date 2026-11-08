@@ -2502,6 +2502,15 @@ paths:
             format: date
             pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
             type: string
+        - description: Only executions of this owner (default all). Filters `totals`, `tier_b`, `digest`, `in_flight` and `held_open`; `complete` stays account-wide. Payments' reconciliation sends `payments` (spec 0.3.1).
+          in: query
+          name: owner
+          schema:
+            description: Only executions of this owner (default all). Filters `totals`, `tier_b`, `digest`, `in_flight` and `held_open`; `complete` stays account-wide. Payments' reconciliation sends `payments` (spec 0.3.1).
+            type: string
+            x-extensible-enum:
+              - payments
+              - agentpay
       responses:
         "200":
           content:

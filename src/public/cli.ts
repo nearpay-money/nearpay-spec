@@ -118,7 +118,8 @@ export const createCliLogin = route({
   service: "identity",
   visibility: "public",
   summary: "Start a CLI login (device authorization); poll it until the user approves.",
-  description: "Rate-limited per client IP (10 per 10 min). The user code is single-use and expires after 15 min.",
+  description:
+    "Rate-limited per client IP (10 per 10 min; over the limit is `429 rate_limited` with `Retry-After`). The user code is single-use and expires after 15 min.",
   auth: ["anonymous"],
   idempotent: false,
   body: inp({

@@ -1245,6 +1245,14 @@ components:
                 description: Amount.
                 pattern: ^(0|[1-9][0-9]{0,77})$
                 type: string
+              from:
+                anyOf:
+                  - description: Address in the chain's canonical text form.
+                    maxLength: 256
+                    minLength: 1
+                    type: string
+                  - type: "null"
+                description: Sender, when the simulated chain knows it (null/absent = unknown).
               to:
                 description: Recipient.
                 maxLength: 256

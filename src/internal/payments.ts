@@ -232,6 +232,8 @@ export const createInvoiceCheckoutSession = route({
     "amount_above_unverified_cap",
     "currency_unsupported",
     "customer_deleted",
+    // spec 0.3.1 — fiat-priced invoice without a usable FX rate
+    "fx_rate_unavailable",
   ],
   stage: 3,
 });

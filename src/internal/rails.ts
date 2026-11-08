@@ -876,7 +876,15 @@ export const getEvidenceSummary = route({
   summary: "Per-day evidence totals of an account (payments reconciliation, sentinel, console).",
   auth: ["service:rails.read", "ops:rails.read"],
   idempotent: false,
-  query: inp({ account_id: id("acct"), livemode: ModeQuery, day: z.iso.date().describe("UTC day `YYYY-MM-DD`.") }),
+  query: inp({
+    account_id: id("acct"),
+    livemode: ModeQuery,
+    day: z.iso.date().describe("UTC day `YYYY-MM-DD`."),
+    // spec 0.3.1 — payments reconciliation counts only its own executions
+    owner: ExecutionOwner.optional().describe(
+      "Only executions of this owner (default all). Filters `totals`, `tier_b`, `digest`, `in_flight` and `held_open`; `complete` stays account-wide. Payments' reconciliation sends `payments` (spec 0.3.1).",
+    ),
+  }),
   response: EvidenceSummary,
   status: 200,
   errors: [],

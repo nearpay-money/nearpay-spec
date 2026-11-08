@@ -632,7 +632,7 @@ export const createPublicInvoiceSession = route({
   visibility: "public",
   summary: "Create or continue the checkout session that pays an invoice.",
   description:
-    "Anonymous; billing checks the invoice secret and rate-limits per client network and per invoice. Returns the invoice's open session (`reused: true`) or creates one through payments `createInvoiceCheckoutSession` (`source: invoice`, amount = `amount_remaining`, the invoice's customer and destination). At most one session per invoice is open at a time. `paid`/`void` invoices answer `invoice_not_payable`.",
+    "Anonymous; billing checks the invoice secret and rate-limits per client network and per invoice. Returns the invoice's open session (`reused: true`) or creates one through payments `createInvoiceCheckoutSession` (`source: invoice`, amount = `amount_remaining`, the invoice's customer and destination). At most one session per invoice is open at a time. `paid`/`void` invoices answer `invoice_not_payable`. payments' refusals pass through (`amount_below_destination_minimum`, `amount_above_unverified_cap`, `customer_deleted`); a concurrent change of the invoice or its open session is `state_conflict` (retry).",
   auth: ["anonymous"],
   idempotent: false,
   params: InvoiceParams,
@@ -648,6 +648,11 @@ export const createPublicInvoiceSession = route({
     "account_not_live",
     "destination_not_active",
     "currency_unsupported",
+    // spec 0.3.1
+    "amount_below_destination_minimum",
+    "amount_above_unverified_cap",
+    "customer_deleted",
+    "state_conflict",
   ],
   stage: 3,
 });
