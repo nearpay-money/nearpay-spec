@@ -3,7 +3,35 @@
 `@nearpay/spec` and `@nearpay-internal/spec` share one version. Within a version line changes are
 additive only (`pnpm compat` gates every release against `test/compat/baseline/`, the last release).
 
-## Unreleased
+## 0.3.0 — 2026-11-08
+
+Stage 3 contract freeze (step 3.1, `nearpay-brain/roadmap/development-plan.md` §5): billing (products,
+prices, tax rates, invoices, hosted invoices, subscriptions, billing emails) and agent commerce
+(cross-chain x402 `near-intents`, events SSE stream, CLI device login, `nearpay trigger` test helper).
+Additive over 0.2.1: no route, field or enum value was removed or renamed, no request field or parameter
+became required, no response field was tightened; every new response field on an existing object is
+optional (or nullable). Totals: 142 public (+40), 57 internal (+6) and 47 console routes, 71 domain
+event subjects (+13), 33 webhook types (+12), 87 error codes (+10, `since: "0.3.0"`), 41 ID prefixes
+(+3: `txr`, `il`, `si`).
+
+**Compatibility notes.** The oasdiff gate cannot run in the integration container (Docker Hub blocked),
+so the integrator compared every gated document (`openapi/public.yaml`, `openapi/internal/*.yaml`,
+`compat/events.yaml`, `compat/webhooks.yaml`) semantically against the 0.2.1 baseline (full list:
+`briefs/compat-0.3.0.md`). Each non-additive-looking change was reviewed and is intentional; the lead
+confirms with oasdiff in CI before moving the baseline:
+
+- **New event types in the `Event` union** (`GET /v1/events`, `GET /v1/events/{id}`,
+  `POST /v1/webhook_endpoints/{id}/test`: expected `response-body-one-of-added`, 3 findings; +12
+  variants `invoice.*` / `customer.subscription.*`). Backward-compatible by api-conventions §1 (clients
+  MUST tolerate unknown event types), same finding and ruling as 0.2.0.
+- **`AggregateType` closed enum += `invoice`, `subscription`** (`src/events/catalogue.ts`). Documentation
+  only: no emitted schema references it (the envelope's `aggregate.type` is a plain string), so oasdiff
+  cannot flag it; TypeScript code that switches exhaustively over `AggregateType` gains two cases.
+  New aggregates for new subjects, as in 0.2.0.
+- Open-enum (`x-extensible-enum`) additions — `ErrorBody.code`, `WebhookDelivery.event_type`, webhook
+  endpoint `enabled_events`, `streamEvents` `types` — and new auth alternatives on
+  `advancePaymentAttempt` / `simulateRefundDeposit` (`restricted_key:checkout_sessions.write` /
+  `refunds.write`) are additive and not findings.
 
 ### billing
 
@@ -62,6 +90,15 @@ Stage 3 step 3.1 contracts for agent commerce (additive over 0.2.1; LLDs: agentp
 - **CLI login** (identity, device authorization in the RFC 8628 shape): `createCliLogin` `POST /v1/cli/logins` and `pollCliLogin` `POST /v1/cli/logins/poll` (anonymous; added to the anonymous allow-list), `getCliLogin` `GET /v1/cli/logins/{code}`, `approveCliLogin` (step-up) and `denyCliLogin` `POST /v1/cli/logins/{code}/{approve,deny}` (session owner/admin/developer). Objects `CliLogin`, `CliLoginPoll`, `CliLoginRequest`; approval mints a restricted **test** key with `CLI_KEY_SCOPES` (90 days).
 - **`nearpay trigger`** — `payCheckoutSessionTestHelper` `POST /v1/test_helpers/checkout_sessions/{id}/pay` (payments, test mode only) → `TestHelperPayment`. `advancePaymentAttempt` also admits `restricted_key:checkout_sessions.write` and `simulateRefundDeposit` `restricted_key:refunds.write` (auth alternatives added, nothing removed).
 - Test vectors `test-vectors/x402-near-intents.json`: near-intents binding, operation token (test-only key), and every header/response shape of the quote → deposit → settle flow.
+
+### integration
+
+- Merged billing and agent-commerce; cross-cutting checks in `test/integration-stage3.test.ts`: the
+  events stream renders every billing webhook type, `CLI_KEY_SCOPES` covers every restricted-key scope on
+  billing routes (`products.*`, `invoices.*`, `subscriptions.*`), the anonymous allow-list carries the
+  hosted invoice routes (`GET …/public`, `POST …/public/sessions`, `GET …/public/pdf`) and the CLI login
+  routes, ID prefixes name distinct objects. Route ids, method+path, error codes and webhook types stay
+  unique (existing tests).
 
 ## 0.2.1 — 2026-11-08
 
