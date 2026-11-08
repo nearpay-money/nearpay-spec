@@ -1,7 +1,7 @@
 {
   "name": "nearpay-spec",
   "private": true,
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "NearPay contracts: zod schemas authored in TypeScript, emitted as OpenAPI 3.1, AsyncAPI and JSON Schema.",
   "license": "Apache-2.0",
   "type": "module",

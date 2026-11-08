@@ -3,11 +3,48 @@
 `@nearpay/spec` and `@nearpay-internal/spec` share one version. Within a version line changes are
 additive only (`pnpm compat` gates every release against `test/compat/baseline/`, the last release).
 
-## Unreleased
+## 0.4.0 — 2026-11-08
+
+Stage 4 contract freeze (step 4.1, `nearpay-brain/roadmap/development-plan.md` §6): auto-debit
+(subscription-vault mirror with byte-exact events/errors and shared test vectors, billing mandates,
+hosted mandate funding, mandate events/webhooks/emails, the sandbox vault stand-in for test mode —
+OQ-T-03) and chain coverage (Solana and Bitcoin as Tier A chains: chain helpers, `Evidence.solana` /
+`Evidence.bitcoin`, Solana and BIP-322 destination attestation, chain test vectors). Additive over 0.3.1:
+no route, field, parameter, status or enum value was removed or renamed, no request field or parameter
+became required, no response field was tightened; every new response field on an existing object is
+optional (or nullable). Totals: 151 public (+8), 62 internal (+5) and 47 console routes, 80 domain event
+subjects (+9), 41 webhook types (+8), 89 error codes (+2, `since: "0.4.0"`), 41 ID prefixes (unchanged;
+`md` was reserved in 0.1.x), 4 new test-vector files.
+
+**Compatibility notes.** oasdiff cannot run in the integration container, so the integrator compared
+every gated document (`openapi/public.yaml`, `openapi/internal/*.yaml`, `compat/events.yaml`,
+`compat/webhooks.yaml`) semantically against the 0.3.1 baseline (full list: `briefs/compat-0.4.0.md`).
+Each non-additive-looking change was reviewed and is intentional; the lead confirms with oasdiff in CI
+before moving the baseline:
+
+- **New event types in the `Event` union** (`GET /v1/events`, `GET /v1/events/{id}`,
+  `GET /v1/events/stream`, `POST /v1/webhook_endpoints/{id}/test`: expected `response-body-one-of-added`,
+  4 findings; +8 variants `mandate.*`). Backward-compatible by api-conventions §1 (clients MUST tolerate
+  unknown event types), same finding and ruling as 0.2.0 and 0.3.0.
+- **`SubscriptionCreate.collection_method`** `const: send_invoice` → `enum: [send_invoice, auto_debit]`
+  (`POST /v1/subscriptions` request; optional, default unchanged). Request widening: every request valid
+  under 0.3.1 stays valid. oasdiff may report it as a const/enum change on a request property (not `ERR`).
+- **`CollectionMethod` += `auto_debit`** in responses (`Invoice.collection_method`,
+  `Subscription.collection_method`, list filters). Open enum (`x-extensible-enum`) since 0.3.0: clients
+  must tolerate unknown values; not a finding.
+- **`attestSettlementDestination.body.standard`** closed request enum += `solana`, `bip322`. Request
+  widening; not a finding.
+- **`AggregateType` closed enum += `mandate`, `vault_mandate`** (`src/events/catalogue.ts`).
+  Documentation only (the envelope's `aggregate.type` is a plain string); TypeScript code that switches
+  exhaustively over `AggregateType` gains two cases. Same ruling as 0.2.0/0.3.0.
+- Open-enum additions (`ErrorBody.code`, `WebhookDelivery.event_type`, webhook endpoint `enabled_events`,
+  `streamEvents` `types`), new optional response fields (`Evidence.solana|bitcoin`, `Subscription.mandate`,
+  `Invoice.mandate|mandate_collection`, `PublicInvoice.auto_debit`, `ChainProfile.*`, `SimTx.*`, sandbox
+  intents event items) and new operations are additive and not findings.
 
 ### autodebit
 
-Stage 4 step 4.1 auto-debit contracts (`lld/billing.md` v1.7 §14, `lld/sandbox.md` v1.6 §3.1/§4.2,
+Stage 4 step 4.1 auto-debit contracts (`lld/billing.md` v1.10 §14, `lld/sandbox.md` v1.6 §3.1/§4.2,
 `lld/rails.md` §8.6, `lld/notify.md` §4, `lld/webhooks.md` §4; OQ-T-03 resolved). Additive over 0.3.1.
 
 - **Vault mirror** (`src/vault/contract.ts`, public): `nearpay_vault` NEP-297 event schemas
@@ -50,9 +87,10 @@ Stage 4 step 4.1 auto-debit contracts (`lld/billing.md` v1.7 §14, `lld/sandbox.
   items gain optional `receipt_id`, `log_index`, `executor_id`, `block_hash`, `block_timestamp`,
   `receipt_status`; scenarios by `amount_per_period` suffix 91–94 (`vaultSandboxScenarioOf`).
 
-### chains (stage 4.1 — Solana and Bitcoin as Tier A chains; lld/rails.md §21, identity §8.2, sentinel §16, sandbox §10, checkout §5.4)
+### chains
 
-Additive over 0.3.1: one request enum widened, optional response fields, new schemas/helpers and test vectors. No new routes, events, webhook types or error codes.
+Stage 4 step 4.1 chain coverage — Solana and Bitcoin as Tier A chains (`lld/rails.md` §21, identity §8.2,
+sentinel §16, sandbox §10, checkout §5.4). Additive over 0.3.1: one request enum widened, optional response fields, new schemas/helpers and test vectors. No new routes, events, webhook types or error codes.
 
 - **New module `src/common/chains.ts`** (public): `SOLANA_MAINNET` (`solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp`), `BITCOIN_MAINNET` (`bip122:000000000019d6689c085ae165831e93`), `SolanaAddress`, `SolanaSignature`, `BitcoinTxid`, `BitcoinDestinationAddress` (P2WPKH/P2TR, lower-case), `BitcoinAddressType`, `DESTINATION_SIGNING_STANDARDS`, `SolanaEvidence`, `BitcoinEvidence`, `ConfirmationTier`, `BITCOIN_CONFIRMATION_TIERS` (1 confirmation below USD 1,000, else 2), helpers `formatBaseUnits`, `bip21Uri`, `solanaPayUri`, `parseOmftAssetId`, `requiredConfirmations`.
 - **`Evidence.solana` / `Evidence.bitcoin`** (nullable, optional): Solana signature, slot, block time, mint, token program, owner, token accounts, pre/post balance; Bitcoin txid, outputs (`vout`, value, scriptPubKey), block height/hash, confirmations, required confirmations. Flows into every schema embedding `Evidence` (executions, payment intents, refunds, their events and webhooks).
@@ -62,6 +100,22 @@ Additive over 0.3.1: one request enum widened, optional response fields, new sch
 - `TokenContract.address` description: SPL mint for `spl` (doc only).
 - **Test vectors** (`codegen/vectors-chains.ts`, verified independently in `test/vectors-chains.test.ts`): `chains-solana-bitcoin.json` (profiles, assets from the live 1Click registry, address rules, omft ids incl. the SPL rule `nep141:sol-<hex(keccak256(mint)[12..32])>.omft.near`, payment URIs, evidence parsing from RPC results), `destination-attestation.json` (challenge message, Solana ed25519 cases, BIP-322 upstream vectors + NearPay P2WPKH/P2TR cases), `solana-transfer.json` (checkout wallet-path instructions: SOL transfer, ATA create-idempotent + SPL `transferChecked`).
 - Dev dependencies: `@scure/base` 2.4.0, `@scure/btc-signer` 2.4.1 (vector verification only).
+
+### integration
+
+- Merged autodebit and chains (conflicts were adjacent appends only: this file and the
+  `codegen/vectors.ts` header/outputs list; lockfile and generated artifacts regenerated, no drift).
+  Cross-cutting checks in `test/integration-stage4.test.ts`: the events stream renders every `mandate.*`
+  webhook type, `CLI_KEY_SCOPES` covers every restricted-key scope on mandate routes, the anonymous
+  allow-list carries the hosted mandate routes (`POST …/public/mandate_funding`, `GET …/public/mandate`),
+  vault types stay NEAR NEP-141 only (a Solana mint is rejected; `vault.json` names no Solana/Bitcoin
+  chain or omft asset), `Evidence` is one `$ref`'d component carrying `sender`/`solana`/`bitcoin` (no
+  inline copies), and `DESTINATION_SIGNING_STANDARDS` equals the attestation request enum.
+  `MandateCollection` / `Invoice.mandate_collection` cite the vault receipt as evidence and do not embed
+  `Evidence` (by design: the vault's `collected` event is the proof, INV-2).
+- LLD references follow the brain integration's renumbering (billing v1.10 §14, `prepare` notice
+  billing v1.9 §5; rails v1.11/v1.12, sandbox v1.6/v1.7).
+- Version 0.4.0 in both packages, the root package and `SPEC_VERSION` / `SPEC_INTERNAL_VERSION`.
 
 ## 0.3.1 — 2026-11-08
 

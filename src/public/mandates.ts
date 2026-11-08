@@ -221,7 +221,7 @@ export const MandateFundingInstructions = out({
   payer_notice: z
     .string()
     .describe(
-      "Text the funding UI must show before signing (billing v1.6 §5): sign from your own NEAR account and pay your own gas; relayer/gasless wallets (NEP-366 meta-transactions), NEAR Intents balances, bridges and smart wallets cannot fund (the vault refunds such deposits). Cancel and withdraw work from any wallet, including meta-transactions.",
+      "Text the funding UI must show before signing (billing v1.9 §5): sign from your own NEAR account and pay your own gas; relayer/gasless wallets (NEP-366 meta-transactions), NEAR Intents balances, bridges and smart wallets cannot fund (the vault refunds such deposits). Cancel and withdraw work from any wallet, including meta-transactions.",
     ),
   transactions: z
     .array(NearTransactionRequest)

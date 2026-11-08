@@ -8316,7 +8316,7 @@ components:
             - type: "null"
           description: Payer the storage check was made for; null when none was given.
         payer_notice:
-          description: "Text the funding UI must show before signing (billing v1.6 §5): sign from your own NEAR account and pay your own gas; relayer/gasless wallets (NEP-366 meta-transactions), NEAR Intents balances, bridges and smart wallets cannot fund (the vault refunds such deposits). Cancel and withdraw work from any wallet, including meta-transactions."
+          description: "Text the funding UI must show before signing (billing v1.9 §5): sign from your own NEAR account and pay your own gas; relayer/gasless wallets (NEP-366 meta-transactions), NEAR Intents balances, bridges and smart wallets cannot fund (the vault refunds such deposits). Cancel and withdraw work from any wallet, including meta-transactions."
           type: string
         period_secs:
           description: Vault period for the subscription's interval (billing §14 d3).
@@ -14523,7 +14523,7 @@ info:
     identifier: Apache-2.0
     name: Apache-2.0
   title: NearPay API
-  version: 0.3.1
+  version: 0.4.0
 openapi: 3.1.0
 paths:
   /v1/account:
