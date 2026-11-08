@@ -391,7 +391,7 @@ export const simulateRefundDeposit = route({
   summary: "Test mode: simulate the merchant's signed transfer for the current leg.",
   description:
     "Route legs: sandbox `POST /sim/deposits` with the leg's deposit address. Intents-transfer legs: sandbox `POST /sim/intents/transfers` with the leg's transfer and binding. The sandbox scenario of a leg follows the last two digits of the refund `amount` (sandbox §4).",
-  auth: ["secret_key", "session"],
+  auth: ["secret_key", "restricted_key:refunds.write" /* stage 3 — agent-commerce: CLI key */, "session"],
   roles: REFUND_ROLES,
   idempotent: true,
   testModeOnly: true,

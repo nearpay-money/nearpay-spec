@@ -10,16 +10,21 @@
 import {
   AssetId,
   BaseUnits,
+  CheckoutSession,
+  Customer,
   id,
   inp,
+  Metadata,
   openEnum,
   out,
   PricingAmount,
   PricingCurrency,
   Refund,
+  refinePricing,
   route,
   SettlementValue,
   Timestamp,
+  Url,
   z,
 } from "@nearpay/spec";
 
@@ -175,3 +180,123 @@ export type ReconciliationRun = z.infer<typeof ReconciliationRun>;
 
 // The console reads and drives runs through the `/ops/reconciliation_runs…` routes in `./ops.ts`
 // (visibility `ops`, served by payments).
+
+// =============================================================================================
+// stage 3 — billing: internal invoice sessions and customer reads (lld/payments.md §6.3, §20;
+// lld/billing.md §11). Payments creates and owns the checkout session that pays an invoice; billing
+// learns the outcome from `evt.payments.payment_intent.succeeded|payment_failed` and
+// `evt.payments.checkout_session.expired` (objects carry `invoice`).
+// =============================================================================================
+
+export const InvoiceCheckoutSessionCreate = inp({
+  account_id: id("acct"),
+  livemode: z.boolean().describe("Mode of the invoice."),
+  invoice: id("in").describe("Invoice the session pays; the intent gets `source: invoice` and this `invoice`."),
+  amount: PricingAmount.describe("The invoice's `amount_remaining`."),
+  currency: PricingCurrency,
+  asset_id: AssetId.optional().describe("Pricing asset; required when `currency` is `asset`."),
+  customer: id("cus").describe("The invoice's customer (receipt address and the intent's `customer`)."),
+  description: z.string().min(1).max(500).describe("Shown to the payer, e.g. `Invoice ACME01T-00042`."),
+  settlement_destination: id("sd").optional().describe("The invoice's destination; default: asset or account default."),
+  success_url: Url.describe("Where the payer goes after paying (the hosted invoice page, without its secret)."),
+  expires_at: Timestamp.describe(
+    "When the session stops accepting new payments: at least 5 minutes and at most 30 days ahead (billing uses the earlier of now + 30 d and the invoice's last reminder).",
+  ),
+  locale: z.string().max(16).optional().describe("Checkout locale (BCP 47)."),
+  metadata: Metadata.optional().describe(
+    "Copied onto the intent (billing sends the invoice metadata plus `invoice_number`).",
+  ),
+})
+  .superRefine(refinePricing)
+  .meta({ id: "InvoiceCheckoutSessionCreate", description: "Parameters of an invoice checkout session." });
+
+export const createInvoiceCheckoutSession = route({
+  id: "createInvoiceCheckoutSession",
+  method: "POST",
+  path: "/internal/checkout_sessions",
+  service: "payments",
+  visibility: "internal",
+  summary: "Open the hosted checkout session that pays an invoice (billing).",
+  description:
+    "Creates an intent (`source: invoice`, `invoice`, `customer`) and a hosted session with the usual guards (account live in live mode, destination active, minimum, unverified cap, currency) and returns it **with** `client_secret` and `url` (once; billing stores the secret encrypted to let the hosted invoice page continue the session). At most one `open` session per invoice: another one answers `409 state_conflict`. `Idempotency-Key` (billing: `in:<invoice>:s<n>`) makes retries safe. Late payments follow the account setting (INV-3); sessions created this way emit the normal checkout and intent events.",
+  auth: ["service:payments.sessions.create"],
+  idempotent: true,
+  body: InvoiceCheckoutSessionCreate,
+  response: CheckoutSession,
+  status: 201,
+  errors: [
+    "state_conflict",
+    "account_not_live",
+    "destination_not_active",
+    "amount_below_destination_minimum",
+    "amount_above_unverified_cap",
+    "currency_unsupported",
+    "customer_deleted",
+  ],
+  stage: 3,
+});
+
+export const getInternalCheckoutSession = route({
+  id: "getInternalCheckoutSession",
+  method: "GET",
+  path: "/internal/checkout_sessions/{id}",
+  service: "payments",
+  visibility: "internal",
+  summary: "A checkout session in any status (never its secret or URL).",
+  description:
+    "Billing checks that an invoice's stored session is still `open` before returning it to the hosted page.",
+  auth: ["service:payments.read"],
+  idempotent: false,
+  params: inp({ id: id("cs") }),
+  response: CheckoutSession,
+  status: 200,
+  errors: [],
+  stage: 3,
+});
+
+export const expireInvoiceCheckoutSession = route({
+  id: "expireInvoiceCheckoutSession",
+  method: "POST",
+  path: "/internal/checkout_sessions/{id}/expire",
+  service: "payments",
+  visibility: "internal",
+  summary: "Expire an invoice's checkout session (billing voids the invoice).",
+  description:
+    "Only sessions with `invoice` set. Like the public expire: an attempt in flight answers `attempt_in_flight` and nothing changes; an already `expired` session is returned as is. Emits `evt.payments.checkout_session.expired`.",
+  auth: ["service:payments.sessions.create"],
+  idempotent: true,
+  params: inp({ id: id("cs") }),
+  body: inp({
+    reason: openEnum(["invoice_voided", "invoice_paid", "superseded"], "Why billing expires the session."),
+  }),
+  response: CheckoutSession,
+  status: 200,
+  errors: ["state_conflict", "attempt_in_flight"],
+  stage: 3,
+});
+
+export const InternalCustomer = Customer.extend({
+  account_id: id("acct"),
+  deleted: z.boolean().describe("The customer was deleted (personal data erased: `email` and `name` are null)."),
+}).meta({
+  id: "InternalCustomer",
+  description: "A customer with its account, incl. decrypted email (PII; never in events).",
+});
+
+export const getInternalCustomer = route({
+  id: "getInternalCustomer",
+  method: "GET",
+  path: "/internal/customers/{id}",
+  service: "payments",
+  visibility: "internal",
+  summary: "A customer incl. decrypted email (billing: invoicing, hosted page, notification context).",
+  description:
+    "Deleted customers are returned with `deleted: true` (billing refuses new invoices for them with `customer_deleted`).",
+  auth: ["service:payments.read"],
+  idempotent: false,
+  params: inp({ id: id("cus") }),
+  response: InternalCustomer,
+  status: 200,
+  errors: [],
+  stage: 3,
+});

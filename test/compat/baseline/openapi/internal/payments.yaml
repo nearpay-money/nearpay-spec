@@ -39,6 +39,232 @@ components:
         - intents_requirement
         - attestation_ticket
       type: object
+    CheckoutSession:
+      additionalProperties: {}
+      description: A checkout page or embed for one payment intent.
+      properties:
+        allowed_origins:
+          description: Origins that may embed the session (embedded mode).
+          items:
+            type: string
+          type: array
+        amount:
+          anyOf:
+            - description: Fiat amount in minor units (e.g. cents), integer.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+          description: "Fiat: integer minor units. Asset: base units as a decimal string."
+        asset_id:
+          anyOf:
+            - description: NEAR Intents asset id, e.g. `nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1`.
+              examples:
+                - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+              maxLength: 256
+              pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+              type: string
+            - type: "null"
+          description: Pricing asset when `currency` is `asset`.
+        cancel_url:
+          anyOf:
+            - description: Absolute URL.
+              format: uri
+              maxLength: 2048
+              type: string
+            - type: "null"
+          description: Where the payer goes on cancel.
+        client_secret:
+          anyOf:
+            - pattern: ^cs_[0-9a-z]{26}_secret_[0-9A-Za-z]{32}$
+              type: string
+            - type: "null"
+          description: Secret for the payer-facing API; returned only when the session is created.
+        completed_at:
+          anyOf:
+            - description: Unix time in seconds.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: When the session completed.
+        created:
+          description: Unix time in seconds.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        currency:
+          anyOf:
+            - description: ISO 4217 currency code, lower-case (e.g. `usd`).
+              pattern: ^[a-z]{3}$
+              type: string
+            - const: asset
+              type: string
+          description: ISO 4217 code for fiat pricing, or `asset` when priced in an asset (then `asset_id` is set).
+        customer:
+          anyOf:
+            - description: customer id (`cus_` + 26 base32 chars).
+              examples:
+                - cus_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^cus_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Customer attached to the session (Stage 2).
+        description:
+          description: Description shown to the payer.
+          type:
+            - string
+            - "null"
+        expires_at:
+          description: When the session stops accepting new payments.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        id:
+          description: checkout_session id (`cs_` + 26 base32 chars).
+          examples:
+            - cs_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^cs_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        invoice:
+          anyOf:
+            - description: invoice id (`in_` + 26 base32 chars).
+              examples:
+                - in_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^in_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Invoice the session pays (opened by the hosted invoice page, Stage 3); null otherwise.
+        late:
+          description: Completed by a settlement after expiry.
+          type: boolean
+        late_payments:
+          description: Accept settlements after expiry.
+          type: boolean
+        livemode:
+          description: "`true` for live mode, `false` for test mode."
+          type: boolean
+        locale:
+          description: Checkout locale.
+          type:
+            - string
+            - "null"
+        metadata:
+          additionalProperties:
+            maxLength: 500
+            type: string
+          description: Up to 50 key/value pairs (key ≤ 40 chars, value ≤ 500 chars) for your own use.
+          propertyNames:
+            maxLength: 40
+            minLength: 1
+            type: string
+          type: object
+        object:
+          const: checkout_session
+          description: Always `checkout_session`.
+          type: string
+        payment_intent:
+          anyOf:
+            - description: payment_intent id (`pi_` + 26 base32 chars).
+              examples:
+                - pi_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^pi_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - $ref: "#/components/schemas/PaymentIntent"
+          description: Payment intent id, or the object with `expand[]=payment_intent`.
+        payment_link:
+          anyOf:
+            - description: payment_link id (`plink_` + 26 base32 chars).
+              examples:
+                - plink_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^plink_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Payment link that opened the session (Stage 2).
+        sequence:
+          description: Increases with every change; discard webhook objects with a lower sequence. Servers MUST send it (optional in the 0.1.x schema only so readers built on 0.1.4 stay compatible).
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        settlement_destination:
+          description: settlement_destination id (`sd_` + 26 base32 chars).
+          examples:
+            - sd_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^sd_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        status:
+          description: Session status; `expiring` means past `expires_at` with money possibly in flight (INV-3).
+          type: string
+          x-extensible-enum:
+            - open
+            - expiring
+            - complete
+            - expired
+        success_url:
+          description: Where the payer goes after paying (`?session_id=` is appended).
+          format: uri
+          maxLength: 2048
+          type: string
+        ui_mode:
+          description: Hosted page or embedded iframe.
+          enum:
+            - hosted
+            - embedded
+          type: string
+        url:
+          anyOf:
+            - description: Absolute URL.
+              format: uri
+              maxLength: 2048
+              type: string
+            - type: "null"
+          description: Checkout URL including the client secret; returned only when the session is created.
+      required:
+        - id
+        - object
+        - created
+        - livemode
+        - status
+        - url
+        - client_secret
+        - expires_at
+        - payment_intent
+        - amount
+        - currency
+        - asset_id
+        - settlement_destination
+        - ui_mode
+        - success_url
+        - cancel_url
+        - description
+        - allowed_origins
+        - late_payments
+        - locale
+        - completed_at
+        - late
+        - metadata
+      type: object
+    CustomerWallet:
+      additionalProperties: {}
+      description: A wallet the customer pays from.
+      properties:
+        address:
+          description: Wallet address or NEAR account.
+          maxLength: 256
+          minLength: 1
+          type: string
+        chain:
+          description: Chain of the wallet (`near:mainnet` for NEAR and Intents accounts).
+          examples:
+            - eip155:8453
+          pattern: ^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$
+          type: string
+      required:
+        - chain
+        - address
+      type: object
     DepositInstructions:
       additionalProperties: {}
       description: Where and how much the payer sends (render only after sentinel attestation).
@@ -236,6 +462,16 @@ components:
             - customer_deleted
             - reconciliation_day_open
             - fx_rate_unavailable
+            - currency_mismatch
+            - interval_mismatch
+            - price_inactive
+            - price_type_invalid
+            - tax_rate_inactive
+            - tax_rates_mixed
+            - invoice_empty
+            - customer_email_missing
+            - invoice_secret_invalid
+            - invoice_not_payable
         doc_url:
           description: Documentation page for this error code.
           format: uri
@@ -321,6 +557,14 @@ components:
           maxLength: 256
           minLength: 1
           type: string
+        sender:
+          anyOf:
+            - description: Address in the chain's canonical text form.
+              maxLength: 256
+              minLength: 1
+              type: string
+            - type: "null"
+          description: "Account that sent the settlement transfer, when the detector saw it (NEAR Intents: the transferring Intents account); null if unknown. Spec 0.3.0."
         source:
           description: Detector that produced the evidence.
           type: string
@@ -461,6 +705,232 @@ components:
         - fee_amount
         - binding
         - deadline
+      type: object
+    InternalCustomer:
+      additionalProperties: {}
+      description: A customer with its account, incl. decrypted email (PII; never in events).
+      properties:
+        account_id:
+          description: account id (`acct_` + 26 base32 chars).
+          examples:
+            - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        created:
+          description: Unix time in seconds.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        deleted:
+          description: "The customer was deleted (personal data erased: `email` and `name` are null)."
+          type: boolean
+        description:
+          description: Internal description.
+          type:
+            - string
+            - "null"
+        email:
+          anyOf:
+            - format: email
+              pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+              type: string
+            - type: "null"
+          description: Receipt email.
+        id:
+          description: customer id (`cus_` + 26 base32 chars).
+          examples:
+            - cus_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^cus_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        last_payment_at:
+          anyOf:
+            - description: Unix time in seconds.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: When the customer's latest payment intent succeeded; null when none. Spec 0.2.1.
+        livemode:
+          description: "`true` for live mode, `false` for test mode."
+          type: boolean
+        metadata:
+          additionalProperties:
+            maxLength: 500
+            type: string
+          description: Up to 50 key/value pairs (key ≤ 40 chars, value ≤ 500 chars) for your own use.
+          propertyNames:
+            maxLength: 40
+            minLength: 1
+            type: string
+          type: object
+        name:
+          description: Name.
+          type:
+            - string
+            - "null"
+        object:
+          const: customer
+          description: Always `customer`.
+          type: string
+        total_paid:
+          description: Totals of succeeded payments per pricing currency (amounts in different currencies are never added); refunds are not subtracted. Spec 0.2.1.
+          items:
+            additionalProperties: {}
+            description: Total for one pricing currency (or pricing asset).
+            properties:
+              amount:
+                anyOf:
+                  - description: Fiat amount in minor units (e.g. cents), integer.
+                    maximum: 9007199254740991
+                    minimum: 0
+                    type: integer
+                  - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+                    pattern: ^(0|[1-9][0-9]{0,77})$
+                    type: string
+                description: Sum of the priced amounts of the customer's succeeded payment intents.
+              asset_id:
+                anyOf:
+                  - description: NEAR Intents asset id, e.g. `nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1`.
+                    examples:
+                      - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+                    maxLength: 256
+                    pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+                    type: string
+                  - type: "null"
+                description: Pricing asset when `currency` is `asset`.
+              count:
+                description: Succeeded payment intents counted.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+              currency:
+                anyOf:
+                  - description: ISO 4217 currency code, lower-case (e.g. `usd`).
+                    pattern: ^[a-z]{3}$
+                    type: string
+                  - const: asset
+                    type: string
+                description: ISO 4217 code for fiat pricing, or `asset` when priced in an asset (then `asset_id` is set).
+            required:
+              - currency
+              - asset_id
+              - amount
+              - count
+            type: object
+          type: array
+        wallets:
+          description: Known wallets (informational; refunds always use the payment's refund address).
+          items:
+            $ref: "#/components/schemas/CustomerWallet"
+          type: array
+      required:
+        - id
+        - object
+        - created
+        - livemode
+        - email
+        - name
+        - description
+        - wallets
+        - metadata
+        - account_id
+        - deleted
+      type: object
+    InvoiceCheckoutSessionCreate:
+      additionalProperties: false
+      description: Parameters of an invoice checkout session.
+      properties:
+        account_id:
+          description: account id (`acct_` + 26 base32 chars).
+          examples:
+            - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        amount:
+          anyOf:
+            - description: Fiat amount in minor units (e.g. cents), integer.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+          description: The invoice's `amount_remaining`.
+        asset_id:
+          description: Pricing asset; required when `currency` is `asset`.
+          examples:
+            - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+          maxLength: 256
+          pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+          type: string
+        currency:
+          anyOf:
+            - description: ISO 4217 currency code, lower-case (e.g. `usd`).
+              pattern: ^[a-z]{3}$
+              type: string
+            - const: asset
+              type: string
+          description: ISO 4217 code for fiat pricing, or `asset` when priced in an asset (then `asset_id` is set).
+        customer:
+          description: The invoice's customer (receipt address and the intent's `customer`).
+          examples:
+            - cus_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^cus_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        description:
+          description: Shown to the payer, e.g. `Invoice ACME01T-00042`.
+          maxLength: 500
+          minLength: 1
+          type: string
+        expires_at:
+          description: "When the session stops accepting new payments: at least 5 minutes and at most 30 days ahead (billing uses the earlier of now + 30 d and the invoice's last reminder)."
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+          type: string
+        invoice:
+          description: "Invoice the session pays; the intent gets `source: invoice` and this `invoice`."
+          examples:
+            - in_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^in_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        livemode:
+          description: Mode of the invoice.
+          type: boolean
+        locale:
+          description: Checkout locale (BCP 47).
+          maxLength: 16
+          type: string
+        metadata:
+          additionalProperties:
+            maxLength: 500
+            type: string
+          description: Copied onto the intent (billing sends the invoice metadata plus `invoice_number`).
+          propertyNames:
+            maxLength: 40
+            minLength: 1
+            type: string
+          type: object
+        settlement_destination:
+          description: "The invoice's destination; default: asset or account default."
+          examples:
+            - sd_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^sd_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        success_url:
+          description: Where the payer goes after paying (the hosted invoice page, without its secret).
+          format: uri
+          maxLength: 2048
+          type: string
+      required:
+        - account_id
+        - livemode
+        - invoice
+        - amount
+        - currency
+        - customer
+        - description
+        - success_url
+        - expires_at
       type: object
     PayerAttempt:
       additionalProperties: {}
@@ -798,6 +1268,15 @@ components:
             - pi_01jbz9k3m4n5p6q7r8s9t0v1w2
           pattern: ^pi_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
           type: string
+        invoice:
+          anyOf:
+            - description: invoice id (`in_` + 26 base32 chars).
+              examples:
+                - in_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^in_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: "Invoice the intent pays (`source: invoice`, Stage 3); null otherwise. Servers from 0.3.0 send it."
         late:
           description: Settled after its checkout session expired (INV-3).
           type: boolean
@@ -2219,9 +2698,126 @@ info:
     identifier: Apache-2.0
     name: Apache-2.0
   title: nearpay-payments internal API
-  version: 0.2.1
+  version: 0.3.0
 openapi: 3.1.0
 paths:
+  /internal/checkout_sessions:
+    post:
+      description: "Creates an intent (`source: invoice`, `invoice`, `customer`) and a hosted session with the usual guards (account live in live mode, destination active, minimum, unverified cap, currency) and returns it **with** `client_secret` and `url` (once; billing stores the secret encrypted to let the hosted invoice page continue the session). At most one `open` session per invoice: another one answers `409 state_conflict`. `Idempotency-Key` (billing: `in:<invoice>:s<n>`) makes retries safe. Late payments follow the account setting (INV-3); sessions created this way emit the normal checkout and intent events."
+      operationId: createInvoiceCheckoutSession
+      parameters:
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvoiceCheckoutSessionCreate"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutSession"
+          description: Open the hosted checkout session that pays an invoice (billing).
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `currency_unsupported`."
+          x-error-codes:
+            - currency_unsupported
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `account_not_live`."
+          x-error-codes:
+            - account_not_live
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `state_conflict`, `destination_not_active`, `customer_deleted`."
+          x-error-codes:
+            - state_conflict
+            - destination_not_active
+            - customer_deleted
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `amount_below_destination_minimum`, `amount_above_unverified_cap`."
+          x-error-codes:
+            - amount_below_destination_minimum
+            - amount_above_unverified_cap
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Open the hosted checkout session that pays an invoice (billing).
+      tags:
+        - payments
+      x-nearpay:
+        auth:
+          - service:payments.sessions.create
+        idempotent: true
+        service: payments
+        stage: 3
+  /internal/checkout_sessions/{id}:
+    get:
+      description: Billing checks that an invoice's stored session is still `open` before returning it to the hosted page.
+      operationId: getInternalCheckoutSession
+      parameters:
+        - description: checkout_session id (`cs_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: checkout_session id (`cs_` + 26 base32 chars).
+            examples:
+              - cs_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^cs_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutSession"
+          description: A checkout session in any status (never its secret or URL).
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: A checkout session in any status (never its secret or URL).
+      tags:
+        - payments
+      x-nearpay:
+        auth:
+          - service:payments.read
+        idempotent: false
+        service: payments
+        stage: 3
   /internal/checkout_sessions/{id}/agent_attempts:
     post:
       description: Same guards as payer attempts (§8.2); limits apply per session.
@@ -2301,6 +2897,79 @@ paths:
         idempotent: false
         service: payments
         stage: 1
+  /internal/checkout_sessions/{id}/expire:
+    post:
+      description: "Only sessions with `invoice` set. Like the public expire: an attempt in flight answers `attempt_in_flight` and nothing changes; an already `expired` session is returned as is. Emits `evt.payments.checkout_session.expired`."
+      operationId: expireInvoiceCheckoutSession
+      parameters:
+        - description: checkout_session id (`cs_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: checkout_session id (`cs_` + 26 base32 chars).
+            examples:
+              - cs_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^cs_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                reason:
+                  description: Why billing expires the session.
+                  type: string
+                  x-extensible-enum:
+                    - invoice_voided
+                    - invoice_paid
+                    - superseded
+              required:
+                - reason
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutSession"
+          description: Expire an invoice's checkout session (billing voids the invoice).
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `state_conflict`, `attempt_in_flight`."
+          x-error-codes:
+            - state_conflict
+            - attempt_in_flight
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: Expire an invoice's checkout session (billing voids the invoice).
+      tags:
+        - payments
+      x-nearpay:
+        auth:
+          - service:payments.sessions.create
+        idempotent: true
+        service: payments
+        stage: 3
   /internal/checkout_sessions/{id}/payer:
     get:
       description: "Replaces agentpay's call to the public `GET /v1/checkout/sessions/{id}/public` (CR-15-15): agentpay forwards the caller's `X-NearPay-Client-Secret` and authenticates with its service token. A wrong secret answers `client_secret_invalid`, exactly like the public route."
@@ -2356,6 +3025,45 @@ paths:
         idempotent: false
         service: payments
         stage: 2
+  /internal/customers/{id}:
+    get:
+      description: "Deleted customers are returned with `deleted: true` (billing refuses new invoices for them with `customer_deleted`)."
+      operationId: getInternalCustomer
+      parameters:
+        - description: customer id (`cus_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: customer id (`cus_` + 26 base32 chars).
+            examples:
+              - cus_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^cus_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalCustomer"
+          description: "A customer incl. decrypted email (billing: invoicing, hosted page, notification context)."
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - internalToken: []
+      summary: "A customer incl. decrypted email (billing: invoicing, hosted page, notification context)."
+      tags:
+        - payments
+      x-nearpay:
+        auth:
+          - service:payments.read
+        idempotent: false
+        service: payments
+        stage: 3
   /internal/payment_intents/{id}:
     get:
       operationId: getInternalPaymentIntent

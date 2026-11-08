@@ -1,21 +1,28 @@
 /** Public route table (`/v1/*`, `/x402/*`). */
 import type { AnyRoute } from "../common/route.js";
 import * as agentpay from "./agentpay.js";
+import * as billingCatalog from "./billing-catalog.js"; // stage 3 — billing
+import * as cli from "./cli.js"; // stage 3 — agent-commerce
 import * as compliance from "./compliance.js";
 import * as customers from "./customers.js"; // stage 2 — payments
 import * as identity from "./identity.js";
+import * as invoices from "./invoices.js"; // stage 3 — billing
 import * as payer from "./payer.js";
 import * as paymentLinks from "./payment-links.js"; // stage 2 — payments
 import * as payments from "./payments.js";
 import * as rails from "./rails.js";
 import * as refunds from "./refunds.js"; // stage 2 — payments
 import * as sentinel from "./sentinel.js";
+import * as subscriptions from "./subscriptions.js"; // stage 3 — billing
 import * as webhooks from "./webhooks.js";
 
 export * from "./agentpay.js";
+export * from "./billing-catalog.js"; // stage 3 — billing
+export * from "./cli.js"; // stage 3 — agent-commerce
 export * from "./compliance.js";
 export * from "./customers.js"; // stage 2 — payments
 export * from "./identity.js";
+export * from "./invoices.js"; // stage 3 — billing
 export * from "./payer.js";
 export * from "./payment-links.js"; // stage 2 — payments
 export * from "./payments.js";
@@ -23,6 +30,7 @@ export * from "./rails.js";
 export * from "./refunds.js"; // stage 2 — payments
 export * from "./reviews.js"; // stage 2 — payments
 export * from "./sentinel.js";
+export * from "./subscriptions.js"; // stage 3 — billing
 export * from "./webhooks.js";
 
 function routesOf(mod: Record<string, unknown>): AnyRoute[] {
@@ -45,6 +53,12 @@ export const PUBLIC_ROUTES: readonly AnyRoute[] = Object.freeze([
   ...routesOf(refunds),
   ...routesOf(paymentLinks),
   ...routesOf(customers),
+  // stage 3 — billing
+  ...routesOf(billingCatalog),
+  ...routesOf(invoices),
+  ...routesOf(subscriptions),
+  // stage 3 — agent-commerce
+  ...routesOf(cli),
 ]);
 
 /**

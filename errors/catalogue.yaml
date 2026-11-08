@@ -1,4 +1,4 @@
-version: 0.2.1
+version: 0.3.0
 errors:
   - code: invalid_request
     status: 400
@@ -693,3 +693,93 @@ errors:
     example: A current exchange rate for eur is not available right now.
     doc_url: https://docs.nearpay.money/errors/fx_rate_unavailable
     since: 0.2.0
+  - code: currency_mismatch
+    status: 422
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: Price {price} is in {currency}, but this {object} is in {expected}.
+    example: Price price_01jbz9k3m4n5p6q7r8s9t0v1w2 is in eur, but this invoice is in usd.
+    doc_url: https://docs.nearpay.money/errors/currency_mismatch
+    since: 0.3.0
+  - code: interval_mismatch
+    status: 422
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: Price {price} bills every {interval}; this subscription bills every {expected}.
+    example: Price price_01jbz9k3m4n5p6q7r8s9t0v1w2 bills every 1 year; this subscription bills every 1 month.
+    doc_url: https://docs.nearpay.money/errors/interval_mismatch
+    since: 0.3.0
+  - code: price_inactive
+    status: 409
+    type: state_conflict
+    retryable: false
+    generic: false
+    message: Price {price} is inactive and cannot be used on new invoices or subscriptions.
+    example: Price price_01jbz9k3m4n5p6q7r8s9t0v1w2 is inactive and cannot be used on new invoices or subscriptions.
+    doc_url: https://docs.nearpay.money/errors/price_inactive
+    since: 0.3.0
+  - code: price_type_invalid
+    status: 422
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: Price {price} is {type}; this {object} needs {expected} prices.
+    example: Price price_01jbz9k3m4n5p6q7r8s9t0v1w2 is recurring; this invoice needs one_time prices.
+    doc_url: https://docs.nearpay.money/errors/price_type_invalid
+    since: 0.3.0
+  - code: tax_rate_inactive
+    status: 409
+    type: state_conflict
+    retryable: false
+    generic: false
+    message: Tax rate {tax_rate} is inactive.
+    example: Tax rate txr_01jbz9k3m4n5p6q7r8s9t0v1w2 is inactive.
+    doc_url: https://docs.nearpay.money/errors/tax_rate_inactive
+    since: 0.3.0
+  - code: tax_rates_mixed
+    status: 422
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: A line cannot combine inclusive and exclusive tax rates ({param}).
+    example: A line cannot combine inclusive and exclusive tax rates (lines.0.tax_rates).
+    doc_url: https://docs.nearpay.money/errors/tax_rates_mixed
+    since: 0.3.0
+  - code: invoice_empty
+    status: 422
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: "Invoice {invoice} cannot be finalized: it has no lines or its total is zero."
+    example: "Invoice in_01jbz9k3m4n5p6q7r8s9t0v1w2 cannot be finalized: it has no lines or its total is zero."
+    doc_url: https://docs.nearpay.money/errors/invoice_empty
+    since: 0.3.0
+  - code: customer_email_missing
+    status: 422
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: Customer {customer} has no email address to send invoices to.
+    example: Customer cus_01jbz9k3m4n5p6q7r8s9t0v1w2 has no email address to send invoices to.
+    doc_url: https://docs.nearpay.money/errors/customer_email_missing
+    since: 0.3.0
+  - code: invoice_secret_invalid
+    status: 401
+    type: authentication_error
+    retryable: false
+    generic: false
+    message: The invoice secret does not match this invoice.
+    example: The invoice secret does not match this invoice.
+    doc_url: https://docs.nearpay.money/errors/invoice_secret_invalid
+    since: 0.3.0
+  - code: invoice_not_payable
+    status: 409
+    type: state_conflict
+    retryable: false
+    generic: false
+    message: Invoice {invoice} is {status} and cannot be paid.
+    example: Invoice in_01jbz9k3m4n5p6q7r8s9t0v1w2 is void and cannot be paid.
+    doc_url: https://docs.nearpay.money/errors/invoice_not_payable
+    since: 0.3.0

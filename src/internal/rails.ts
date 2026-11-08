@@ -38,6 +38,11 @@ export const RouteClass = openEnum(
 );
 export const Provider = openEnum(["oneclick", "sandbox", "direct_intents"], "Route provider.");
 export const ExecutionKind = openEnum(["payment", "refund"], "What the execution moves value for.");
+// stage 3 — agent-commerce
+export const ExecutionOwner = openEnum(
+  ["payments", "agentpay"],
+  "Service that consumes an execution's events (rails §4 `executions.owner`).",
+);
 
 // stage 2 — payments (refund legs; payments owns these shapes, rails implements them)
 /** Which payments object an execution serves (copied by compliance into reviews; never public). */
@@ -212,6 +217,13 @@ export const Execution = out({
       "When payments abandoned this refund leg (`abandonExecution`); it is then `expired_unpaid` and only tracked for late money (INV-3).",
     ),
   abandon_reason: z.string().nullable().optional().describe("Reason payments gave when abandoning the leg."),
+  // stage 3 — agent-commerce: executions owned by agentpay (cross-chain x402, rails §4 `owner`)
+  owner: ExecutionOwner.optional().describe(
+    "Service that consumes this execution's events and owns its merchant record (spec 0.3.0; absent = `payments`). Consumers ignore executions they do not own.",
+  ),
+  x402_binding: Binding.nullable()
+    .optional()
+    .describe("Owner `agentpay`: binding of the `near-intents` requirement the quote was minted for; null otherwise."),
 }).meta({ id: "Execution", description: "A provider run moving value for a payment (rails owns)." });
 export type Execution = z.infer<typeof Execution>;
 
@@ -253,6 +265,13 @@ export const CreateExecution = inp({
   })
     .optional()
     .describe("Payments object served; echoed as `Execution.reference` (payments sends it from Stage 2)."),
+  // stage 3 — agent-commerce
+  owner: ExecutionOwner.optional().describe(
+    "Default `payments`. `agentpay` for a cross-chain x402 quote: then `reference` is absent, `x402_binding` is required, the destination is an `intents_account` and the fee bearer is `payer` (spec 0.3.0).",
+  ),
+  x402_binding: Binding.optional().describe(
+    "Owner `agentpay`: the `near-intents` binding (`idempotency_key` = `x402:<binding>`).",
+  ),
 }).meta({ id: "CreateExecution", description: "Create an execution for a payment attempt (rails §8.1)." });
 
 const ExecParams = inp({ id: id("ex") });
@@ -528,6 +547,10 @@ export const listEvidence = route({
       .optional()
       .describe("Comma-separated terminal states (default `succeeded`; spec 0.2.0)."),
     kind: ExecutionKind.optional().describe("Only payments or only refund legs (default both; spec 0.2.0)."),
+    // stage 3 — agent-commerce
+    owner: ExecutionOwner.optional().describe(
+      "Only executions of this owner (default all). Payments' reconciliation sends `payments` (spec 0.3.0).",
+    ),
   }),
   response: out({
     data: z.array(Execution).describe("Settled executions."),

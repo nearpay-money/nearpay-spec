@@ -12,10 +12,13 @@ import { openEnum, out, z } from "../common/schema.js";
 import { AgentPayment } from "../public/agentpay.js";
 // stage 2 — identity-console
 import { Account } from "../public/identity.js";
+// stage 3 — billing
+import { Invoice } from "../public/invoices.js";
 import { CheckoutSession, PaymentIntent } from "../public/payments.js";
 // stage 2 — payments
 import { Refund } from "../public/refunds.js";
 import { PublicReview } from "../public/reviews.js";
+import { Subscription } from "../public/subscriptions.js";
 
 /** Ping object sent by `POST /v1/webhook_endpoints/{id}/test`. */
 export const Ping = out({
@@ -48,6 +51,22 @@ export const WEBHOOK_TYPES = {
   "refund.canceled": { object: Refund, subject: "evt.payments.refund.canceled" },
   "review.opened": { object: PublicReview, subject: "evt.compliance.review.opened" },
   "review.closed": { object: PublicReview, subject: "evt.compliance.review.closed" },
+  // stage 3 — billing (webhooks §4; `hosted_invoice_url` is always null in events)
+  "invoice.created": { object: Invoice, subject: "evt.billing.invoice.created" },
+  "invoice.finalized": { object: Invoice, subject: "evt.billing.invoice.finalized" },
+  "invoice.sent": { object: Invoice, subject: "evt.billing.invoice.sent" },
+  "invoice.paid": { object: Invoice, subject: "evt.billing.invoice.paid" },
+  "invoice.payment_failed": { object: Invoice, subject: "evt.billing.invoice.payment_failed" },
+  "invoice.overdue": { object: Invoice, subject: "evt.billing.invoice.overdue" },
+  "invoice.voided": { object: Invoice, subject: "evt.billing.invoice.voided" },
+  "invoice.marked_uncollectible": { object: Invoice, subject: "evt.billing.invoice.marked_uncollectible" },
+  "customer.subscription.created": { object: Subscription, subject: "evt.billing.subscription.created" },
+  "customer.subscription.updated": { object: Subscription, subject: "evt.billing.subscription.updated" },
+  "customer.subscription.deleted": { object: Subscription, subject: "evt.billing.subscription.deleted" },
+  "customer.subscription.renewal_upcoming": {
+    object: Subscription,
+    subject: "evt.billing.subscription.renewal_upcoming",
+  },
 } as const satisfies Record<string, { object: z.ZodType; subject: string | null }>;
 
 export type WebhookType = keyof typeof WEBHOOK_TYPES;
@@ -122,7 +141,17 @@ export type TypedEvent = {
 
 /** Any object an event can carry (union of the per-type object schemas). */
 export const EventDataObject = z
-  .union([CheckoutSession, PaymentIntent, AgentPayment, Ping, Refund, Account, PublicReview /* spec 0.2.1 — node CR */])
+  .union([
+    CheckoutSession,
+    PaymentIntent,
+    AgentPayment,
+    Ping,
+    Refund,
+    Account,
+    PublicReview /* spec 0.2.1 — node CR */,
+    Invoice /* stage 3 — billing */,
+    Subscription /* stage 3 — billing */,
+  ])
   .describe("Object snapshot carried by an event (`data.object`).");
 export type EventDataObject = z.infer<typeof EventDataObject>;
 // end stage 2 — rails-fx

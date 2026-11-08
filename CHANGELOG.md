@@ -3,6 +3,103 @@
 `@nearpay/spec` and `@nearpay-internal/spec` share one version. Within a version line changes are
 additive only (`pnpm compat` gates every release against `test/compat/baseline/`, the last release).
 
+## 0.3.0 — 2026-11-08
+
+Stage 3 contract freeze (step 3.1, `nearpay-brain/roadmap/development-plan.md` §5): billing (products,
+prices, tax rates, invoices, hosted invoices, subscriptions, billing emails) and agent commerce
+(cross-chain x402 `near-intents`, events SSE stream, CLI device login, `nearpay trigger` test helper).
+Additive over 0.2.1: no route, field or enum value was removed or renamed, no request field or parameter
+became required, no response field was tightened; every new response field on an existing object is
+optional (or nullable). Totals: 142 public (+40), 57 internal (+6) and 47 console routes, 71 domain
+event subjects (+13), 33 webhook types (+12), 87 error codes (+10, `since: "0.3.0"`), 41 ID prefixes
+(+3: `txr`, `il`, `si`).
+
+**Compatibility notes.** The oasdiff gate cannot run in the integration container (Docker Hub blocked),
+so the integrator compared every gated document (`openapi/public.yaml`, `openapi/internal/*.yaml`,
+`compat/events.yaml`, `compat/webhooks.yaml`) semantically against the 0.2.1 baseline (full list:
+`briefs/compat-0.3.0.md`). Each non-additive-looking change was reviewed and is intentional; the lead
+confirms with oasdiff in CI before moving the baseline:
+
+- **New event types in the `Event` union** (`GET /v1/events`, `GET /v1/events/{id}`,
+  `POST /v1/webhook_endpoints/{id}/test`: expected `response-body-one-of-added`, 3 findings; +12
+  variants `invoice.*` / `customer.subscription.*`). Backward-compatible by api-conventions §1 (clients
+  MUST tolerate unknown event types), same finding and ruling as 0.2.0.
+- **`AggregateType` closed enum += `invoice`, `subscription`** (`src/events/catalogue.ts`). Documentation
+  only: no emitted schema references it (the envelope's `aggregate.type` is a plain string), so oasdiff
+  cannot flag it; TypeScript code that switches exhaustively over `AggregateType` gains two cases.
+  New aggregates for new subjects, as in 0.2.0.
+- Open-enum (`x-extensible-enum`) additions — `ErrorBody.code`, `WebhookDelivery.event_type`, webhook
+  endpoint `enabled_events`, `streamEvents` `types` — and new auth alternatives on
+  `advancePaymentAttempt` / `simulateRefundDeposit` (`restricted_key:checkout_sessions.write` /
+  `refunds.write`) are additive and not findings.
+
+### billing
+
+Stage 3 billing contracts (step 3.1; `lld/billing.md` v1.2 §11, ADR-0008). Additive over 0.2.1:
++30 public routes, +6 internal routes, +13 domain event subjects, +12 webhook types, +10 error codes
+(since 0.3.0), +3 ID prefixes (`txr_`, `il_`, `si_`).
+
+- **Catalogue** (`billing-catalog.ts`, scope `products.*`, roles owner/admin/developer/finance): `Product`,
+  `Price` (one-time or recurring `{interval: day|week|month|year, interval_count 1–12}`, fiat or asset
+  pricing, immutable except `active`/`nickname`/`metadata`), `TaxRate` (exact decimal `percentage` ≤ 4
+  decimals + `rate_ppm`, `inclusive`, `jurisdiction`, `country`; percentage/inclusive immutable).
+  Create/get/list/update for each; no deletes (archive with `active: false`).
+- **Normative arithmetic** exported from `@nearpay/spec`: `taxPercentageToPpm`, `divRoundHalfUp`,
+  `computeLineTax`, `computeInvoiceTotals` (bigint; tax per line, round half-up; inclusive
+  `amount × ppm / (10⁶ + Σppm)`; no mixing inclusive/exclusive on one line) and `periodBoundary`
+  (anchor-based calendar months, clamped to month end). Vectors: `test-vectors/billing-tax.json`.
+- **Invoices** (`invoices.ts`, scope `invoices.*`, roles owner/admin/finance): `Invoice` (+ `InvoiceLineItem`,
+  `InvoiceTaxAmount`; totals `subtotal`, `tax`, `total`, `total_excluding_tax`, `total_tax_amounts`,
+  `amount_due|paid|remaining`; `collection_method` open enum, `send_invoice` only in v1; `reminder_days`;
+  `hosted_invoice_url`; `payment_intents`; `sequence`), create/get/list/update (drafts; metadata always)/
+  delete (drafts)/`finalize`/`send`/`void`/`mark_uncollectible`, and `GET /v1/invoices/{id}/pdf`
+  (`application/pdf`). No "paid out of band" (INV-2).
+- **Hosted invoice payer routes** (anonymous at the gateway, header `X-NearPay-Invoice-Secret`, error
+  `invoice_secret_invalid`): `getPublicInvoice` (read-only `PublicInvoice`), `createPublicInvoiceSession`
+  (create or continue the invoice's checkout session → `InvoicePaymentSession`), `getPublicInvoicePdf`.
+  `PUBLIC_ANONYMOUS_ROUTES` gains `GET|POST /v1/invoices/{id}/public/**`.
+- **Subscriptions** (`subscriptions.ts`, scope `subscriptions.*`): `Subscription` (+ `SubscriptionItem`,
+  `DunningSettings`), create/get/list/update (`PATCH`, applies from the next renewal;
+  `proration_behavior` accepts only `none`)/`cancel` (`at_period_end`). Trials via `trial_period_days`.
+- **Payments pieces**: `PaymentIntent.invoice`, `CheckoutSession.invoice` (optional, nullable),
+  `listPaymentIntents?invoice=`; internal `createInvoiceCheckoutSession` (`POST /internal/checkout_sessions`),
+  `getInternalCheckoutSession`, `expireInvoiceCheckoutSession`, `getInternalCustomer`. Billing consumes
+  `evt.payments.payment_intent.succeeded|payment_failed` and `evt.payments.checkout_session.expired`.
+- **Events** (`EVT_BILLING`): `evt.billing.invoice.{created,finalized,sent,paid,payment_failed,overdue,voided,marked_uncollectible}`
+  (`InvoiceEvent`: `hosted_invoice_url` always null), `evt.billing.invoice.reminder` (`InvoiceReminderEvent`,
+  notify only), `evt.billing.subscription.{created,updated,deleted,renewal_upcoming}`. Webhook types
+  `invoice.*` (8) and `customer.subscription.*` (4); `invoice.sent` is new to api-conventions §9.
+- **Billing emails** (event-driven): notify reads `getInvoiceNotificationContext` /
+  `getSubscriptionNotificationContext` (`service:billing.read`); `BILLING_EMAIL_TEMPLATES` maps
+  `invoice.issued|reminder|paid|voided` and `subscription.renewal_upcoming` to subjects and contexts.
+- **Scopes**: billing's service client also holds `identity.context.read` and `rails.read`.
+- **Errors** (0.3.0): `currency_mismatch`, `interval_mismatch`, `price_inactive`, `price_type_invalid`,
+  `tax_rate_inactive`, `tax_rates_mixed`, `invoice_empty`, `customer_email_missing`,
+  `invoice_secret_invalid`, `invoice_not_payable`.
+- **Route helper**: optional `binaryResponse {contentType, description}` (non-JSON success bodies; emitted
+  as that media type); header constant `HEADERS.invoiceSecret`.
+
+### agent-commerce
+
+Stage 3 step 3.1 contracts for agent commerce (additive over 0.2.1; LLDs: agentpay §3.1, webhooks §5.1, identity §6.2, payments §16.1, rails §20, sdks-and-tools §2–§3). +10 public routes, 0 new error codes, 0 new events, 1 new test-vector file.
+
+- **Cross-chain x402 (`exact` + `near-intents`, x402 PR #3370 wire shapes)** — `src/x402/near-intents.ts`: `NearIntentsPaymentRequirements` (unquoted/quoted entry), `NearIntentsExtra` (+ NearPay `binding`, `deadline`, `originAssetId`, `slippageTolerance`, `minAmountIn`), `X402PaymentRequiredAny` (mixed `accepts`), `NearIntentsPaymentPayload` (`quote` | `deposit`), `NearIntentsVerifyRequest/Response` (`extra` = `NearIntentsQuote`), `NearIntentsSettleResponse` (+ `extra`, `replayed`), open enums `X402NearIntentsInvalidReason` / `X402NearIntentsSettleError` (PR #3370 codes verbatim), `X402NearIntentsBindingInput`, `X402OperationTokenInput` (`<kid>.<expiry>.<HMAC-SHA256 over JCS>`), helpers `quotedRequirements`, `isNearIntentsRequirements`, `parseOperationToken`. Routes (agentpay, `secret_key` / `restricted_key:agentpay.facilitate`, stage 3): `x402NearIntentsRequirements` `POST /x402/near-intents/requirements`, `x402NearIntentsVerify` `POST /x402/near-intents/verify`, `x402NearIntentsSettle` `POST /x402/near-intents/settle`. The `intents-transfer` schemas and `/x402/{requirements,verify,settle,supported}` are unchanged (own paths keep their request/response types exact).
+- `AgentPayment.transfer_method` (open: `intents-transfer` | `near-intents`) and `AgentPayment.origin` (`AgentPaymentOrigin`), both optional.
+- Rails: `Execution.owner` (`ExecutionOwner` open: `payments` | `agentpay`) and `Execution.x402_binding`; `CreateExecution.owner` / `x402_binding`; `listEvidence` query `owner`; `Evidence.sender` (optional, nullable). Service scope `rails.executions.write` granted to agentpay; agentpay consumes `evt.rails.execution.{settled,refunded,failed}`.
+- **Events stream** — `streamEvents` `GET /v1/events/stream` (webhooks; `secret_key`, `restricted_key:events.read`, `session`): SSE frames `ready` (`EventStreamReady`), `event` (`Event`, id = `evt_…`), `reset` (`EventStreamReset`); resume with `Last-Event-ID` / `starting_after`, `types` filter, heartbeat 15 s, `retry: 3000`; API keys test mode only (`livemode_forbidden`), ≤ 5 streams per account and mode, 1 h max, slow readers closed. Constants `EVENT_STREAM_*`.
+- **CLI login** (identity, device authorization in the RFC 8628 shape): `createCliLogin` `POST /v1/cli/logins` and `pollCliLogin` `POST /v1/cli/logins/poll` (anonymous; added to the anonymous allow-list), `getCliLogin` `GET /v1/cli/logins/{code}`, `approveCliLogin` (step-up) and `denyCliLogin` `POST /v1/cli/logins/{code}/{approve,deny}` (session owner/admin/developer). Objects `CliLogin`, `CliLoginPoll`, `CliLoginRequest`; approval mints a restricted **test** key with `CLI_KEY_SCOPES` (90 days).
+- **`nearpay trigger`** — `payCheckoutSessionTestHelper` `POST /v1/test_helpers/checkout_sessions/{id}/pay` (payments, test mode only) → `TestHelperPayment`. `advancePaymentAttempt` also admits `restricted_key:checkout_sessions.write` and `simulateRefundDeposit` `restricted_key:refunds.write` (auth alternatives added, nothing removed).
+- Test vectors `test-vectors/x402-near-intents.json`: near-intents binding, operation token (test-only key), and every header/response shape of the quote → deposit → settle flow.
+
+### integration
+
+- Merged billing and agent-commerce; cross-cutting checks in `test/integration-stage3.test.ts`: the
+  events stream renders every billing webhook type, `CLI_KEY_SCOPES` covers every restricted-key scope on
+  billing routes (`products.*`, `invoices.*`, `subscriptions.*`), the anonymous allow-list carries the
+  hosted invoice routes (`GET …/public`, `POST …/public/sessions`, `GET …/public/pdf`) and the CLI login
+  routes, ID prefixes name distinct objects. Route ids, method+path, error codes and webhook types stay
+  unique (existing tests).
+
 ## 0.2.1 — 2026-11-08
 
 Additive patch collecting the Stage 2 builders' change requests (step 2.2/2.3 reports and the lead's

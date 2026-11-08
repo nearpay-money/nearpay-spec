@@ -238,6 +238,20 @@
           "minLength": 1,
           "type": "string"
         },
+        "sender": {
+          "anyOf": [
+            {
+              "description": "Address in the chain's canonical text form.",
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Account that sent the settlement transfer, when the detector saw it (NEAR Intents: the transferring Intents account); null if unknown. Spec 0.3.0."
+        },
         "source": {
           "description": "Detector that produced the evidence.",
           "type": "string",
@@ -628,6 +642,22 @@
           ],
           "pattern": "^pi_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
           "type": "string"
+        },
+        "invoice": {
+          "anyOf": [
+            {
+              "description": "invoice id (`in_` + 26 base32 chars).",
+              "examples": [
+                "in_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^in_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Invoice the intent pays (`source: invoice`, Stage 3); null otherwise. Servers from 0.3.0 send it."
         },
         "late": {
           "description": "Settled after its checkout session expired (INV-3).",

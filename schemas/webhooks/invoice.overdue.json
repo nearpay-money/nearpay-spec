@@ -1,0 +1,996 @@
+{
+  "$defs": {
+    "EventInvoiceOverdue": {
+      "additionalProperties": {},
+      "description": "`invoice.overdue` event.",
+      "properties": {
+        "api_version": {
+          "description": "API version the payload is rendered in.",
+          "enum": [
+            "2026-11-01"
+          ],
+          "type": "string"
+        },
+        "created": {
+          "description": "Unix time in seconds.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "data": {
+          "additionalProperties": {},
+          "description": "Event data.",
+          "properties": {
+            "object": {
+              "$ref": "#/$defs/Invoice"
+            },
+            "previous_attributes": {
+              "additionalProperties": {},
+              "description": "Changed fields with their previous values (update events).",
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            }
+          },
+          "required": [
+            "object"
+          ],
+          "type": "object"
+        },
+        "id": {
+          "description": "event id (`evt_` + 26 base32 chars).",
+          "examples": [
+            "evt_01jbz9k3m4n5p6q7r8s9t0v1w2"
+          ],
+          "pattern": "^evt_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+          "type": "string"
+        },
+        "livemode": {
+          "description": "`true` for live mode, `false` for test mode.",
+          "type": "boolean"
+        },
+        "object": {
+          "const": "event",
+          "description": "Always `event`.",
+          "type": "string"
+        },
+        "request": {
+          "additionalProperties": {},
+          "description": "Request that caused the event.",
+          "properties": {
+            "id": {
+              "anyOf": [
+                {
+                  "description": "request id (`req_` + 26 base32 chars).",
+                  "examples": [
+                    "req_01jbz9k3m4n5p6q7r8s9t0v1w2"
+                  ],
+                  "pattern": "^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "API request that caused the event, if any."
+            },
+            "idempotency_key": {
+              "description": "Idempotency-Key of that request, if any.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "id",
+            "idempotency_key"
+          ],
+          "type": "object"
+        },
+        "type": {
+          "const": "invoice.overdue",
+          "description": "Event type.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "object",
+        "type",
+        "api_version",
+        "created",
+        "livemode",
+        "data",
+        "request"
+      ],
+      "type": "object"
+    },
+    "Invoice": {
+      "additionalProperties": {},
+      "description": "A bill for a customer, paid on a hosted invoice page (FR-BIL-01).",
+      "properties": {
+        "amount_due": {
+          "anyOf": [
+            {
+              "description": "Fiat amount in minor units (e.g. cents), integer.",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "description": "Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).",
+              "pattern": "^(0|[1-9][0-9]{0,77})$",
+              "type": "string"
+            }
+          ],
+          "description": "Amount the customer owes in total (= `total`; no credits in v1)."
+        },
+        "amount_paid": {
+          "anyOf": [
+            {
+              "description": "Fiat amount in minor units (e.g. cents), integer.",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "description": "Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).",
+              "pattern": "^(0|[1-9][0-9]{0,77})$",
+              "type": "string"
+            }
+          ],
+          "description": "Amount paid (`total` once paid, else 0)."
+        },
+        "amount_remaining": {
+          "anyOf": [
+            {
+              "description": "Fiat amount in minor units (e.g. cents), integer.",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "description": "Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).",
+              "pattern": "^(0|[1-9][0-9]{0,77})$",
+              "type": "string"
+            }
+          ],
+          "description": "`amount_due − amount_paid`."
+        },
+        "asset_id": {
+          "anyOf": [
+            {
+              "description": "NEAR Intents asset id, e.g. `nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1`.",
+              "examples": [
+                "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1"
+              ],
+              "maxLength": 256,
+              "pattern": "^(nep141:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+|nep245:(([a-z\\d]+[-_])*[a-z\\d]+\\.)*([a-z\\d]+[-_])*[a-z\\d]+:[\\x21-\\x7e]{1,128})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Pricing asset when `currency` is `asset`."
+        },
+        "billing_reason": {
+          "description": "Why the invoice exists: created by the merchant, the first invoice of a subscription, or a renewal.",
+          "type": "string",
+          "x-extensible-enum": [
+            "manual",
+            "subscription_create",
+            "subscription_cycle"
+          ]
+        },
+        "checkout_session": {
+          "anyOf": [
+            {
+              "description": "checkout_session id (`cs_` + 26 base32 chars).",
+              "examples": [
+                "cs_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^cs_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Open payments checkout session paying the invoice (created on demand by the hosted page)."
+        },
+        "collection_method": {
+          "description": "How the invoice is collected: `send_invoice` = the customer pays the hosted invoice (v1).",
+          "type": "string",
+          "x-extensible-enum": [
+            "send_invoice"
+          ]
+        },
+        "created": {
+          "description": "Unix time in seconds.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "currency": {
+          "anyOf": [
+            {
+              "description": "ISO 4217 currency code, lower-case (e.g. `usd`).",
+              "pattern": "^[a-z]{3}$",
+              "type": "string"
+            },
+            {
+              "const": "asset",
+              "type": "string"
+            }
+          ],
+          "description": "ISO 4217 code for fiat pricing, or `asset` when priced in an asset (then `asset_id` is set)."
+        },
+        "customer": {
+          "description": "Customer billed (owned by payments).",
+          "examples": [
+            "cus_01jbz9k3m4n5p6q7r8s9t0v1w2"
+          ],
+          "pattern": "^cus_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+          "type": "string"
+        },
+        "days_until_due": {
+          "anyOf": [
+            {
+              "maximum": 365,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Days after finalize until due (when no fixed `due_date` was given)."
+        },
+        "default_tax_rates": {
+          "description": "Tax rates applied to lines created without `tax_rates`.",
+          "items": {
+            "description": "tax_rate id (`txr_` + 26 base32 chars).",
+            "examples": [
+              "txr_01jbz9k3m4n5p6q7r8s9t0v1w2"
+            ],
+            "pattern": "^txr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "description": {
+          "description": "Memo shown on the invoice.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "due_date": {
+          "anyOf": [
+            {
+              "description": "Unix time in seconds.",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "When payment is due; set at finalize at the latest."
+        },
+        "footer": {
+          "description": "Footer shown on the invoice.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "hosted_invoice_url": {
+          "anyOf": [
+            {
+              "description": "Absolute URL.",
+              "format": "uri",
+              "maxLength": 2048,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Customer page `<pay origin>/i/<id>#<invoice secret>` (the secret is in the fragment); set once finalized. Always null in events and webhooks (secrets never travel on the bus)."
+        },
+        "id": {
+          "description": "invoice id (`in_` + 26 base32 chars).",
+          "examples": [
+            "in_01jbz9k3m4n5p6q7r8s9t0v1w2"
+          ],
+          "pattern": "^in_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+          "type": "string"
+        },
+        "invoice_pdf": {
+          "anyOf": [
+            {
+              "description": "Absolute URL.",
+              "format": "uri",
+              "maxLength": 2048,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "API URL of the PDF (`GET /v1/invoices/{id}/pdf`, needs your credentials); null for drafts."
+        },
+        "lines": {
+          "description": "All lines (at most 100).",
+          "items": {
+            "$ref": "#/$defs/InvoiceLineItem"
+          },
+          "type": "array"
+        },
+        "livemode": {
+          "description": "`true` for live mode, `false` for test mode.",
+          "type": "boolean"
+        },
+        "metadata": {
+          "additionalProperties": {
+            "maxLength": 500,
+            "type": "string"
+          },
+          "description": "Up to 50 key/value pairs (key ≤ 40 chars, value ≤ 500 chars) for your own use.",
+          "propertyNames": {
+            "maxLength": 40,
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "next_reminder_at": {
+          "anyOf": [
+            {
+              "description": "Unix time in seconds.",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "When the next reminder goes out; null when none is due."
+        },
+        "number": {
+          "anyOf": [
+            {
+              "maxLength": 32,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Invoice number `<prefix>-<5+ digits>`, unique per account and mode, assigned at finalize; null for drafts."
+        },
+        "object": {
+          "const": "invoice",
+          "description": "Always `invoice`.",
+          "type": "string"
+        },
+        "payment_intent": {
+          "anyOf": [
+            {
+              "description": "payment_intent id (`pi_` + 26 base32 chars).",
+              "examples": [
+                "pi_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^pi_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Payment intent that paid the invoice."
+        },
+        "payment_intents": {
+          "description": "Every payment intent opened for the invoice, newest first. A settlement that arrives after the invoice is already paid or void (INV-3) stays listed here; refund it like an overpayment.",
+          "items": {
+            "description": "payment_intent id (`pi_` + 26 base32 chars).",
+            "examples": [
+              "pi_01jbz9k3m4n5p6q7r8s9t0v1w2"
+            ],
+            "pattern": "^pi_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "period_end": {
+          "anyOf": [
+            {
+              "description": "Unix time in seconds.",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "End of the billed subscription period (exclusive)."
+        },
+        "period_start": {
+          "anyOf": [
+            {
+              "description": "Unix time in seconds.",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Start of the billed subscription period."
+        },
+        "reminder_days": {
+          "description": "When reminders go out, in days relative to the due date (negative = before), strictly increasing, at most 10; `[]` sends none.",
+          "items": {
+            "description": "Days relative to the due date (negative = before).",
+            "maximum": 60,
+            "minimum": -30,
+            "type": "integer"
+          },
+          "maxItems": 10,
+          "type": "array"
+        },
+        "reminders_sent": {
+          "description": "Reminders sent so far.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "sequence": {
+          "description": "Increases with every change; discard webhook objects with a lower sequence.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "settlement_destination": {
+          "anyOf": [
+            {
+              "description": "settlement_destination id (`sd_` + 26 base32 chars).",
+              "examples": [
+                "sd_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^sd_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Destination the payment settles to; null = the account default when the payment session opens."
+        },
+        "status": {
+          "description": "Invoice status (domain-model §4.5): `uncollectible` invoices can still be paid (INV-3).",
+          "type": "string",
+          "x-extensible-enum": [
+            "draft",
+            "open",
+            "paid",
+            "void",
+            "uncollectible"
+          ]
+        },
+        "status_transitions": {
+          "additionalProperties": {},
+          "description": "When status changes happened.",
+          "properties": {
+            "finalized_at": {
+              "anyOf": [
+                {
+                  "description": "Unix time in seconds.",
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Finalized (draft → open)."
+            },
+            "marked_uncollectible_at": {
+              "anyOf": [
+                {
+                  "description": "Unix time in seconds.",
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Marked uncollectible."
+            },
+            "paid_at": {
+              "anyOf": [
+                {
+                  "description": "Unix time in seconds.",
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Paid."
+            },
+            "sent_at": {
+              "anyOf": [
+                {
+                  "description": "Unix time in seconds.",
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Last emailed to the customer."
+            },
+            "voided_at": {
+              "anyOf": [
+                {
+                  "description": "Unix time in seconds.",
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Voided."
+            }
+          },
+          "required": [
+            "finalized_at",
+            "sent_at",
+            "paid_at",
+            "voided_at",
+            "marked_uncollectible_at"
+          ],
+          "type": "object"
+        },
+        "subscription": {
+          "anyOf": [
+            {
+              "description": "subscription id (`sub_` + 26 base32 chars).",
+              "examples": [
+                "sub_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^sub_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Subscription that produced the invoice."
+        },
+        "subtotal": {
+          "anyOf": [
+            {
+              "description": "Fiat amount in minor units (e.g. cents), integer.",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "description": "Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).",
+              "pattern": "^(0|[1-9][0-9]{0,77})$",
+              "type": "string"
+            }
+          ],
+          "description": "Σ line amounts as priced."
+        },
+        "tax": {
+          "anyOf": [
+            {
+              "description": "Fiat amount in minor units (e.g. cents), integer.",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "description": "Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).",
+              "pattern": "^(0|[1-9][0-9]{0,77})$",
+              "type": "string"
+            }
+          ],
+          "description": "Σ every tax amount (inclusive and exclusive)."
+        },
+        "total": {
+          "anyOf": [
+            {
+              "description": "Fiat amount in minor units (e.g. cents), integer.",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "description": "Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).",
+              "pattern": "^(0|[1-9][0-9]{0,77})$",
+              "type": "string"
+            }
+          ],
+          "description": "`subtotal` + exclusive taxes: what the customer pays."
+        },
+        "total_excluding_tax": {
+          "anyOf": [
+            {
+              "description": "Fiat amount in minor units (e.g. cents), integer.",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "description": "Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).",
+              "pattern": "^(0|[1-9][0-9]{0,77})$",
+              "type": "string"
+            }
+          ],
+          "description": "`total − tax`."
+        },
+        "total_tax_amounts": {
+          "description": "Tax per rate across all lines (Σ of the per-line, already rounded amounts).",
+          "items": {
+            "$ref": "#/$defs/InvoiceTaxAmount"
+          },
+          "type": "array"
+        },
+        "uncollectible_reason": {
+          "anyOf": [
+            {
+              "description": "Why the invoice became uncollectible.",
+              "type": "string",
+              "x-extensible-enum": [
+                "merchant",
+                "dunning_exhausted"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Set when `status` is or was `uncollectible`."
+        }
+      },
+      "required": [
+        "id",
+        "object",
+        "created",
+        "livemode",
+        "status",
+        "number",
+        "customer",
+        "subscription",
+        "billing_reason",
+        "collection_method",
+        "currency",
+        "asset_id",
+        "description",
+        "footer",
+        "lines",
+        "default_tax_rates",
+        "subtotal",
+        "tax",
+        "total",
+        "total_excluding_tax",
+        "total_tax_amounts",
+        "amount_due",
+        "amount_paid",
+        "amount_remaining",
+        "days_until_due",
+        "due_date",
+        "period_start",
+        "period_end",
+        "settlement_destination",
+        "reminder_days",
+        "reminders_sent",
+        "next_reminder_at",
+        "hosted_invoice_url",
+        "invoice_pdf",
+        "checkout_session",
+        "payment_intent",
+        "payment_intents",
+        "status_transitions",
+        "uncollectible_reason",
+        "metadata",
+        "sequence"
+      ],
+      "type": "object"
+    },
+    "InvoiceLineItem": {
+      "additionalProperties": {},
+      "description": "One line of an invoice.",
+      "properties": {
+        "amount": {
+          "anyOf": [
+            {
+              "description": "Fiat amount in minor units (e.g. cents), integer.",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "description": "Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).",
+              "pattern": "^(0|[1-9][0-9]{0,77})$",
+              "type": "string"
+            }
+          ],
+          "description": "`unit_amount × quantity` (inclusive taxes stay inside)."
+        },
+        "amount_excluding_tax": {
+          "anyOf": [
+            {
+              "description": "Fiat amount in minor units (e.g. cents), integer.",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "description": "Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).",
+              "pattern": "^(0|[1-9][0-9]{0,77})$",
+              "type": "string"
+            }
+          ],
+          "description": "`amount` less this line's inclusive taxes."
+        },
+        "description": {
+          "description": "Text on the invoice (product name or the given description).",
+          "type": "string"
+        },
+        "id": {
+          "description": "invoice_line_item id (`il_` + 26 base32 chars).",
+          "examples": [
+            "il_01jbz9k3m4n5p6q7r8s9t0v1w2"
+          ],
+          "pattern": "^il_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+          "type": "string"
+        },
+        "object": {
+          "const": "line_item",
+          "description": "Always `line_item`.",
+          "type": "string"
+        },
+        "period": {
+          "anyOf": [
+            {
+              "additionalProperties": {},
+              "properties": {
+                "end": {
+                  "description": "Period end (exclusive).",
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "start": {
+                  "description": "Period start.",
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "start",
+                "end"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Service period of a `subscription` line; null for one-off lines."
+        },
+        "price": {
+          "anyOf": [
+            {
+              "description": "price id (`price_` + 26 base32 chars).",
+              "examples": [
+                "price_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^price_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Price the line was created from; null for a custom amount."
+        },
+        "product": {
+          "anyOf": [
+            {
+              "description": "product id (`prod_` + 26 base32 chars).",
+              "examples": [
+                "prod_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^prod_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Product of `price`."
+        },
+        "quantity": {
+          "description": "Quantity.",
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "subscription_item": {
+          "anyOf": [
+            {
+              "description": "subscription_item id (`si_` + 26 base32 chars).",
+              "examples": [
+                "si_01jbz9k3m4n5p6q7r8s9t0v1w2"
+              ],
+              "pattern": "^si_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Subscription item of a `subscription` line."
+        },
+        "tax_amounts": {
+          "description": "Tax per rate for this line.",
+          "items": {
+            "$ref": "#/$defs/InvoiceTaxAmount"
+          },
+          "type": "array"
+        },
+        "tax_rates": {
+          "description": "Tax rates applied to the line (all inclusive or all exclusive).",
+          "items": {
+            "description": "tax_rate id (`txr_` + 26 base32 chars).",
+            "examples": [
+              "txr_01jbz9k3m4n5p6q7r8s9t0v1w2"
+            ],
+            "pattern": "^txr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "type": {
+          "description": "A one-off line or a subscription item's line.",
+          "type": "string",
+          "x-extensible-enum": [
+            "invoiceitem",
+            "subscription"
+          ]
+        },
+        "unit_amount": {
+          "anyOf": [
+            {
+              "description": "Fiat amount in minor units (e.g. cents), integer.",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "description": "Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).",
+              "pattern": "^(0|[1-9][0-9]{0,77})$",
+              "type": "string"
+            }
+          ],
+          "description": "Price per unit in the invoice currency."
+        }
+      },
+      "required": [
+        "id",
+        "object",
+        "type",
+        "price",
+        "product",
+        "subscription_item",
+        "description",
+        "quantity",
+        "unit_amount",
+        "amount",
+        "amount_excluding_tax",
+        "tax_rates",
+        "tax_amounts",
+        "period"
+      ],
+      "type": "object"
+    },
+    "InvoiceTaxAmount": {
+      "additionalProperties": {},
+      "description": "One tax rate applied to an amount (snapshot; immutable once open).",
+      "properties": {
+        "amount": {
+          "anyOf": [
+            {
+              "description": "Fiat amount in minor units (e.g. cents), integer.",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "description": "Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).",
+              "pattern": "^(0|[1-9][0-9]{0,77})$",
+              "type": "string"
+            }
+          ],
+          "description": "Tax of this line for this rate, rounded half-up per line."
+        },
+        "display_name": {
+          "description": "Tax-rate name at finalize (snapshot).",
+          "type": "string"
+        },
+        "inclusive": {
+          "description": "The line amount contains this tax.",
+          "type": "boolean"
+        },
+        "percentage": {
+          "description": "Exact percentage as a decimal string, 0–100 with at most 4 decimals (the rate is the rational `ppm / 1 000 000`, ppm = percentage × 10 000). No floats.",
+          "examples": [
+            "19",
+            "8.875"
+          ],
+          "pattern": "^(100(\\.0{1,4})?|[1-9]?[0-9](\\.[0-9]{1,4})?)$",
+          "type": "string"
+        },
+        "tax_rate": {
+          "description": "tax_rate id (`txr_` + 26 base32 chars).",
+          "examples": [
+            "txr_01jbz9k3m4n5p6q7r8s9t0v1w2"
+          ],
+          "pattern": "^txr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$",
+          "type": "string"
+        },
+        "taxable_amount": {
+          "anyOf": [
+            {
+              "description": "Fiat amount in minor units (e.g. cents), integer.",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "description": "Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).",
+              "pattern": "^(0|[1-9][0-9]{0,77})$",
+              "type": "string"
+            }
+          ],
+          "description": "Amount the rate applies to: the line amount (exclusive) or the line amount less its inclusive taxes."
+        }
+      },
+      "required": [
+        "tax_rate",
+        "display_name",
+        "percentage",
+        "inclusive",
+        "amount",
+        "taxable_amount"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/EventInvoiceOverdue",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}
