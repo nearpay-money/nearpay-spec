@@ -574,6 +574,67 @@ components:
         - result
         - details
       type: object
+    BitcoinEvidence:
+      additionalProperties: {}
+      description: Bitcoin-specific settlement detail (outputs and confirmations).
+      properties:
+        block_hash:
+          description: Hash of the confirming block, hex.
+          pattern: ^[0-9a-f]{64}$
+          type: string
+        block_height:
+          description: Height of the confirming block (= `Evidence.block_ref`).
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        confirmations:
+          description: Confirmations when the evidence was accepted (`tip − block_height + 1`).
+          maximum: 9007199254740991
+          minimum: 1
+          type: integer
+        outputs:
+          description: Outputs of the transaction that pay the destination address.
+          items:
+            additionalProperties: {}
+            description: An output paying the destination.
+            properties:
+              script_pubkey:
+                description: Output scriptPubKey, hex (`0014…` P2WPKH, `5120…` P2TR).
+                pattern: ^[0-9a-f]{2,200}$
+                type: string
+              value:
+                description: Output value, satoshis.
+                pattern: ^(0|[1-9][0-9]{0,77})$
+                type: string
+              vout:
+                description: Output index.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+            required:
+              - vout
+              - value
+              - script_pubkey
+            type: object
+          minItems: 1
+          type: array
+        required_confirmations:
+          description: Confirmations the chain profile required for this settlement's USD value (`confirmation_tiers`).
+          maximum: 9007199254740991
+          minimum: 1
+          type: integer
+        txid:
+          description: Transaction id (= `Evidence.tx_hash`).
+          pattern: ^[0-9a-f]{64}$
+          type: string
+      required:
+        - txid
+        - outputs
+        - block_height
+        - block_hash
+        - confirmations
+        - required_confirmations
+      type: object
     CheckoutSessionEvent:
       additionalProperties: {}
       description: Checkout session snapshot (no secrets).
@@ -963,6 +1024,11 @@ components:
           maxLength: 256
           pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
           type: string
+        bitcoin:
+          anyOf:
+            - $ref: "#/components/schemas/BitcoinEvidence"
+            - type: "null"
+          description: Bitcoin detail (txid, outputs, confirmations) when `chain` is Bitcoin; null/absent otherwise. Spec 0.4.0.
         block_ref:
           description: Block height or hash containing the transaction.
           type:
@@ -1005,6 +1071,11 @@ components:
               type: string
             - type: "null"
           description: "Account that sent the settlement transfer, when the detector saw it (NEAR Intents: the transferring Intents account); null if unknown. Spec 0.3.0."
+        solana:
+          anyOf:
+            - $ref: "#/components/schemas/SolanaEvidence"
+            - type: "null"
+          description: Solana detail (signature, slot, mint, token-balance delta) when `chain` is Solana; null/absent otherwise. Spec 0.4.0.
         source:
           description: Detector that produced the evidence.
           type: string
@@ -1868,10 +1939,11 @@ components:
             - type: "null"
           description: Open payments checkout session paying the invoice (created on demand by the hosted page).
         collection_method:
-          description: "How the invoice is collected: `send_invoice` = the customer pays the hosted invoice (v1)."
+          description: "How the invoice is collected: `send_invoice` = the customer pays the hosted invoice; `auto_debit` (Stage 4) = billing's keeper collects it from the subscription's vault mandate, falling back to `send_invoice` (emailed) when the mandate cannot pay it (lld/billing.md §7.1, §14)."
           type: string
           x-extensible-enum:
             - send_invoice
+            - auto_debit
         created:
           description: Unix time in seconds.
           maximum: 9007199254740991
@@ -1950,6 +2022,66 @@ components:
         livemode:
           description: "`true` for live mode, `false` for test mode."
           type: boolean
+        mandate:
+          anyOf:
+            - description: mandate id (`md_` + 26 base32 chars).
+              examples:
+                - md_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^md_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Mandate the keeper collects (or collected) this invoice from; null/absent when none (Stage 4).
+        mandate_collection:
+          anyOf:
+            - additionalProperties: {}
+              properties:
+                fee:
+                  description: NearPay fee taken by the vault.
+                  pattern: ^(0|[1-9][0-9]{0,77})$
+                  type: string
+                mandate:
+                  description: mandate id (`md_` + 26 base32 chars).
+                  examples:
+                    - md_01jbz9k3m4n5p6q7r8s9t0v1w2
+                  pattern: ^md_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                  type: string
+                merchant_share:
+                  description: Tokens delivered to the merchant's Intents account.
+                  pattern: ^(0|[1-9][0-9]{0,77})$
+                  type: string
+                period:
+                  description: Vault period that paid the invoice.
+                  maximum: 9007199254740991
+                  minimum: 1
+                  type: integer
+                receipt_id:
+                  description: Vault receipt that logged `collected` (the evidence, INV-2).
+                  maxLength: 64
+                  minLength: 1
+                  type: string
+                token:
+                  description: Token received, as a NEAR Intents asset id.
+                  examples:
+                    - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+                  maxLength: 256
+                  pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+                  type: string
+                tx_hash:
+                  description: NEAR transaction of the `collect`.
+                  maxLength: 128
+                  minLength: 8
+                  type: string
+              required:
+                - mandate
+                - period
+                - token
+                - merchant_share
+                - fee
+                - tx_hash
+                - receipt_id
+              type: object
+            - type: "null"
+          description: Set when the invoice was paid by a vault collection instead of a payment intent (Stage 4).
         metadata:
           additionalProperties:
             maxLength: 500
@@ -2524,6 +2656,315 @@ components:
         - account_id
         - status
         - submitted_at
+      type: object
+    Mandate:
+      additionalProperties: {}
+      description: "An auto-debit mandate: NearPay's mirror of a subscription-vault mandate the payer funded (FR-BIL-02/04)."
+      properties:
+        amount_per_period:
+          description: Tokens collected per period.
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        asset_id:
+          description: The token as a NEAR Intents asset id (`nep141:<token>`).
+          examples:
+            - nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
+          maxLength: 256
+          pattern: ^(nep141:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+|nep245:(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+:[\x21-\x7e]{1,128})$
+          type: string
+        balance:
+          description: Tokens on the mandate available for the next periods (mirror of the vault events).
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        canceled:
+          anyOf:
+            - additionalProperties: {}
+              properties:
+                by:
+                  description: Who canceled (the payer or the merchant receiver).
+                  pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+                  type: string
+                by_role:
+                  description: Role of `by`.
+                  type: string
+                  x-extensible-enum:
+                    - payer
+                    - merchant_receiver
+                canceled_at:
+                  description: Block time of the `canceled` event.
+                  maximum: 9007199254740991
+                  minimum: 0
+                  type: integer
+                refunded:
+                  description: Returned to the payer by the cancel; `"0"` if that refund failed (then withdrawable).
+                  pattern: ^(0|[1-9][0-9]{0,77})$
+                  type: string
+              required:
+                - by
+                - by_role
+                - refunded
+                - canceled_at
+              type: object
+            - type: "null"
+          description: Set once canceled.
+        collect_failures:
+          description: Consecutive `collect_failed` outcomes (merchant leg delivered nothing); reset by a collection.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        collected_periods:
+          description: Periods the vault has counted.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        collecting:
+          description: "Billing's keeper collects renewal invoices from this mandate: linked, on-chain active, and its subscription is active and `auto_debit`. Turns false for good when the subscription ends or leaves `auto_debit` (`mandate.released`)."
+          type: boolean
+        created:
+          description: Block time of `mandate_created`.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        customer:
+          description: Customer of that subscription.
+          examples:
+            - cus_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^cus_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        ext_ref:
+          description: The mandate's on-chain reference (the subscription id for NearPay mandates).
+          maxLength: 64
+          type: string
+        fee_bps:
+          description: NearPay fee in basis points, fixed on chain at creation.
+          maximum: 10000
+          minimum: 0
+          type: integer
+        funded_periods:
+          description: "`floor(balance / amount_per_period)`: periods the balance still covers."
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        id:
+          description: mandate id (`md_` + 26 base32 chars).
+          examples:
+            - md_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^md_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        last_collection:
+          anyOf:
+            - $ref: "#/components/schemas/MandateCollection"
+            - type: "null"
+          description: Most recent collected period.
+        link_status:
+          description: "`linked`: billing collects this mandate for its subscription. `unlinked`: the on-chain terms do not match what billing prepared; billing never collects it and the payer is asked to cancel it."
+          type: string
+          x-extensible-enum:
+            - linked
+            - unlinked
+        livemode:
+          description: "`true` for the mainnet vault, `false` for the sandbox vault stand-in."
+          type: boolean
+        max_periods:
+          anyOf:
+            - maximum: 9007199254740991
+              minimum: 1
+              type: integer
+            - type: "null"
+          description: Maximum periods; null = until canceled.
+        merchant_receiver:
+          description: Receiver of the merchant share (the merchant's NEAR Intents account).
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        next_collect_at:
+          anyOf:
+            - description: Unix time in seconds.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: When the next vault period becomes due; null unless on-chain active below `max_periods`.
+        object:
+          const: mandate
+          description: Always `mandate`.
+          type: string
+        onchain_id:
+          description: The vault's `mandate_id`.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        payer:
+          description: "Payer: the NEAR account that signed the funding transaction (always its owner)."
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        period_secs:
+          description: Vault period length (seconds).
+          maximum: 9007199254740991
+          minimum: 86400
+          type: integer
+        receiver_kind:
+          description: "How the merchant share is delivered: `intents_account` = `ft_transfer_call(intents.near, msg = merchant_receiver)` (credits the merchant's NEAR Intents balance); `near_account` = plain `ft_transfer`."
+          enum:
+            - intents_account
+            - near_account
+          type: string
+        sequence:
+          description: Increases with every change; discard webhook objects with a lower sequence.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        settlement_destination:
+          anyOf:
+            - description: settlement_destination id (`sd_` + 26 base32 chars).
+              examples:
+                - sd_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^sd_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Settlement destination that matches `merchant_receiver` (linked mandates); null otherwise.
+        start_at:
+          description: When vault period 1 became (or becomes) due.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        status:
+          description: "Mandate status (domain-model §4.5): `active` = on-chain active with at least one period funded; `insufficient` = on-chain active but the balance is below one period (top up, or the due invoice falls back to `send_invoice`); `exhausted` = `max_periods` collected; `canceled` = canceled by the payer or the merchant receiver."
+          type: string
+          x-extensible-enum:
+            - active
+            - insufficient
+            - exhausted
+            - canceled
+        subscription:
+          description: Subscription named by the mandate's `ext_ref`.
+          examples:
+            - sub_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^sub_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        token:
+          description: NEP-141 token contract.
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        unlinked_reason:
+          anyOf:
+            - description: "Why a mandate is `unlinked` (billing §6 linkage rule): the subscription is not `auto_debit` or has ended, another mandate is already linked, or a term differs from the prepared one (receiver kind, receiver = an active Intents-account destination of the account, token, amount per period, period, fee, `start_at` after the current period end, `max_periods` below the remaining periods), or a test-vault mandate names a live subscription (or the reverse)."
+              type: string
+              x-extensible-enum:
+                - subscription_not_auto_debit
+                - subscription_ended
+                - already_linked
+                - receiver_kind_mismatch
+                - receiver_not_destination
+                - token_mismatch
+                - amount_mismatch
+                - period_mismatch
+                - fee_mismatch
+                - start_too_late
+                - max_periods_too_low
+                - mode_mismatch
+            - type: "null"
+          description: Set when `link_status` is `unlinked`.
+        vault_contract:
+          description: Vault account (`v1.vault.nearpay.near`; the stand-in's in test mode).
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+        withdrawn:
+          description: Total the payer withdrew after cancel/exhaustion (`withdrawn` events).
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+      required:
+        - id
+        - object
+        - created
+        - livemode
+        - status
+        - link_status
+        - unlinked_reason
+        - collecting
+        - subscription
+        - customer
+        - vault_contract
+        - onchain_id
+        - payer
+        - token
+        - asset_id
+        - merchant_receiver
+        - receiver_kind
+        - settlement_destination
+        - amount_per_period
+        - period_secs
+        - start_at
+        - max_periods
+        - fee_bps
+        - collected_periods
+        - balance
+        - funded_periods
+        - next_collect_at
+        - last_collection
+        - collect_failures
+        - canceled
+        - withdrawn
+        - ext_ref
+        - sequence
+      type: object
+    MandateCollection:
+      additionalProperties: {}
+      description: "A period collected by the vault (evidence: the `collected` event)."
+      properties:
+        amount:
+          description: "`merchant_share + fee` actually paid (token base units)."
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        collected_at:
+          description: Block time of the receipt.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        fee:
+          description: NearPay fee; `"0"` when the fee leg failed (the fee stayed with the payer).
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        invoice:
+          anyOf:
+            - description: invoice id (`in_` + 26 base32 chars).
+              examples:
+                - in_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^in_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: Invoice the collection paid (or applied to).
+        merchant_share:
+          description: Share delivered to the merchant receiver.
+          pattern: ^(0|[1-9][0-9]{0,77})$
+          type: string
+        period:
+          description: 1-based vault period.
+          maximum: 9007199254740991
+          minimum: 1
+          type: integer
+        receipt_id:
+          description: Vault receipt that logged `collected` (evidence).
+          maxLength: 64
+          minLength: 1
+          type: string
+        short:
+          description: "The merchant share was below the expected share (partial delivery): the invoice is not marked paid; billing issues a `send_invoice` balance invoice for the shortfall."
+          type: boolean
+        tx_hash:
+          description: NEAR transaction of the `collect`.
+          maxLength: 128
+          minLength: 8
+          type: string
+      required:
+        - period
+        - amount
+        - merchant_share
+        - fee
+        - short
+        - invoice
+        - tx_hash
+        - receipt_id
+        - collected_at
       type: object
     MemberEvent:
       additionalProperties: {}
@@ -4127,6 +4568,84 @@ components:
         - opened_at
         - closed_at
       type: object
+    SolanaEvidence:
+      additionalProperties: {}
+      description: Solana-specific settlement detail (token-balance delta).
+      properties:
+        block_time:
+          anyOf:
+            - maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - type: "null"
+          description: Block time, unix seconds; null when the node has none.
+        mint:
+          anyOf:
+            - description: "Solana address: base58 of 32 bytes (ed25519 public key or program-derived address)."
+              examples:
+                - EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+              pattern: ^[1-9A-HJ-NP-Za-km-z]{32,44}$
+              type: string
+            - type: "null"
+          description: SPL mint that settled; null for native SOL (lamports).
+        owner:
+          description: Wallet whose balance rose (= `Evidence.recipient`, the merchant destination).
+          examples:
+            - EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+          pattern: ^[1-9A-HJ-NP-Za-km-z]{32,44}$
+          type: string
+        post_amount:
+          anyOf:
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+            - type: "null"
+          description: Owner's balance of the mint after the transaction; null when the detector did not read balances (test mode).
+        pre_amount:
+          anyOf:
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+            - type: "null"
+          description: Owner's balance of the mint before the transaction (`meta.preTokenBalances` / `preBalances`); null when the detector did not read balances (test mode).
+        signature:
+          description: Transaction signature (= `Evidence.tx_hash`).
+          pattern: ^[1-9A-HJ-NP-Za-km-z]{64,88}$
+          type: string
+        slot:
+          description: Slot of the block that contains the transaction (= `Evidence.block_ref`).
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        token_accounts:
+          description: Token accounts of `owner` for `mint` whose balance changed (usually its ATA); empty for SOL.
+          items:
+            description: "Solana address: base58 of 32 bytes (ed25519 public key or program-derived address)."
+            examples:
+              - EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+            pattern: ^[1-9A-HJ-NP-Za-km-z]{32,44}$
+            type: string
+          type: array
+        token_program:
+          anyOf:
+            - description: "Solana address: base58 of 32 bytes (ed25519 public key or program-derived address)."
+              examples:
+                - EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+              pattern: ^[1-9A-HJ-NP-Za-km-z]{32,44}$
+              type: string
+            - type: "null"
+          description: Owner program of the mint (`TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA` in v1); null for SOL.
+      required:
+        - signature
+        - slot
+        - block_time
+        - mint
+        - token_program
+        - owner
+        - token_accounts
+        - pre_amount
+        - post_amount
+      type: object
     Subscription:
       additionalProperties: {}
       description: A customer billed every period by emailed invoice (FR-BIL-02).
@@ -4168,10 +4687,11 @@ components:
             - type: "null"
           description: Set once canceled or scheduled to cancel.
         collection_method:
-          description: "How the invoice is collected: `send_invoice` = the customer pays the hosted invoice (v1)."
+          description: "How the invoice is collected: `send_invoice` = the customer pays the hosted invoice; `auto_debit` (Stage 4) = billing's keeper collects it from the subscription's vault mandate, falling back to `send_invoice` (emailed) when the mandate cannot pay it (lld/billing.md §7.1, §14)."
           type: string
           x-extensible-enum:
             - send_invoice
+            - auto_debit
         created:
           description: Unix time in seconds.
           maximum: 9007199254740991
@@ -4253,6 +4773,15 @@ components:
         livemode:
           description: "`true` for live mode, `false` for test mode."
           type: boolean
+        mandate:
+          anyOf:
+            - description: mandate id (`md_` + 26 base32 chars).
+              examples:
+                - md_01jbz9k3m4n5p6q7r8s9t0v1w2
+              pattern: ^md_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+              type: string
+            - type: "null"
+          description: "The linked vault mandate renewals are collected from (`collection_method: auto_debit`); null/absent when none (Stage 4)."
         metadata:
           additionalProperties:
             maxLength: 500
@@ -4390,7 +4919,7 @@ components:
               minLength: 1
               type: string
             - type: "null"
-          description: Contract address (EVM `0x…`) or token account (NEAR); null for `native`.
+          description: Contract address (EVM `0x…`), token account (NEAR) or SPL mint (Solana, base58; spec 0.4.0 wallet path); null for `native`.
         standard:
           description: "`erc20`: ERC-20 contract on an EVM chain; `native`: the chain's native coin (no contract); `nep141`: NEP-141 token on NEAR; `spl`: SPL mint on Solana; `other`: no wallet transfer recipe (manual path)."
           type: string
@@ -4513,9 +5042,461 @@ components:
         - recovered_at
         - lock_until
       type: object
+    VaultEvent:
+      description: A subscription-vault NEP-297 event (contracts-vault §4.1). Valid only in a successful receipt executed by the vault account itself (rails §8.6).
+      oneOf:
+        - additionalProperties: {}
+          description: "`mandate_created` event."
+          properties:
+            data:
+              description: One-element array (NEP-141/171 convention).
+              items: false
+              maxItems: 1
+              minItems: 1
+              prefixItems:
+                - additionalProperties: {}
+                  description: "`mandate_created` data."
+                  properties:
+                    amount_per_period:
+                      description: Tokens collected per period (base units).
+                      pattern: ^(0|[1-9][0-9]{0,38})$
+                      type: string
+                    balance:
+                      description: Initial funding (base units).
+                      pattern: ^(0|[1-9][0-9]{0,38})$
+                      type: string
+                    ext_ref:
+                      description: Free reference (≤ 64 bytes printable ASCII); NearPay puts the subscription id (`sub_…`).
+                      maxLength: 64
+                      pattern: ^[\x20-\x7e]*$
+                      type: string
+                    fee_bps:
+                      description: NearPay fee in basis points, fixed at creation.
+                      maximum: 10000
+                      minimum: 0
+                      type: integer
+                    mandate_id:
+                      description: On-chain mandate id (u64, sequential from 0; exact in JSON numbers far beyond any real count).
+                      maximum: 9007199254740991
+                      minimum: 0
+                      type: integer
+                    max_periods:
+                      anyOf:
+                        - maximum: 2147483647
+                          minimum: 1
+                          type: integer
+                        - type: "null"
+                      description: Number of periods the mandate may collect; null = unlimited.
+                    merchant_receiver:
+                      description: Receiver of the merchant share (an Intents account for NearPay).
+                      pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+                      type: string
+                    payer:
+                      description: Payer = the NEP-141 `sender_id`, which is always the transaction signer (v1.5).
+                      pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+                      type: string
+                    period_secs:
+                      description: Period length in seconds (86 400 … 379 468 800).
+                      maximum: 379468800
+                      minimum: 86400
+                      type: integer
+                    receiver_kind:
+                      description: "How the merchant share is delivered: `intents_account` = `ft_transfer_call(intents.near, msg = merchant_receiver)` (credits the merchant's NEAR Intents balance); `near_account` = plain `ft_transfer`."
+                      enum:
+                        - intents_account
+                        - near_account
+                      type: string
+                    start_at:
+                      description: When period 1 becomes due (ns); a past or omitted `start_at` became the block time.
+                      pattern: ^(0|[1-9][0-9]{0,19})$
+                      type: string
+                    token:
+                      description: NEP-141 token contract (the calling token).
+                      pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+                      type: string
+                  required:
+                    - mandate_id
+                    - payer
+                    - merchant_receiver
+                    - token
+                    - amount_per_period
+                    - period_secs
+                    - start_at
+                    - max_periods
+                    - fee_bps
+                    - ext_ref
+                    - receiver_kind
+                    - balance
+                  type: object
+              type: array
+            event:
+              const: mandate_created
+              description: Event name.
+              type: string
+            standard:
+              const: nearpay_vault
+              description: Always `nearpay_vault`.
+              type: string
+            version:
+              const: 1.0.0
+              description: Always `1.0.0`.
+              type: string
+          required:
+            - standard
+            - version
+            - event
+            - data
+          type: object
+        - additionalProperties: {}
+          description: "`topped_up` event."
+          properties:
+            data:
+              description: One-element array (NEP-141/171 convention).
+              items: false
+              maxItems: 1
+              minItems: 1
+              prefixItems:
+                - additionalProperties: {}
+                  description: "`topped_up` data."
+                  properties:
+                    amount:
+                      description: Deposited amount.
+                      pattern: ^(0|[1-9][0-9]{0,38})$
+                      type: string
+                    balance:
+                      description: Balance after the deposit.
+                      pattern: ^(0|[1-9][0-9]{0,38})$
+                      type: string
+                    mandate_id:
+                      description: On-chain mandate id (u64, sequential from 0; exact in JSON numbers far beyond any real count).
+                      maximum: 9007199254740991
+                      minimum: 0
+                      type: integer
+                  required:
+                    - mandate_id
+                    - amount
+                    - balance
+                  type: object
+              type: array
+            event:
+              const: topped_up
+              description: Event name.
+              type: string
+            standard:
+              const: nearpay_vault
+              description: Always `nearpay_vault`.
+              type: string
+            version:
+              const: 1.0.0
+              description: Always `1.0.0`.
+              type: string
+          required:
+            - standard
+            - version
+            - event
+            - data
+          type: object
+        - additionalProperties: {}
+          description: "`collected` event."
+          properties:
+            data:
+              description: One-element array (NEP-141/171 convention).
+              items: false
+              maxItems: 1
+              minItems: 1
+              prefixItems:
+                - additionalProperties: {}
+                  description: "`collected` data."
+                  properties:
+                    amount:
+                      description: "`merchant_share + fee` actually paid."
+                      pattern: ^(0|[1-9][0-9]{0,38})$
+                      type: string
+                    balance:
+                      description: Balance after the period.
+                      pattern: ^(0|[1-9][0-9]{0,38})$
+                      type: string
+                    fee:
+                      description: Fee sent to the treasury; `"0"` when the fee leg failed or after a partial delivery.
+                      pattern: ^(0|[1-9][0-9]{0,38})$
+                      type: string
+                    mandate_id:
+                      description: On-chain mandate id (u64, sequential from 0; exact in JSON numbers far beyond any real count).
+                      maximum: 9007199254740991
+                      minimum: 0
+                      type: integer
+                    merchant_share:
+                      description: Share delivered to the merchant receiver; below `floor(amount_per_period × (10000 − fee_bps) / 10000)` only on partial delivery (the period still counts).
+                      pattern: ^(0|[1-9][0-9]{0,38})$
+                      type: string
+                    period:
+                      description: 1-based period that was counted.
+                      maximum: 9007199254740991
+                      minimum: 1
+                      type: integer
+                  required:
+                    - mandate_id
+                    - period
+                    - amount
+                    - merchant_share
+                    - fee
+                    - balance
+                  type: object
+              type: array
+            event:
+              const: collected
+              description: Event name.
+              type: string
+            standard:
+              const: nearpay_vault
+              description: Always `nearpay_vault`.
+              type: string
+            version:
+              const: 1.0.0
+              description: Always `1.0.0`.
+              type: string
+          required:
+            - standard
+            - version
+            - event
+            - data
+          type: object
+        - additionalProperties: {}
+          description: "`collect_failed` event."
+          properties:
+            data:
+              description: One-element array (NEP-141/171 convention).
+              items: false
+              maxItems: 1
+              minItems: 1
+              prefixItems:
+                - additionalProperties: {}
+                  description: "`collect_failed` data."
+                  properties:
+                    mandate_id:
+                      description: On-chain mandate id (u64, sequential from 0; exact in JSON numbers far beyond any real count).
+                      maximum: 9007199254740991
+                      minimum: 0
+                      type: integer
+                    period:
+                      description: Period that was attempted (not counted).
+                      maximum: 9007199254740991
+                      minimum: 1
+                      type: integer
+                    reason:
+                      description: "Why: `merchant_transfer_failed` (the merchant leg delivered nothing; the only reason in v1)."
+                      type: string
+                      x-extensible-enum:
+                        - merchant_transfer_failed
+                  required:
+                    - mandate_id
+                    - period
+                    - reason
+                  type: object
+              type: array
+            event:
+              const: collect_failed
+              description: Event name.
+              type: string
+            standard:
+              const: nearpay_vault
+              description: Always `nearpay_vault`.
+              type: string
+            version:
+              const: 1.0.0
+              description: Always `1.0.0`.
+              type: string
+          required:
+            - standard
+            - version
+            - event
+            - data
+          type: object
+        - additionalProperties: {}
+          description: "`canceled` event."
+          properties:
+            data:
+              description: One-element array (NEP-141/171 convention).
+              items: false
+              maxItems: 1
+              minItems: 1
+              prefixItems:
+                - additionalProperties: {}
+                  description: "`canceled` data."
+                  properties:
+                    by:
+                      description: "Who canceled: the payer or the merchant receiver."
+                      pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+                      type: string
+                    mandate_id:
+                      description: On-chain mandate id (u64, sequential from 0; exact in JSON numbers far beyond any real count).
+                      maximum: 9007199254740991
+                      minimum: 0
+                      type: integer
+                    refunded:
+                      description: Amount actually returned to the payer; `"0"` when the refund failed (then withdrawable).
+                      pattern: ^(0|[1-9][0-9]{0,38})$
+                      type: string
+                  required:
+                    - mandate_id
+                    - by
+                    - refunded
+                  type: object
+              type: array
+            event:
+              const: canceled
+              description: Event name.
+              type: string
+            standard:
+              const: nearpay_vault
+              description: Always `nearpay_vault`.
+              type: string
+            version:
+              const: 1.0.0
+              description: Always `1.0.0`.
+              type: string
+          required:
+            - standard
+            - version
+            - event
+            - data
+          type: object
+        - additionalProperties: {}
+          description: "`withdrawn` event."
+          properties:
+            data:
+              description: One-element array (NEP-141/171 convention).
+              items: false
+              maxItems: 1
+              minItems: 1
+              prefixItems:
+                - additionalProperties: {}
+                  description: "`withdrawn` data."
+                  properties:
+                    amount:
+                      description: Amount returned to the payer.
+                      pattern: ^(0|[1-9][0-9]{0,38})$
+                      type: string
+                    mandate_id:
+                      description: On-chain mandate id (u64, sequential from 0; exact in JSON numbers far beyond any real count).
+                      maximum: 9007199254740991
+                      minimum: 0
+                      type: integer
+                  required:
+                    - mandate_id
+                    - amount
+                  type: object
+              type: array
+            event:
+              const: withdrawn
+              description: Event name.
+              type: string
+            standard:
+              const: nearpay_vault
+              description: Always `nearpay_vault`.
+              type: string
+            version:
+              const: 1.0.0
+              description: Always `1.0.0`.
+              type: string
+          required:
+            - standard
+            - version
+            - event
+            - data
+          type: object
+        - additionalProperties: {}
+          description: "`exhausted` event."
+          properties:
+            data:
+              description: One-element array (NEP-141/171 convention).
+              items: false
+              maxItems: 1
+              minItems: 1
+              prefixItems:
+                - additionalProperties: {}
+                  description: "`exhausted` data."
+                  properties:
+                    mandate_id:
+                      description: On-chain mandate id (u64, sequential from 0; exact in JSON numbers far beyond any real count).
+                      maximum: 9007199254740991
+                      minimum: 0
+                      type: integer
+                  required:
+                    - mandate_id
+                  type: object
+              type: array
+            event:
+              const: exhausted
+              description: Event name.
+              type: string
+            standard:
+              const: nearpay_vault
+              description: Always `nearpay_vault`.
+              type: string
+            version:
+              const: 1.0.0
+              description: Always `1.0.0`.
+              type: string
+          required:
+            - standard
+            - version
+            - event
+            - data
+          type: object
+      type: object
+    VaultEventRecord:
+      additionalProperties: {}
+      description: "A valid vault event (contracts-vault §4.1): executor = the vault, outcome `SuccessValue`/`SuccessReceiptId`, block final, schema-valid. Dedupe key `receipt_id:log_index` (at-least-once, INV-4). Envelope: `account_id` null, `livemode` true for the mainnet vault and false for the stand-in, aggregate `vault_mandate` `<vault_contract>#<mandate_id>`."
+      properties:
+        block_hash:
+          description: Hash of that block.
+          maxLength: 64
+          minLength: 1
+          type: string
+        block_height:
+          description: Final block that includes the receipt outcome.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        block_timestamp:
+          description: Block time in nanoseconds (decimal string); billing's `created`/`collected_at`.
+          pattern: ^(0|[1-9][0-9]{0,19})$
+          type: string
+        event:
+          $ref: "#/components/schemas/VaultEvent"
+        log_index:
+          description: 0-based index of the log line in the receipt's outcome logs.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        receipt_id:
+          description: Receipt that logged the event (base58).
+          maxLength: 64
+          minLength: 1
+          type: string
+        tx_hash:
+          description: Transaction the receipt belongs to (explorer link).
+          maxLength: 128
+          minLength: 8
+          type: string
+        vault_contract:
+          description: "Executor of the receipt: the configured vault (`NP_VAULT_CONTRACT`; the sandbox stand-in in test mode)."
+          pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
+          type: string
+      required:
+        - vault_contract
+        - tx_hash
+        - receipt_id
+        - log_index
+        - block_height
+        - block_hash
+        - block_timestamp
+        - event
+      type: object
 info:
   title: events (compat)
-  version: 0.3.1
+  version: 0.4.0
 openapi: 3.1.0
 paths:
   /evt.agentpay.agent_payment.failed:
@@ -5783,6 +6764,926 @@ paths:
                   - data
                 type: object
           description: evt.billing.invoice.voided
+  /evt.billing.mandate.activated:
+    get:
+      operationId: evt_billing_mandate_activated
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                description: Envelope of `evt.billing.mandate.activated`.
+                properties:
+                  account_id:
+                    anyOf:
+                      - description: UUID (RFC 9562).
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                        type: string
+                      - type: "null"
+                    description: Merchant account UUID (null for platform events).
+                  aggregate:
+                    additionalProperties: {}
+                    description: The aggregate that changed.
+                    properties:
+                      id:
+                        description: Aggregate id (prefixed).
+                        type: string
+                      type:
+                        description: Aggregate type.
+                        type: string
+                      version:
+                        description: Aggregate version after the change.
+                        maximum: 9007199254740991
+                        minimum: 0
+                        type: integer
+                    required:
+                      - type
+                      - id
+                      - version
+                    type: object
+                  data:
+                    additionalProperties: {}
+                    description: Payload.
+                    properties:
+                      object:
+                        $ref: "#/components/schemas/Mandate"
+                      previous:
+                        additionalProperties: {}
+                        description: Changed fields with previous values.
+                        propertyNames:
+                          type: string
+                        type: object
+                    required:
+                      - object
+                    type: object
+                  id:
+                    description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+                    format: uuid
+                    pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    type: string
+                  livemode:
+                    description: Mode (null for platform events).
+                    type:
+                      - boolean
+                      - "null"
+                  occurred_at:
+                    description: When the state change committed.
+                    format: date-time
+                    pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                    type: string
+                  request:
+                    additionalProperties: {}
+                    description: Request context (copied into public events).
+                    properties:
+                      id:
+                        anyOf:
+                          - description: Request id, also returned in the `X-Request-Id` header.
+                            examples:
+                              - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                            pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                            type: string
+                          - type: "null"
+                        description: API request that caused the change.
+                      idempotency_key:
+                        description: Its Idempotency-Key.
+                        type:
+                          - string
+                          - "null"
+                    required:
+                      - id
+                      - idempotency_key
+                    type: object
+                  subject:
+                    const: evt.billing.mandate.activated
+                    description: Subject.
+                    type: string
+                  trace:
+                    additionalProperties: {}
+                    description: Trace context.
+                    properties:
+                      traceparent:
+                        description: W3C traceparent.
+                        type: string
+                    required:
+                      - traceparent
+                    type: object
+                required:
+                  - id
+                  - occurred_at
+                  - account_id
+                  - livemode
+                  - aggregate
+                  - subject
+                  - data
+                type: object
+          description: evt.billing.mandate.activated
+  /evt.billing.mandate.canceled:
+    get:
+      operationId: evt_billing_mandate_canceled
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                description: Envelope of `evt.billing.mandate.canceled`.
+                properties:
+                  account_id:
+                    anyOf:
+                      - description: UUID (RFC 9562).
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                        type: string
+                      - type: "null"
+                    description: Merchant account UUID (null for platform events).
+                  aggregate:
+                    additionalProperties: {}
+                    description: The aggregate that changed.
+                    properties:
+                      id:
+                        description: Aggregate id (prefixed).
+                        type: string
+                      type:
+                        description: Aggregate type.
+                        type: string
+                      version:
+                        description: Aggregate version after the change.
+                        maximum: 9007199254740991
+                        minimum: 0
+                        type: integer
+                    required:
+                      - type
+                      - id
+                      - version
+                    type: object
+                  data:
+                    additionalProperties: {}
+                    description: Payload.
+                    properties:
+                      object:
+                        $ref: "#/components/schemas/Mandate"
+                      previous:
+                        additionalProperties: {}
+                        description: Changed fields with previous values.
+                        propertyNames:
+                          type: string
+                        type: object
+                    required:
+                      - object
+                    type: object
+                  id:
+                    description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+                    format: uuid
+                    pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    type: string
+                  livemode:
+                    description: Mode (null for platform events).
+                    type:
+                      - boolean
+                      - "null"
+                  occurred_at:
+                    description: When the state change committed.
+                    format: date-time
+                    pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                    type: string
+                  request:
+                    additionalProperties: {}
+                    description: Request context (copied into public events).
+                    properties:
+                      id:
+                        anyOf:
+                          - description: Request id, also returned in the `X-Request-Id` header.
+                            examples:
+                              - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                            pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                            type: string
+                          - type: "null"
+                        description: API request that caused the change.
+                      idempotency_key:
+                        description: Its Idempotency-Key.
+                        type:
+                          - string
+                          - "null"
+                    required:
+                      - id
+                      - idempotency_key
+                    type: object
+                  subject:
+                    const: evt.billing.mandate.canceled
+                    description: Subject.
+                    type: string
+                  trace:
+                    additionalProperties: {}
+                    description: Trace context.
+                    properties:
+                      traceparent:
+                        description: W3C traceparent.
+                        type: string
+                    required:
+                      - traceparent
+                    type: object
+                required:
+                  - id
+                  - occurred_at
+                  - account_id
+                  - livemode
+                  - aggregate
+                  - subject
+                  - data
+                type: object
+          description: evt.billing.mandate.canceled
+  /evt.billing.mandate.collected:
+    get:
+      operationId: evt_billing_mandate_collected
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                description: Envelope of `evt.billing.mandate.collected`.
+                properties:
+                  account_id:
+                    anyOf:
+                      - description: UUID (RFC 9562).
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                        type: string
+                      - type: "null"
+                    description: Merchant account UUID (null for platform events).
+                  aggregate:
+                    additionalProperties: {}
+                    description: The aggregate that changed.
+                    properties:
+                      id:
+                        description: Aggregate id (prefixed).
+                        type: string
+                      type:
+                        description: Aggregate type.
+                        type: string
+                      version:
+                        description: Aggregate version after the change.
+                        maximum: 9007199254740991
+                        minimum: 0
+                        type: integer
+                    required:
+                      - type
+                      - id
+                      - version
+                    type: object
+                  data:
+                    additionalProperties: {}
+                    description: Payload.
+                    properties:
+                      object:
+                        $ref: "#/components/schemas/Mandate"
+                      previous:
+                        additionalProperties: {}
+                        description: Changed fields with previous values.
+                        propertyNames:
+                          type: string
+                        type: object
+                    required:
+                      - object
+                    type: object
+                  id:
+                    description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+                    format: uuid
+                    pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    type: string
+                  livemode:
+                    description: Mode (null for platform events).
+                    type:
+                      - boolean
+                      - "null"
+                  occurred_at:
+                    description: When the state change committed.
+                    format: date-time
+                    pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                    type: string
+                  request:
+                    additionalProperties: {}
+                    description: Request context (copied into public events).
+                    properties:
+                      id:
+                        anyOf:
+                          - description: Request id, also returned in the `X-Request-Id` header.
+                            examples:
+                              - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                            pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                            type: string
+                          - type: "null"
+                        description: API request that caused the change.
+                      idempotency_key:
+                        description: Its Idempotency-Key.
+                        type:
+                          - string
+                          - "null"
+                    required:
+                      - id
+                      - idempotency_key
+                    type: object
+                  subject:
+                    const: evt.billing.mandate.collected
+                    description: Subject.
+                    type: string
+                  trace:
+                    additionalProperties: {}
+                    description: Trace context.
+                    properties:
+                      traceparent:
+                        description: W3C traceparent.
+                        type: string
+                    required:
+                      - traceparent
+                    type: object
+                required:
+                  - id
+                  - occurred_at
+                  - account_id
+                  - livemode
+                  - aggregate
+                  - subject
+                  - data
+                type: object
+          description: evt.billing.mandate.collected
+  /evt.billing.mandate.exhausted:
+    get:
+      operationId: evt_billing_mandate_exhausted
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                description: Envelope of `evt.billing.mandate.exhausted`.
+                properties:
+                  account_id:
+                    anyOf:
+                      - description: UUID (RFC 9562).
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                        type: string
+                      - type: "null"
+                    description: Merchant account UUID (null for platform events).
+                  aggregate:
+                    additionalProperties: {}
+                    description: The aggregate that changed.
+                    properties:
+                      id:
+                        description: Aggregate id (prefixed).
+                        type: string
+                      type:
+                        description: Aggregate type.
+                        type: string
+                      version:
+                        description: Aggregate version after the change.
+                        maximum: 9007199254740991
+                        minimum: 0
+                        type: integer
+                    required:
+                      - type
+                      - id
+                      - version
+                    type: object
+                  data:
+                    additionalProperties: {}
+                    description: Payload.
+                    properties:
+                      object:
+                        $ref: "#/components/schemas/Mandate"
+                      previous:
+                        additionalProperties: {}
+                        description: Changed fields with previous values.
+                        propertyNames:
+                          type: string
+                        type: object
+                    required:
+                      - object
+                    type: object
+                  id:
+                    description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+                    format: uuid
+                    pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    type: string
+                  livemode:
+                    description: Mode (null for platform events).
+                    type:
+                      - boolean
+                      - "null"
+                  occurred_at:
+                    description: When the state change committed.
+                    format: date-time
+                    pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                    type: string
+                  request:
+                    additionalProperties: {}
+                    description: Request context (copied into public events).
+                    properties:
+                      id:
+                        anyOf:
+                          - description: Request id, also returned in the `X-Request-Id` header.
+                            examples:
+                              - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                            pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                            type: string
+                          - type: "null"
+                        description: API request that caused the change.
+                      idempotency_key:
+                        description: Its Idempotency-Key.
+                        type:
+                          - string
+                          - "null"
+                    required:
+                      - id
+                      - idempotency_key
+                    type: object
+                  subject:
+                    const: evt.billing.mandate.exhausted
+                    description: Subject.
+                    type: string
+                  trace:
+                    additionalProperties: {}
+                    description: Trace context.
+                    properties:
+                      traceparent:
+                        description: W3C traceparent.
+                        type: string
+                    required:
+                      - traceparent
+                    type: object
+                required:
+                  - id
+                  - occurred_at
+                  - account_id
+                  - livemode
+                  - aggregate
+                  - subject
+                  - data
+                type: object
+          description: evt.billing.mandate.exhausted
+  /evt.billing.mandate.insufficient_funds:
+    get:
+      operationId: evt_billing_mandate_insufficient_funds
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                description: Envelope of `evt.billing.mandate.insufficient_funds`.
+                properties:
+                  account_id:
+                    anyOf:
+                      - description: UUID (RFC 9562).
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                        type: string
+                      - type: "null"
+                    description: Merchant account UUID (null for platform events).
+                  aggregate:
+                    additionalProperties: {}
+                    description: The aggregate that changed.
+                    properties:
+                      id:
+                        description: Aggregate id (prefixed).
+                        type: string
+                      type:
+                        description: Aggregate type.
+                        type: string
+                      version:
+                        description: Aggregate version after the change.
+                        maximum: 9007199254740991
+                        minimum: 0
+                        type: integer
+                    required:
+                      - type
+                      - id
+                      - version
+                    type: object
+                  data:
+                    additionalProperties: {}
+                    description: Payload.
+                    properties:
+                      object:
+                        $ref: "#/components/schemas/Mandate"
+                      previous:
+                        additionalProperties: {}
+                        description: Changed fields with previous values.
+                        propertyNames:
+                          type: string
+                        type: object
+                    required:
+                      - object
+                    type: object
+                  id:
+                    description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+                    format: uuid
+                    pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    type: string
+                  livemode:
+                    description: Mode (null for platform events).
+                    type:
+                      - boolean
+                      - "null"
+                  occurred_at:
+                    description: When the state change committed.
+                    format: date-time
+                    pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                    type: string
+                  request:
+                    additionalProperties: {}
+                    description: Request context (copied into public events).
+                    properties:
+                      id:
+                        anyOf:
+                          - description: Request id, also returned in the `X-Request-Id` header.
+                            examples:
+                              - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                            pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                            type: string
+                          - type: "null"
+                        description: API request that caused the change.
+                      idempotency_key:
+                        description: Its Idempotency-Key.
+                        type:
+                          - string
+                          - "null"
+                    required:
+                      - id
+                      - idempotency_key
+                    type: object
+                  subject:
+                    const: evt.billing.mandate.insufficient_funds
+                    description: Subject.
+                    type: string
+                  trace:
+                    additionalProperties: {}
+                    description: Trace context.
+                    properties:
+                      traceparent:
+                        description: W3C traceparent.
+                        type: string
+                    required:
+                      - traceparent
+                    type: object
+                required:
+                  - id
+                  - occurred_at
+                  - account_id
+                  - livemode
+                  - aggregate
+                  - subject
+                  - data
+                type: object
+          description: evt.billing.mandate.insufficient_funds
+  /evt.billing.mandate.released:
+    get:
+      operationId: evt_billing_mandate_released
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                description: Envelope of `evt.billing.mandate.released`.
+                properties:
+                  account_id:
+                    anyOf:
+                      - description: UUID (RFC 9562).
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                        type: string
+                      - type: "null"
+                    description: Merchant account UUID (null for platform events).
+                  aggregate:
+                    additionalProperties: {}
+                    description: The aggregate that changed.
+                    properties:
+                      id:
+                        description: Aggregate id (prefixed).
+                        type: string
+                      type:
+                        description: Aggregate type.
+                        type: string
+                      version:
+                        description: Aggregate version after the change.
+                        maximum: 9007199254740991
+                        minimum: 0
+                        type: integer
+                    required:
+                      - type
+                      - id
+                      - version
+                    type: object
+                  data:
+                    additionalProperties: {}
+                    description: Payload.
+                    properties:
+                      object:
+                        $ref: "#/components/schemas/Mandate"
+                      previous:
+                        additionalProperties: {}
+                        description: Changed fields with previous values.
+                        propertyNames:
+                          type: string
+                        type: object
+                    required:
+                      - object
+                    type: object
+                  id:
+                    description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+                    format: uuid
+                    pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    type: string
+                  livemode:
+                    description: Mode (null for platform events).
+                    type:
+                      - boolean
+                      - "null"
+                  occurred_at:
+                    description: When the state change committed.
+                    format: date-time
+                    pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                    type: string
+                  request:
+                    additionalProperties: {}
+                    description: Request context (copied into public events).
+                    properties:
+                      id:
+                        anyOf:
+                          - description: Request id, also returned in the `X-Request-Id` header.
+                            examples:
+                              - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                            pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                            type: string
+                          - type: "null"
+                        description: API request that caused the change.
+                      idempotency_key:
+                        description: Its Idempotency-Key.
+                        type:
+                          - string
+                          - "null"
+                    required:
+                      - id
+                      - idempotency_key
+                    type: object
+                  subject:
+                    const: evt.billing.mandate.released
+                    description: Subject.
+                    type: string
+                  trace:
+                    additionalProperties: {}
+                    description: Trace context.
+                    properties:
+                      traceparent:
+                        description: W3C traceparent.
+                        type: string
+                    required:
+                      - traceparent
+                    type: object
+                required:
+                  - id
+                  - occurred_at
+                  - account_id
+                  - livemode
+                  - aggregate
+                  - subject
+                  - data
+                type: object
+          description: evt.billing.mandate.released
+  /evt.billing.mandate.unlinked:
+    get:
+      operationId: evt_billing_mandate_unlinked
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                description: Envelope of `evt.billing.mandate.unlinked`.
+                properties:
+                  account_id:
+                    anyOf:
+                      - description: UUID (RFC 9562).
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                        type: string
+                      - type: "null"
+                    description: Merchant account UUID (null for platform events).
+                  aggregate:
+                    additionalProperties: {}
+                    description: The aggregate that changed.
+                    properties:
+                      id:
+                        description: Aggregate id (prefixed).
+                        type: string
+                      type:
+                        description: Aggregate type.
+                        type: string
+                      version:
+                        description: Aggregate version after the change.
+                        maximum: 9007199254740991
+                        minimum: 0
+                        type: integer
+                    required:
+                      - type
+                      - id
+                      - version
+                    type: object
+                  data:
+                    additionalProperties: {}
+                    description: Payload.
+                    properties:
+                      object:
+                        $ref: "#/components/schemas/Mandate"
+                      previous:
+                        additionalProperties: {}
+                        description: Changed fields with previous values.
+                        propertyNames:
+                          type: string
+                        type: object
+                    required:
+                      - object
+                    type: object
+                  id:
+                    description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+                    format: uuid
+                    pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    type: string
+                  livemode:
+                    description: Mode (null for platform events).
+                    type:
+                      - boolean
+                      - "null"
+                  occurred_at:
+                    description: When the state change committed.
+                    format: date-time
+                    pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                    type: string
+                  request:
+                    additionalProperties: {}
+                    description: Request context (copied into public events).
+                    properties:
+                      id:
+                        anyOf:
+                          - description: Request id, also returned in the `X-Request-Id` header.
+                            examples:
+                              - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                            pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                            type: string
+                          - type: "null"
+                        description: API request that caused the change.
+                      idempotency_key:
+                        description: Its Idempotency-Key.
+                        type:
+                          - string
+                          - "null"
+                    required:
+                      - id
+                      - idempotency_key
+                    type: object
+                  subject:
+                    const: evt.billing.mandate.unlinked
+                    description: Subject.
+                    type: string
+                  trace:
+                    additionalProperties: {}
+                    description: Trace context.
+                    properties:
+                      traceparent:
+                        description: W3C traceparent.
+                        type: string
+                    required:
+                      - traceparent
+                    type: object
+                required:
+                  - id
+                  - occurred_at
+                  - account_id
+                  - livemode
+                  - aggregate
+                  - subject
+                  - data
+                type: object
+          description: evt.billing.mandate.unlinked
+  /evt.billing.mandate.updated:
+    get:
+      operationId: evt_billing_mandate_updated
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                description: Envelope of `evt.billing.mandate.updated`.
+                properties:
+                  account_id:
+                    anyOf:
+                      - description: UUID (RFC 9562).
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                        type: string
+                      - type: "null"
+                    description: Merchant account UUID (null for platform events).
+                  aggregate:
+                    additionalProperties: {}
+                    description: The aggregate that changed.
+                    properties:
+                      id:
+                        description: Aggregate id (prefixed).
+                        type: string
+                      type:
+                        description: Aggregate type.
+                        type: string
+                      version:
+                        description: Aggregate version after the change.
+                        maximum: 9007199254740991
+                        minimum: 0
+                        type: integer
+                    required:
+                      - type
+                      - id
+                      - version
+                    type: object
+                  data:
+                    additionalProperties: {}
+                    description: Payload.
+                    properties:
+                      object:
+                        $ref: "#/components/schemas/Mandate"
+                      previous:
+                        additionalProperties: {}
+                        description: Changed fields with previous values.
+                        propertyNames:
+                          type: string
+                        type: object
+                    required:
+                      - object
+                    type: object
+                  id:
+                    description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+                    format: uuid
+                    pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    type: string
+                  livemode:
+                    description: Mode (null for platform events).
+                    type:
+                      - boolean
+                      - "null"
+                  occurred_at:
+                    description: When the state change committed.
+                    format: date-time
+                    pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                    type: string
+                  request:
+                    additionalProperties: {}
+                    description: Request context (copied into public events).
+                    properties:
+                      id:
+                        anyOf:
+                          - description: Request id, also returned in the `X-Request-Id` header.
+                            examples:
+                              - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                            pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                            type: string
+                          - type: "null"
+                        description: API request that caused the change.
+                      idempotency_key:
+                        description: Its Idempotency-Key.
+                        type:
+                          - string
+                          - "null"
+                    required:
+                      - id
+                      - idempotency_key
+                    type: object
+                  subject:
+                    const: evt.billing.mandate.updated
+                    description: Subject.
+                    type: string
+                  trace:
+                    additionalProperties: {}
+                    description: Trace context.
+                    properties:
+                      traceparent:
+                        description: W3C traceparent.
+                        type: string
+                    required:
+                      - traceparent
+                    type: object
+                required:
+                  - id
+                  - occurred_at
+                  - account_id
+                  - livemode
+                  - aggregate
+                  - subject
+                  - data
+                type: object
+          description: evt.billing.mandate.updated
   /evt.billing.subscription.created:
     get:
       operationId: evt_billing_subscription_created
@@ -11878,6 +13779,121 @@ paths:
                   - data
                 type: object
           description: evt.rails.ops_action.recorded
+  /evt.rails.vault.event:
+    get:
+      operationId: evt_rails_vault_event
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                description: Envelope of `evt.rails.vault.event`.
+                properties:
+                  account_id:
+                    anyOf:
+                      - description: UUID (RFC 9562).
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                        type: string
+                      - type: "null"
+                    description: Merchant account UUID (null for platform events).
+                  aggregate:
+                    additionalProperties: {}
+                    description: The aggregate that changed.
+                    properties:
+                      id:
+                        description: Aggregate id (prefixed).
+                        type: string
+                      type:
+                        description: Aggregate type.
+                        type: string
+                      version:
+                        description: Aggregate version after the change.
+                        maximum: 9007199254740991
+                        minimum: 0
+                        type: integer
+                    required:
+                      - type
+                      - id
+                      - version
+                    type: object
+                  data:
+                    additionalProperties: {}
+                    description: Payload.
+                    properties:
+                      object:
+                        $ref: "#/components/schemas/VaultEventRecord"
+                      previous:
+                        additionalProperties: {}
+                        description: Changed fields with previous values.
+                        propertyNames:
+                          type: string
+                        type: object
+                    required:
+                      - object
+                    type: object
+                  id:
+                    description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+                    format: uuid
+                    pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    type: string
+                  livemode:
+                    description: Mode (null for platform events).
+                    type:
+                      - boolean
+                      - "null"
+                  occurred_at:
+                    description: When the state change committed.
+                    format: date-time
+                    pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                    type: string
+                  request:
+                    additionalProperties: {}
+                    description: Request context (copied into public events).
+                    properties:
+                      id:
+                        anyOf:
+                          - description: Request id, also returned in the `X-Request-Id` header.
+                            examples:
+                              - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                            pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                            type: string
+                          - type: "null"
+                        description: API request that caused the change.
+                      idempotency_key:
+                        description: Its Idempotency-Key.
+                        type:
+                          - string
+                          - "null"
+                    required:
+                      - id
+                      - idempotency_key
+                    type: object
+                  subject:
+                    const: evt.rails.vault.event
+                    description: Subject.
+                    type: string
+                  trace:
+                    additionalProperties: {}
+                    description: Trace context.
+                    properties:
+                      traceparent:
+                        description: W3C traceparent.
+                        type: string
+                    required:
+                      - traceparent
+                    type: object
+                required:
+                  - id
+                  - occurred_at
+                  - account_id
+                  - livemode
+                  - aggregate
+                  - subject
+                  - data
+                type: object
+          description: evt.rails.vault.event
   /evt.sentinel.audit_finding.created:
     get:
       operationId: evt_sentinel_audit_finding_created

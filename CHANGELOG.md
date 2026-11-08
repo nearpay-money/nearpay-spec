@@ -16,19 +16,18 @@ optional (or nullable). Totals: 151 public (+8), 62 internal (+5) and 47 console
 subjects (+9), 41 webhook types (+8), 89 error codes (+2, `since: "0.4.0"`), 41 ID prefixes (unchanged;
 `md` was reserved in 0.1.x), 4 new test-vector files.
 
-**Compatibility notes.** oasdiff cannot run in the integration container, so the integrator compared
-every gated document (`openapi/public.yaml`, `openapi/internal/*.yaml`, `compat/events.yaml`,
-`compat/webhooks.yaml`) semantically against the 0.3.1 baseline (full list: `briefs/compat-0.4.0.md`).
-Each non-additive-looking change was reviewed and is intentional; the lead confirms with oasdiff in CI
-before moving the baseline:
+**Compatibility notes.** `pnpm compat` (oasdiff 1.34.1) against the 0.3.1 baseline reports five
+`ERR` findings in `openapi/public.yaml`; internal OpenAPI, `compat/events.yaml` and `compat/webhooks.yaml`
+are clean. Each finding was reviewed and is intentional, so the baseline moves to 0.4.0 in the release PR:
 
 - **New event types in the `Event` union** (`GET /v1/events`, `GET /v1/events/{id}`,
-  `GET /v1/events/stream`, `POST /v1/webhook_endpoints/{id}/test`: expected `response-body-one-of-added`,
-  4 findings; +8 variants `mandate.*`). Backward-compatible by api-conventions §1 (clients MUST tolerate
+  `GET /v1/events/stream`, `POST /v1/webhook_endpoints/{id}/test`: `response-body-one-of-added` /
+  `response-property-one-of-added`, 4 findings; +8 variants `mandate.*`). Backward-compatible by api-conventions §1 (clients MUST tolerate
   unknown event types), same finding and ruling as 0.2.0 and 0.3.0.
 - **`SubscriptionCreate.collection_method`** `const: send_invoice` → `enum: [send_invoice, auto_debit]`
-  (`POST /v1/subscriptions` request; optional, default unchanged). Request widening: every request valid
-  under 0.3.1 stays valid. oasdiff may report it as a const/enum change on a request property (not `ERR`).
+  (`POST /v1/subscriptions` request; optional, default unchanged). oasdiff reports
+  `request-property-became-enum` because it does not read the baseline's `const` as a one-value enum; the
+  change is a request widening (every request valid under 0.3.1 stays valid), not a break.
 - **`CollectionMethod` += `auto_debit`** in responses (`Invoice.collection_method`,
   `Subscription.collection_method`, list filters). Open enum (`x-extensible-enum`) since 0.3.0: clients
   must tolerate unknown values; not a finding.
