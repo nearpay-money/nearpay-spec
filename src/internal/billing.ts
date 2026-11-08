@@ -8,9 +8,15 @@
  */
 import {
   AssetId,
+  BaseUnits,
   InvoiceStatus,
   id,
   inp,
+  MandateLinkStatus,
+  MandateStatus,
+  MandateUnlinkedReason,
+  NearAccountId,
+  NearTransactionRequest,
   out,
   PricingAmount,
   PricingAssetDisplay,
@@ -151,6 +157,59 @@ export const getSubscriptionNotificationContext = route({
   stage: 3,
 });
 
+// stage 4 — autodebit: mandate emails (lld/notify.md §4, lld/billing.md §14)
+export const MandateNotificationContext = out({
+  ...MerchantFields,
+  mandate: id("md"),
+  subscription: id("sub"),
+  status: MandateStatus,
+  link_status: MandateLinkStatus,
+  unlinked_reason: MandateUnlinkedReason.nullable().describe("Why it is unlinked (the mail asks the payer to cancel)."),
+  payer: NearAccountId.describe("Payer's NEAR account (the mail shows it shortened)."),
+  vault_contract: NearAccountId.describe("Vault account."),
+  onchain_id: z.int().min(0).describe("Vault mandate id (shown so the payer can cancel from any wallet)."),
+  token_asset: PricingAssetDisplay.describe("Display data of the mandate's token (symbol, decimals)."),
+  amount_per_period: BaseUnits.describe("Tokens per period."),
+  recurring: Recurring.nullable().describe("Billing period of the subscription; null if it no longer exists."),
+  balance: BaseUnits.describe("Remaining balance."),
+  next_collect_at: Timestamp.nullable().describe("Next due time; null when none."),
+  refunded: BaseUnits.nullable().describe("`mandate.canceled`: amount returned to the payer by the cancel."),
+  cancel_transaction: NearTransactionRequest.nullable().describe(
+    "The payer's `cancel` transaction (contract, method, args, 100 Tgas, 1 yoctoNEAR) while on-chain active; null otherwise.",
+  ),
+  withdraw_transaction: NearTransactionRequest.nullable().describe(
+    "The payer's `withdraw` transaction when a balance remains after cancel/exhaustion; null otherwise.",
+  ),
+  invoice: id("in")
+    .nullable()
+    .describe("`mandate.insufficient_funds`: the invoice that fell back to `send_invoice` (it is emailed separately)."),
+  manage_url: Url.nullable().describe(
+    "Hosted invoice page of the subscription's latest invoice (with its secret) where the payer can top up, cancel or withdraw; null when none. PII-grade: never logged, never in events.",
+  ),
+}).meta({
+  id: "MandateNotificationContext",
+  description: "Data for the payer's mandate emails (PII; never in events).",
+});
+
+export const getMandateNotificationContext = route({
+  id: "getMandateNotificationContext",
+  method: "GET",
+  path: "/internal/mandates/{id}/notification-context",
+  service: "billing",
+  visibility: "internal",
+  summary: "Data for the mandate emails to the payer (PII and the hosted link; never in events).",
+  description:
+    "notify calls it for `evt.billing.mandate.activated` (`mandate.activated`), `.insufficient_funds` (`mandate.insufficient_funds`), `.canceled` (`mandate.canceled`), `.unlinked` (`mandate.unlinked`) and `.released` (`mandate.released`). `customer_email: null` → no mail; nothing is sent when the context's `livemode` differs from the event's.",
+  auth: ["service:billing.read"],
+  idempotent: false,
+  params: inp({ id: id("md") }),
+  response: MandateNotificationContext,
+  status: 200,
+  errors: [],
+  stage: 4,
+});
+// end stage 4 — autodebit
+
 /**
  * Billing email templates notify renders (lld/notify.md §4): template → trigger subject and the
  * context route it reads. Customers are the recipients of all of them.
@@ -164,4 +223,13 @@ export const BILLING_EMAIL_TEMPLATES = {
     subject: "evt.billing.subscription.renewal_upcoming",
     context: "getSubscriptionNotificationContext",
   },
+  // stage 4 — autodebit
+  "mandate.activated": { subject: "evt.billing.mandate.activated", context: "getMandateNotificationContext" },
+  "mandate.insufficient_funds": {
+    subject: "evt.billing.mandate.insufficient_funds",
+    context: "getMandateNotificationContext",
+  },
+  "mandate.canceled": { subject: "evt.billing.mandate.canceled", context: "getMandateNotificationContext" },
+  "mandate.unlinked": { subject: "evt.billing.mandate.unlinked", context: "getMandateNotificationContext" },
+  "mandate.released": { subject: "evt.billing.mandate.released", context: "getMandateNotificationContext" },
 } as const;

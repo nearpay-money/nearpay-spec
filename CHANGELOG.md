@@ -3,6 +3,53 @@
 `@nearpay/spec` and `@nearpay-internal/spec` share one version. Within a version line changes are
 additive only (`pnpm compat` gates every release against `test/compat/baseline/`, the last release).
 
+## Unreleased
+
+### autodebit
+
+Stage 4 step 4.1 auto-debit contracts (`lld/billing.md` v1.7 §14, `lld/sandbox.md` v1.6 §3.1/§4.2,
+`lld/rails.md` §8.6, `lld/notify.md` §4, `lld/webhooks.md` §4; OQ-T-03 resolved). Additive over 0.3.1.
+
+- **Vault mirror** (`src/vault/contract.ts`, public): `nearpay_vault` NEP-297 event schemas
+  (`VaultEvent`: `mandate_created`, `topped_up`, `collected`, `collect_failed`, `canceled`, `withdrawn`,
+  `exhausted`), `formatVaultEventLog` / `parseVaultEventLog` (byte-identical to the contract's lines),
+  the 17 `ERR_*` strings (`VAULT_ERRORS`, incl. `ERR_UNSUPPORTED_SENDER`, `ERR_GAS`), the
+  `ERR_CAP_EXCEEDED: mandate|tvl` log lines, check orders, `vaultErrorCodeOf`, `msg` schemas and
+  `vaultMsgJson`, view schemas (`get_mandate`, `get_mandates_by_payer`, `next_collect_at`, `get_config`,
+  `get_token_tvl`, NEP-145), limits, gas (`VAULT_GAS`: keeper 250 Tgas, floors 170/50 Tgas), `vaultSplit`,
+  `vaultPeriodSecs` (month = 2 629 746 s, year = 31 556 952 s).
+- **Test vectors** `test-vectors/vault.json`: every event line, error string, rejection line, view result,
+  msg serialisation and the RPC failure/success shapes; `test/fixtures/vault-contract-wire.json` holds the
+  same strings produced by the contract's own code (nearpay-contracts `7e2585a`) and the test suite
+  asserts byte equality.
+- **Mandates** (`src/public/mandates.ts`): `Mandate` (`md_`), `MandateFundingInstructions`
+  (`NearTransactionRequest`s, exact `msg`, storage deposit, `payer_notice`), `PublicMandate`,
+  `MandateCancelInstructions`, `MandateSimulation`. Routes: `prepareMandate` `POST /v1/mandates/prepare`,
+  `getMandate`, `listMandates`, `prepareMandateCancel` `POST /v1/mandates/{id}/prepare_cancel`, hosted page
+  `createPublicInvoiceMandateFunding` `POST /v1/invoices/{id}/public/mandate_funding` and
+  `getPublicInvoiceMandate` `GET /v1/invoices/{id}/public/mandate` (invoice secret), test helpers
+  `simulateMandateFunding` `POST /v1/test_helpers/mandates/fund` and `simulateMandatePayerAction`
+  `POST /v1/test_helpers/mandates/{id}/payer_action`. Scopes: `subscriptions.read|write` (no new scopes).
+- **Billing objects**: `CollectionMethod` += `auto_debit`; `createSubscription` / `updateSubscription`
+  accept `collection_method: auto_debit`; optional `Subscription.mandate`, `Invoice.mandate`,
+  `Invoice.mandate_collection`, `PublicInvoice.auto_debit`.
+- **Events**: `evt.rails.vault.event` (`VaultEventRecord`: vault, tx, receipt, log index, final block,
+  block time, event; rails → billing); `evt.billing.mandate.{activated,collected,insufficient_funds,
+  canceled,exhausted,updated,unlinked,released}`; aggregates `mandate`, `vault_mandate`.
+- **Webhook types**: `mandate.{activated,collected,insufficient_funds,canceled,exhausted,updated,unlinked,
+  released}` (object `Mandate`).
+- **Errors** (since 0.4.0): `auto_debit_unavailable`, `vault_cap_exceeded`.
+- **Internal**: `getMandateNotificationContext` `GET /internal/mandates/{id}/notification-context`;
+  notify templates `mandate.{activated,insufficient_funds,canceled,unlinked,released}`; NEAR JSON-RPC
+  subset schemas (`NearRpcRequest`/`NearRpcResponse`, `NearFinalExecutionOutcome`, `nearPanicStatus`);
+  keeper rules as data (`VAULT_KEEPER_ON_TX_FAILURE`, `VAULT_KEEPER_RULES`); billing's service client
+  gains `sandbox.use`.
+- **Sandbox vault stand-in** (OQ-T-03): `sandboxNearRpc` `POST /sim/near-rpc`,
+  `sandboxVaultFtTransferCall` `POST /sim/vault/ft_transfer_call`, `sandboxVaultCall`
+  `POST /sim/vault/call`, `sandboxVaultAdvance` `POST /sim/vault/advance`; `GET /sim/intents/events`
+  items gain optional `receipt_id`, `log_index`, `executor_id`, `block_hash`, `block_timestamp`,
+  `receipt_status`; scenarios by `amount_per_period` suffix 91–94 (`vaultSandboxScenarioOf`).
+
 ## 0.3.1 — 2026-11-08
 
 Stage 3.2 change requests from the service builders (payments, rails, billing, notify, agentpay,

@@ -7,6 +7,7 @@ import * as compliance from "./compliance.js";
 import * as customers from "./customers.js"; // stage 2 — payments
 import * as identity from "./identity.js";
 import * as invoices from "./invoices.js"; // stage 3 — billing
+import * as mandates from "./mandates.js"; // stage 4 — autodebit
 import * as payer from "./payer.js";
 import * as paymentLinks from "./payment-links.js"; // stage 2 — payments
 import * as payments from "./payments.js";
@@ -23,6 +24,7 @@ export * from "./compliance.js";
 export * from "./customers.js"; // stage 2 — payments
 export * from "./identity.js";
 export * from "./invoices.js"; // stage 3 — billing
+export * from "./mandates.js"; // stage 4 — autodebit
 export * from "./payer.js";
 export * from "./payment-links.js"; // stage 2 — payments
 export * from "./payments.js";
@@ -59,6 +61,8 @@ export const PUBLIC_ROUTES: readonly AnyRoute[] = Object.freeze([
   ...routesOf(subscriptions),
   // stage 3 — agent-commerce
   ...routesOf(cli),
+  // stage 4 — autodebit
+  ...routesOf(mandates),
 ]);
 
 /**

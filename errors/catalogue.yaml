@@ -783,3 +783,21 @@ errors:
     example: Invoice in_01jbz9k3m4n5p6q7r8s9t0v1w2 is void and cannot be paid.
     doc_url: https://docs.nearpay.money/errors/invoice_not_payable
     since: 0.3.0
+  - code: auto_debit_unavailable
+    status: 422
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: "Subscription {subscription} cannot be paid by auto-debit: {reason}."
+    example: "Subscription sub_01jbz9k3m4n5p6q7r8s9t0v1w2 cannot be paid by auto-debit: eur pricing has no vault token (use usd or an allowed token)."
+    doc_url: https://docs.nearpay.money/errors/auto_debit_unavailable
+    since: 0.4.0
+  - code: vault_cap_exceeded
+    status: 422
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: Funding {amount} exceeds the vault's {cap} cap for {token}; fund fewer periods.
+    example: Funding 300000000000 exceeds the vault's per-mandate cap for nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1; fund fewer periods.
+    doc_url: https://docs.nearpay.money/errors/vault_cap_exceeded
+    since: 0.4.0

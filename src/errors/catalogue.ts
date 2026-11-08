@@ -41,6 +41,8 @@ const e = (d: Omit<ErrorDefinition, "since">): ErrorDefinition => ({ ...d, since
 const e2 = (d: Omit<ErrorDefinition, "since">): ErrorDefinition => ({ ...d, since: "0.2.0" });
 /** Codes introduced with the Stage 3 contract freeze (stage 3 — billing). */
 const e3 = (d: Omit<ErrorDefinition, "since">): ErrorDefinition => ({ ...d, since: "0.3.0" });
+/** Codes introduced with the Stage 4 contract freeze (stage 4 — autodebit). */
+const e4 = (d: Omit<ErrorDefinition, "since">): ErrorDefinition => ({ ...d, since: "0.4.0" });
 
 export const ERRORS = {
   // ------------------------------------------------------------------ generic (every route)
@@ -699,6 +701,25 @@ export const ERRORS = {
     message: "Invoice {invoice} is {status} and cannot be paid.",
     example: "Invoice in_01jbz9k3m4n5p6q7r8s9t0v1w2 is void and cannot be paid.",
   }),
+  // stage 4 — autodebit
+  // ------------------------------------------------------------------ billing: auto-debit mandates
+  auto_debit_unavailable: e4({
+    status: 422,
+    type: "invalid_request_error",
+    retryable: false,
+    message: "Subscription {subscription} cannot be paid by auto-debit: {reason}.",
+    example:
+      "Subscription sub_01jbz9k3m4n5p6q7r8s9t0v1w2 cannot be paid by auto-debit: eur pricing has no vault token (use usd or an allowed token).",
+  }),
+  vault_cap_exceeded: e4({
+    status: 422,
+    type: "invalid_request_error",
+    retryable: false,
+    message: "Funding {amount} exceeds the vault's {cap} cap for {token}; fund fewer periods.",
+    example:
+      "Funding 300000000000 exceeds the vault's per-mandate cap for nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1; fund fewer periods.",
+  }),
+  // end stage 4 — autodebit
 } as const satisfies Record<string, ErrorDefinition>;
 
 export type ErrorCode = keyof typeof ERRORS;

@@ -48,7 +48,8 @@ const BILLING_IDS =
   /^(create|get|list|update|delete|finalize|send|void|mark|cancel|advance)(Product|Price|TaxRate|Invoice|Subscription|PublicInvoice)/;
 
 describe("stage 3 billing: routes", () => {
-  const billing = PUBLIC_ROUTES.filter((x) => x.service === "billing");
+  // stage 4 — autodebit: Stage 4 mandate routes are covered by additions-stage4-autodebit.test.ts
+  const billing = PUBLIC_ROUTES.filter((x) => x.service === "billing" && x.stage === 3);
 
   it("serves the catalogue, invoices, subscriptions and hosted-invoice routes from billing in Stage 3", () => {
     expect(billing.length).toBe(31); // 0.3.1: + advanceSubscriptionClock
@@ -232,12 +233,19 @@ describe("stage 3 billing: periods", () => {
 });
 
 describe("stage 3 billing: events, webhooks, invoice sessions", () => {
-  const billingSubjects = Object.keys(SUBJECTS).filter((s) => s.startsWith("evt.billing."));
+  // stage 4 — autodebit: mandate subjects are Stage 4
+  const billingSubjects = Object.keys(SUBJECTS).filter(
+    (s) => s.startsWith("evt.billing.") && SUBJECTS[s as keyof typeof SUBJECTS].stage === 3,
+  );
 
   it("publishes invoice and subscription events on EVT_BILLING", () => {
     expect(billingSubjects.length).toBe(13);
     for (const s of billingSubjects) expect(SUBJECTS[s as keyof typeof SUBJECTS].stage, s).toBe(3);
-    expect(consumerFilters("notify")[STREAMS.billing.name]?.sort()).toEqual(
+    expect(
+      consumerFilters("notify")
+        [STREAMS.billing.name]?.filter((x) => !x.startsWith("evt.billing.mandate.")) // stage 4 — autodebit
+        .sort(),
+    ).toEqual(
       [
         "evt.billing.invoice.paid",
         "evt.billing.invoice.reminder",

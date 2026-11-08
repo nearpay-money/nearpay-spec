@@ -14,6 +14,8 @@ import { AgentPayment } from "../public/agentpay.js";
 import { Account } from "../public/identity.js";
 // stage 3 — billing
 import { Invoice } from "../public/invoices.js";
+// stage 4 — autodebit
+import { Mandate } from "../public/mandates.js";
 import { CheckoutSession, PaymentIntent } from "../public/payments.js";
 // stage 2 — payments
 import { Refund } from "../public/refunds.js";
@@ -67,6 +69,15 @@ export const WEBHOOK_TYPES = {
     object: Subscription,
     subject: "evt.billing.subscription.renewal_upcoming",
   },
+  // stage 4 — autodebit (webhooks §4, billing §14)
+  "mandate.activated": { object: Mandate, subject: "evt.billing.mandate.activated" },
+  "mandate.collected": { object: Mandate, subject: "evt.billing.mandate.collected" },
+  "mandate.insufficient_funds": { object: Mandate, subject: "evt.billing.mandate.insufficient_funds" },
+  "mandate.canceled": { object: Mandate, subject: "evt.billing.mandate.canceled" },
+  "mandate.exhausted": { object: Mandate, subject: "evt.billing.mandate.exhausted" },
+  "mandate.updated": { object: Mandate, subject: "evt.billing.mandate.updated" },
+  "mandate.unlinked": { object: Mandate, subject: "evt.billing.mandate.unlinked" },
+  "mandate.released": { object: Mandate, subject: "evt.billing.mandate.released" },
 } as const satisfies Record<string, { object: z.ZodType; subject: string | null }>;
 
 export type WebhookType = keyof typeof WEBHOOK_TYPES;
@@ -151,6 +162,7 @@ export const EventDataObject = z
     PublicReview /* spec 0.2.1 — node CR */,
     Invoice /* stage 3 — billing */,
     Subscription /* stage 3 — billing */,
+    Mandate /* stage 4 — autodebit */,
   ])
   .describe("Object snapshot carried by an event (`data.object`).");
 export type EventDataObject = z.infer<typeof EventDataObject>;

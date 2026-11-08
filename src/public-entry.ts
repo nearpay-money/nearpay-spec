@@ -15,6 +15,8 @@ export * from "./common/webauthn.js";
 export * from "./errors/catalogue.js";
 export * from "./intents/payloads.js";
 export * from "./public/index.js";
+// stage 4 — autodebit
+export * from "./vault/contract.js";
 export * from "./webhooks/events.js";
 export * from "./webhooks/signature.js";
 // stage 3 — agent-commerce
