@@ -378,7 +378,7 @@ export const advancePaymentAttempt = route({
 });
 
 // =============================================================================================
-// stage 3 — agent-commerce: test helper behind `nearpay trigger` (lld/payments.md §18, CLI §3)
+// stage 3 — agent-commerce: test helper behind `nearpay trigger` (lld/payments.md §16.1, sdks-and-tools §3)
 // =============================================================================================
 
 export const TestHelperPayment = out({
