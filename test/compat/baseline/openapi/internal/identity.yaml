@@ -1515,7 +1515,7 @@ info:
     identifier: Apache-2.0
     name: Apache-2.0
   title: nearpay-identity internal API
-  version: 0.3.0
+  version: 0.3.1
 openapi: 3.1.0
 paths:
   /internal/accounts/{id}/notification-recipients:
