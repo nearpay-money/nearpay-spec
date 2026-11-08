@@ -4515,7 +4515,7 @@ components:
       type: object
 info:
   title: events (compat)
-  version: 0.3.0
+  version: 0.3.1
 openapi: 3.1.0
 paths:
   /evt.agentpay.agent_payment.failed:
