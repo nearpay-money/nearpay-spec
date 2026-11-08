@@ -206,6 +206,11 @@ components:
           type:
             - string
             - "null"
+        destination_fingerprint:
+          description: Fingerprint of the settlement destination the invoice pays to, for the mail's verification line; null when none (spec 0.3.1).
+          type:
+            - string
+            - "null"
         due_date:
           anyOf:
             - description: RFC 3339 UTC timestamp, e.g. `2026-11-05T10:00:00.000Z`.
@@ -228,6 +233,11 @@ components:
             - in_01jbz9k3m4n5p6q7r8s9t0v1w2
           pattern: ^in_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
           type: string
+        line_count:
+          description: Number of invoice lines (`lines` holds at most the first 20; spec 0.3.1).
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
         lines:
           description: Lines for the mail body (at most 20).
           items:
@@ -340,6 +350,26 @@ components:
               type: string
             - type: "null"
           description: Subscription of the invoice.
+        subtotal:
+          anyOf:
+            - description: Fiat amount in minor units (e.g. cents), integer.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+          description: Sum of the lines before tax (spec 0.3.1).
+        tax:
+          anyOf:
+            - description: Fiat amount in minor units (e.g. cents), integer.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+            - description: Asset amount in base units as a decimal string (no sign, no decimals, ≤ 78 digits).
+              pattern: ^(0|[1-9][0-9]{0,77})$
+              type: string
+          description: Tax total (spec 0.3.1).
         total:
           anyOf:
             - description: Fiat amount in minor units (e.g. cents), integer.
@@ -562,7 +592,7 @@ info:
     identifier: Apache-2.0
     name: Apache-2.0
   title: nearpay-billing internal API
-  version: 0.3.0
+  version: 0.3.1
 openapi: 3.1.0
 paths:
   /internal/invoices/{id}/notification-context:

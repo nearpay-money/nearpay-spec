@@ -133,6 +133,10 @@ export const SimTx = out({
     .array(
       out({
         token: AssetId.describe("Asset."),
+        // spec 0.3.1 — rails fills Evidence.sender from it
+        from: ChainAddress.nullable()
+          .optional()
+          .describe("Sender, when the simulated chain knows it (null/absent = unknown)."),
         to: ChainAddress.describe("Recipient."),
         amount: BaseUnits.describe("Amount."),
       }).describe("A transfer."),

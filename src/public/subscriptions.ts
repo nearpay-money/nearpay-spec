@@ -164,6 +164,8 @@ export const createSubscription = route({
     "destination_not_active",
     "amount_below_destination_minimum",
     "currency_unsupported",
+    // spec 0.3.1 — a zero-total first invoice is refused
+    "invoice_empty",
   ],
   stage: 3,
 });
@@ -258,5 +260,46 @@ export const cancelSubscription = route({
   response: Subscription,
   status: 200,
   errors: ["state_conflict"],
+  stage: 3,
+});
+
+// =============================================================================================
+// spec 0.3.1 — billing test helper: advance a test subscription's billing clock (lld/billing.md §13)
+// =============================================================================================
+
+export const SubscriptionClockTarget = closedEnum(
+  ["renewal_upcoming", "renewal", "overdue"],
+  "Where to move the clock: `renewal_upcoming` = 3 days before `current_period_end`; `renewal` = `current_period_end` (or `trial_end` while `trialing`); `overdue` = the earliest `due_date` ahead of the clock among the subscription's open invoices.",
+);
+
+export const SubscriptionClockAdvance = out({
+  object: z.literal("subscription_clock_advance").describe("Always `subscription_clock_advance`."),
+  subscription: id("sub"),
+  target: SubscriptionClockTarget,
+  clock_time: UnixTime.describe("The subscription's billing clock after the advance (now + its total offset)."),
+  advanced_by: z.int().min(0).describe("Seconds the clock moved forward by this call."),
+}).meta({
+  id: "SubscriptionClockAdvance",
+  description: "Result of a test-mode billing clock advance (the processing and its events follow asynchronously).",
+});
+
+export const advanceSubscriptionClock = route({
+  id: "advanceSubscriptionClock",
+  method: "POST",
+  path: "/v1/test_helpers/subscriptions/{id}/advance_clock",
+  service: "billing",
+  visibility: "public",
+  summary: "Test mode: move a subscription's billing clock forward to the next renewal, renewal notice or due date.",
+  description:
+    "Each test subscription has its own billing clock (real time + an offset, initially 0) used for its renewal, `renewal_upcoming`, reminder, overdue and dunning-exhaustion jobs and for the dates on its invoices. This moves that clock forward to `target` and makes every job of the subscription and its invoices that is due at the new clock time run now, so the normal events and emails follow (`customer.subscription.renewal_upcoming`, `invoice.created|finalized|sent`, `invoice.overdue`, …). The clock only moves forward and never affects other subscriptions, manual invoices, payments (checkout sessions expire in real time) or event timestamps. `renewal_upcoming` and `renewal` need a `trialing`, `active` or `past_due` subscription; `overdue` needs an open invoice of the subscription whose due date is ahead of the clock; otherwise, or when the target is not ahead of the clock (e.g. the notice was already sent), `state_conflict`. Repeat `renewal` to step through periods.",
+  auth: ["secret_key", "restricted_key:subscriptions.write", "session"],
+  roles: ["owner", "admin", "developer"],
+  idempotent: true,
+  testModeOnly: true,
+  params: SubParams,
+  body: inp({ target: SubscriptionClockTarget }),
+  response: SubscriptionClockAdvance,
+  status: 200,
+  errors: ["livemode_forbidden", "state_conflict"],
   stage: 3,
 });

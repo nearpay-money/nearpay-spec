@@ -10738,6 +10738,44 @@ components:
         - metadata
         - sequence
       type: object
+    SubscriptionClockAdvance:
+      additionalProperties: {}
+      description: Result of a test-mode billing clock advance (the processing and its events follow asynchronously).
+      properties:
+        advanced_by:
+          description: Seconds the clock moved forward by this call.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        clock_time:
+          description: The subscription's billing clock after the advance (now + its total offset).
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        object:
+          const: subscription_clock_advance
+          description: Always `subscription_clock_advance`.
+          type: string
+        subscription:
+          description: subscription id (`sub_` + 26 base32 chars).
+          examples:
+            - sub_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^sub_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+        target:
+          description: "Where to move the clock: `renewal_upcoming` = 3 days before `current_period_end`; `renewal` = `current_period_end` (or `trial_end` while `trialing`); `overdue` = the earliest `due_date` ahead of the clock among the subscription's open invoices."
+          enum:
+            - renewal_upcoming
+            - renewal
+            - overdue
+          type: string
+      required:
+        - object
+        - subscription
+        - target
+        - clock_time
+        - advanced_by
+      type: object
     SubscriptionCreate:
       additionalProperties: false
       description: Parameters to create a subscription.
@@ -12787,7 +12825,7 @@ info:
     identifier: Apache-2.0
     name: Apache-2.0
   title: NearPay API
-  version: 0.3.0
+  version: 0.3.1
 openapi: 3.1.0
 paths:
   /v1/account:
@@ -15370,6 +15408,14 @@ paths:
           x-error-codes:
             - amount_below_destination_minimum
             - amount_above_unverified_cap
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `fx_rate_unavailable`."
+          x-error-codes:
+            - fx_rate_unavailable
         default:
           content:
             application/json:
@@ -16446,7 +16492,7 @@ paths:
         stage: 1
   /v1/cli/logins:
     post:
-      description: Rate-limited per client IP (10 per 10 min). The user code is single-use and expires after 15 min.
+      description: Rate-limited per client IP (10 per 10 min; over the limit is `429 rate_limited` with `Retry-After`). The user code is single-use and expires after 15 min.
       operationId: createCliLogin
       parameters:
         - description: "API version (default: the account's pinned version)."
@@ -18142,7 +18188,7 @@ paths:
         stage: 3
   /v1/invoices/{id}/public/sessions:
     post:
-      description: "Anonymous; billing checks the invoice secret and rate-limits per client network and per invoice. Returns the invoice's open session (`reused: true`) or creates one through payments `createInvoiceCheckoutSession` (`source: invoice`, amount = `amount_remaining`, the invoice's customer and destination). At most one session per invoice is open at a time. `paid`/`void` invoices answer `invoice_not_payable`."
+      description: "Anonymous; billing checks the invoice secret and rate-limits per client network and per invoice. Returns the invoice's open session (`reused: true`) or creates one through payments `createInvoiceCheckoutSession` (`source: invoice`, amount = `amount_remaining`, the invoice's customer and destination). At most one session per invoice is open at a time. `paid`/`void` invoices answer `invoice_not_payable`. payments' refusals pass through (`amount_below_destination_minimum`, `amount_above_unverified_cap`, `customer_deleted`); a concurrent change of the invoice or its open session is `state_conflict` (retry)."
       operationId: createPublicInvoiceSession
       parameters:
         - description: invoice id (`in_` + 26 base32 chars).
@@ -18217,10 +18263,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-          description: "Error: `invoice_not_payable`, `destination_not_active`."
+          description: "Error: `invoice_not_payable`, `destination_not_active`, `customer_deleted`, `state_conflict`."
           x-error-codes:
             - invoice_not_payable
             - destination_not_active
+            - customer_deleted
+            - state_conflict
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `amount_below_destination_minimum`, `amount_above_unverified_cap`."
+          x-error-codes:
+            - amount_below_destination_minimum
+            - amount_above_unverified_cap
         default:
           content:
             application/json:
@@ -21368,7 +21425,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-          description: "Error: `customer_email_missing`, `price_type_invalid`, `currency_mismatch`, `interval_mismatch`, `tax_rates_mixed`, `amount_below_destination_minimum`."
+          description: "Error: `customer_email_missing`, `price_type_invalid`, `currency_mismatch`, `interval_mismatch`, `tax_rates_mixed`, `amount_below_destination_minimum`, `invoice_empty`."
           x-error-codes:
             - customer_email_missing
             - price_type_invalid
@@ -21376,6 +21433,7 @@ paths:
             - interval_mismatch
             - tax_rates_mixed
             - amount_below_destination_minimum
+            - invoice_empty
         default:
           content:
             application/json:
@@ -22165,6 +22223,100 @@ paths:
           - finance
         service: payments
         stage: 2
+        test_mode_only: true
+  /v1/test_helpers/subscriptions/{id}/advance_clock:
+    post:
+      description: Each test subscription has its own billing clock (real time + an offset, initially 0) used for its renewal, `renewal_upcoming`, reminder, overdue and dunning-exhaustion jobs and for the dates on its invoices. This moves that clock forward to `target` and makes every job of the subscription and its invoices that is due at the new clock time run now, so the normal events and emails follow (`customer.subscription.renewal_upcoming`, `invoice.created|finalized|sent`, `invoice.overdue`, …). The clock only moves forward and never affects other subscriptions, manual invoices, payments (checkout sessions expire in real time) or event timestamps. `renewal_upcoming` and `renewal` need a `trialing`, `active` or `past_due` subscription; `overdue` needs an open invoice of the subscription whose due date is ahead of the clock; otherwise, or when the target is not ahead of the clock (e.g. the notice was already sent), `state_conflict`. Repeat `renewal` to step through periods.
+      operationId: advanceSubscriptionClock
+      parameters:
+        - description: subscription id (`sub_` + 26 base32 chars).
+          in: path
+          name: id
+          required: true
+          schema:
+            description: subscription id (`sub_` + 26 base32 chars).
+            examples:
+              - sub_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^sub_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+        - description: Makes the request safe to retry for 24 h (same key + same body = same result).
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: Makes the request safe to retry for 24 h (same key + same body = same result).
+            maxLength: 255
+            minLength: 1
+            type: string
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                target:
+                  description: "Where to move the clock: `renewal_upcoming` = 3 days before `current_period_end`; `renewal` = `current_period_end` (or `trial_end` while `trialing`); `overdue` = the earliest `due_date` ahead of the clock among the subscription's open invoices."
+                  enum:
+                    - renewal_upcoming
+                    - renewal
+                    - overdue
+                  type: string
+              required:
+                - target
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionClockAdvance"
+          description: "Test mode: move a subscription's billing clock forward to the next renewal, renewal notice or due date."
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `livemode_forbidden`."
+          x-error-codes:
+            - livemode_forbidden
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `state_conflict`."
+          x-error-codes:
+            - state_conflict
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - apiKey: []
+        - session: []
+      summary: "Test mode: move a subscription's billing clock forward to the next renewal, renewal notice or due date."
+      tags:
+        - billing
+      x-nearpay:
+        auth:
+          - secret_key
+          - restricted_key:subscriptions.write
+          - session
+        idempotent: true
+        roles:
+          - owner
+          - admin
+          - developer
+        service: billing
+        stage: 3
         test_mode_only: true
   /v1/webhook_endpoints:
     get:
@@ -22990,9 +23142,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-          description: "Error: `rail_unavailable`."
+          description: "Error: `rail_unavailable`, `pricing_unavailable`."
           x-error-codes:
             - rail_unavailable
+            - pricing_unavailable
         default:
           content:
             application/json:
@@ -23192,6 +23345,14 @@ paths:
           description: "Error: `amount_below_minimum`."
           x-error-codes:
             - amount_below_minimum
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `pricing_unavailable`."
+          x-error-codes:
+            - pricing_unavailable
         default:
           content:
             application/json:

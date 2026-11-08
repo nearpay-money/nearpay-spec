@@ -134,7 +134,14 @@ export const x402Requirements = route({
   }),
   response: PaymentRequired,
   status: 200,
-  errors: ["destination_not_intents_account", "asset_unsupported", "amount_below_minimum", "account_not_live"],
+  errors: [
+    "destination_not_intents_account",
+    "asset_unsupported",
+    "amount_below_minimum",
+    "account_not_live",
+    // spec 0.3.1 — fiat-priced resource without a usable price
+    "pricing_unavailable",
+  ],
   stage: 1,
 });
 
@@ -336,6 +343,8 @@ export const x402NearIntentsRequirements = route({
     "account_not_live",
     "deadline_too_short",
     "rail_unavailable",
+    // spec 0.3.1 — fiat-priced resource without a usable price
+    "pricing_unavailable",
   ],
   stage: 3,
 });

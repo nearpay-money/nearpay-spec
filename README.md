@@ -63,6 +63,8 @@ nearpay-spec/
 
 ## Status
 
+`0.3.1` — Stage 3.2 change requests (additive; see `CHANGELOG.md`): owner filter on rails evidence summaries, sandbox transfer senders, missing route error codes (invoice sessions, subscriptions, FX/pricing), invoice-mail totals and destination fingerprint, and a test-mode billing clock helper (`POST /v1/test_helpers/subscriptions/{id}/advance_clock`). 143 public, 57 internal and 47 console routes, 71 domain event subjects, 33 webhook types, 87 error codes.
+
 `0.3.0` — Stage 3 contracts (step 3.1, contract freeze; additive over 0.2.1, see `CHANGELOG.md`): billing (products, prices, tax rates with normative tax arithmetic, invoices and hosted invoices, subscriptions, billing emails) and agent commerce (cross-chain x402 `near-intents`, events SSE stream, CLI device login, `nearpay trigger` test helper). 142 public, 57 internal and 47 console routes, 71 domain event subjects, 33 webhook types, 87 error codes.
 
 `0.2.1` — Stage 2 change requests (additive; see `CHANGELOG.md`): service-readable kill-switch state, abandoning orphaned refund legs, observed fees and deposited amounts on executions, missing route error codes, CLI actors on operator actions, recovery and secret-rotation events, and display data for checkout, dashboard and console. 102 public, 51 internal and 47 console routes, 58 domain event subjects, 21 webhook types, 77 error codes.

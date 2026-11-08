@@ -45,13 +45,13 @@ const ok = (schema: Parser, v: unknown): boolean => schema?.safeParse(v).success
 const r = (id: string, ppm: number, inclusive: boolean) => ({ id, rate_ppm: ppm, inclusive });
 
 const BILLING_IDS =
-  /^(create|get|list|update|delete|finalize|send|void|mark|cancel)(Product|Price|TaxRate|Invoice|Subscription|PublicInvoice)/;
+  /^(create|get|list|update|delete|finalize|send|void|mark|cancel|advance)(Product|Price|TaxRate|Invoice|Subscription|PublicInvoice)/;
 
 describe("stage 3 billing: routes", () => {
   const billing = PUBLIC_ROUTES.filter((x) => x.service === "billing");
 
   it("serves the catalogue, invoices, subscriptions and hosted-invoice routes from billing in Stage 3", () => {
-    expect(billing.length).toBe(30);
+    expect(billing.length).toBe(31); // 0.3.1: + advanceSubscriptionClock
     for (const x of billing) {
       expect(x.stage, x.id).toBe(3);
       expect(x.id, x.id).toMatch(BILLING_IDS);
