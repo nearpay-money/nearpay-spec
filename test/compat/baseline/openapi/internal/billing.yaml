@@ -492,7 +492,7 @@ components:
             - type: "null"
           description: Next due time; null when none.
         onchain_id:
-          description: Vault mandate id (shown so the payer can cancel from any wallet).
+          description: Vault mandate id (shown so the payer can cancel from any wallet holding the paying account).
           maximum: 9007199254740991
           minimum: 0
           type: integer
@@ -831,7 +831,7 @@ info:
     identifier: Apache-2.0
     name: Apache-2.0
   title: nearpay-billing internal API
-  version: 0.4.0
+  version: 0.4.1
 openapi: 3.1.0
 paths:
   /internal/invoices/{id}/notification-context:
