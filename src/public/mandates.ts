@@ -21,6 +21,7 @@ import { route } from "../common/route.js";
 import { closedEnum, inp, openEnum, out, z } from "../common/schema.js";
 import { VaultReceiverKind } from "../vault/contract.js";
 import { InvoiceSecretHeaders } from "./invoices.js";
+import { PricingAssetDisplay } from "./payer.js";
 import { SUBSCRIPTION_ROLES } from "./subscriptions.js";
 
 // =============================================================================================
@@ -172,7 +173,7 @@ export type Mandate = z.infer<typeof Mandate>;
 
 /** Default `payer_notice` billing returns (English; UIs may localise it without weakening it). */
 export const MANDATE_FUNDING_PAYER_NOTICE =
-  "Sign both transactions from your own NEAR account and pay the gas yourself. Relayer or gasless wallets, NEAR Intents balances, bridges and smart wallets cannot fund a mandate: the vault refunds such deposits. You can cancel at any time from any NEAR wallet and get the remaining balance back.";
+  "Sign both transactions from your own NEAR account and pay the gas yourself. Relayer or gasless wallets, NEAR Intents balances, bridges and smart wallets cannot fund a mandate: the vault refunds such deposits. You can cancel at any time from the NEAR account you pay with; the remaining balance goes back to it.";
 
 export const MandateFundingInstructions = out({
   object: z.literal("mandate_funding_instructions").describe("Always `mandate_funding_instructions`."),
@@ -181,6 +182,10 @@ export const MandateFundingInstructions = out({
   vault_contract: NearAccountId.describe("Vault the mandate is created in."),
   token: NearAccountId.describe("NEP-141 token the payer funds with."),
   asset_id: AssetId.describe("The token as a NEAR Intents asset id."),
+  // spec 0.4.1 — checkout CR: render the token without a registry call
+  token_asset: PricingAssetDisplay.optional().describe(
+    "Display data of `token` (asset id, symbol, decimals) for the funding UI. Spec 0.4.1; absent from older billing builds.",
+  ),
   amount: BaseUnits.describe("Initial funding: `periods × amount_per_period`."),
   periods: z.int().min(1).describe("Periods the initial funding covers."),
   amount_per_period: BaseUnits.describe(
@@ -221,7 +226,7 @@ export const MandateFundingInstructions = out({
   payer_notice: z
     .string()
     .describe(
-      "Text the funding UI must show before signing (billing v1.9 §5): sign from your own NEAR account and pay your own gas; relayer/gasless wallets (NEP-366 meta-transactions), NEAR Intents balances, bridges and smart wallets cannot fund (the vault refunds such deposits). Cancel and withdraw work from any wallet, including meta-transactions.",
+      "Text the funding UI must show before signing (billing v1.9 §5): sign from your own NEAR account and pay your own gas; relayer/gasless wallets (NEP-366 meta-transactions), NEAR Intents balances, bridges and smart wallets cannot fund (the vault refunds such deposits). Cancel and withdraw are accepted only from the paying account (from any wallet holding it, meta-transactions included); the remaining balance returns to that account.",
     ),
   transactions: z
     .array(NearTransactionRequest)
@@ -369,6 +374,10 @@ export const PublicMandate = out({
   onchain_id: z.int().min(0).describe("The vault's `mandate_id`."),
   token: NearAccountId.describe("Token contract."),
   asset_id: AssetId.describe("Token as a NEAR Intents asset id."),
+  // spec 0.4.1 — checkout CR: render the token without a registry call
+  token_asset: PricingAssetDisplay.optional().describe(
+    "Display data of `token` (asset id, symbol, decimals) for the hosted page. Spec 0.4.1; absent from older billing builds.",
+  ),
   amount_per_period: BaseUnits.describe("Tokens per period."),
   period_secs: z.int().min(86_400).describe("Period length (seconds)."),
   balance: BaseUnits.describe("Remaining balance."),
@@ -423,7 +432,7 @@ export const getPublicInvoiceMandate = route({
   visibility: "public",
   summary: "Hosted invoice page: the subscription's mandate with the payer's cancel/withdraw transactions.",
   description:
-    "Anonymous; billing checks the invoice secret. Returns the newest mandate linked to the invoice's subscription (or unlinked for it), else `404 resource_missing`. The payer may also cancel straight from any NEAR wallet: the vault needs no NearPay involvement.",
+    "Anonymous; billing checks the invoice secret. Returns the newest mandate linked to the invoice's subscription (or unlinked for it), else `404 resource_missing`. The payer may also cancel straight from any NEAR wallet holding the paying account: the vault needs no NearPay involvement (it accepts `cancel`/`withdraw` only from the payer).",
   auth: ["anonymous"],
   idempotent: false,
   params: PublicInvoiceParams,
