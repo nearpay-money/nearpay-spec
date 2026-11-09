@@ -3,6 +3,25 @@
 `@nearpay/spec` and `@nearpay-internal/spec` share one version. Within a version line changes are
 additive only (`pnpm compat` gates every release against `test/compat/baseline/`, the last release).
 
+## 0.4.1 — 2026-11-09
+
+Stage 4 change requests on top of 0.4.0 (additive; no route, event, webhook type or error code added).
+
+- **`token_asset`** (checkout CR): optional `PricingAssetDisplay` (`asset_id`, `symbol`, `decimals`) on
+  `MandateFundingInstructions` (`POST /v1/mandates/prepare`, `POST /v1/invoices/{id}/public/mandate_funding`)
+  and `PublicMandate` (`GET /v1/invoices/{id}/public/mandate`), so the funding UI and the hosted invoice page
+  render the mandate token without a registry call. Same shape billing already returns on
+  `MandateNotificationContext.token_asset`. Optional because billing builds on 0.4.0 do not send it.
+- **`MANDATE_FUNDING_PAYER_NOTICE`** text corrected: "You can cancel at any time from any NEAR wallet and get
+  the remaining balance back." → "You can cancel at any time from the NEAR account you pay with; the
+  remaining balance goes back to it." (the vault accepts `cancel`/`withdraw` only from the paying account).
+  The `payer_notice` field description, the `getPublicInvoiceMandate` description and
+  `MandateNotificationContext.onchain_id` now say the same.
+
+**Compatibility notes.** Two new optional response properties and description text only; no request
+change, no required set grew, no enum changed. Expected oasdiff result against the 0.4.0 baseline: no
+findings at `ERR`.
+
 ## 0.4.0 — 2026-11-08
 
 Stage 4 contract freeze (step 4.1, `nearpay-brain/roadmap/development-plan.md` §6): auto-debit

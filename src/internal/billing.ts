@@ -167,7 +167,10 @@ export const MandateNotificationContext = out({
   unlinked_reason: MandateUnlinkedReason.nullable().describe("Why it is unlinked (the mail asks the payer to cancel)."),
   payer: NearAccountId.describe("Payer's NEAR account (the mail shows it shortened)."),
   vault_contract: NearAccountId.describe("Vault account."),
-  onchain_id: z.int().min(0).describe("Vault mandate id (shown so the payer can cancel from any wallet)."),
+  onchain_id: z
+    .int()
+    .min(0)
+    .describe("Vault mandate id (shown so the payer can cancel from any wallet holding the paying account)."),
   token_asset: PricingAssetDisplay.describe("Display data of the mandate's token (symbol, decimals)."),
   amount_per_period: BaseUnits.describe("Tokens per period."),
   recurring: Recurring.nullable().describe("Billing period of the subscription; null if it no longer exists."),

@@ -8316,7 +8316,7 @@ components:
             - type: "null"
           description: Payer the storage check was made for; null when none was given.
         payer_notice:
-          description: "Text the funding UI must show before signing (billing v1.9 §5): sign from your own NEAR account and pay your own gas; relayer/gasless wallets (NEP-366 meta-transactions), NEAR Intents balances, bridges and smart wallets cannot fund (the vault refunds such deposits). Cancel and withdraw work from any wallet, including meta-transactions."
+          description: "Text the funding UI must show before signing (billing v1.9 §5): sign from your own NEAR account and pay your own gas; relayer/gasless wallets (NEP-366 meta-transactions), NEAR Intents balances, bridges and smart wallets cannot fund (the vault refunds such deposits). Cancel and withdraw are accepted only from the paying account (from any wallet holding it, meta-transactions included); the remaining balance returns to that account."
           type: string
         period_secs:
           description: Vault period for the subscription's interval (billing §14 d3).
@@ -8373,6 +8373,9 @@ components:
           description: NEP-141 token the payer funds with.
           pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
           type: string
+        token_asset:
+          $ref: "#/components/schemas/PricingAssetDisplay"
+          description: Display data of `token` (asset id, symbol, decimals) for the funding UI. Spec 0.4.1; absent from older billing builds.
         transactions:
           description: "Transactions to sign from the payer's own NEAR account, in order: `storage_deposit` on the vault (only when `storage.deposit` > 0 or the payer is unknown), then `ft_transfer_call` on the token (`receiver_id` = the vault, `amount`, `msg`; 100 Tgas, 1 yoctoNEAR). Deposits relayed by contracts, smart wallets or NEP-366 meta-transactions are refunded (`ERR_UNSUPPORTED_SENDER`)."
           items:
@@ -10898,6 +10901,9 @@ components:
           description: Token contract.
           pattern: ^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$
           type: string
+        token_asset:
+          $ref: "#/components/schemas/PricingAssetDisplay"
+          description: Display data of `token` (asset id, symbol, decimals) for the hosted page. Spec 0.4.1; absent from older billing builds.
         top_up_msg:
           description: "`ft_transfer_call` msg to top up (`{\"top_up\":{\"mandate_id\":n}}`) while on-chain active; send it to the vault from the payer's account with any amount."
           type:
@@ -14523,7 +14529,7 @@ info:
     identifier: Apache-2.0
     name: Apache-2.0
   title: NearPay API
-  version: 0.4.0
+  version: 0.4.1
 openapi: 3.1.0
 paths:
   /v1/account:
@@ -19811,7 +19817,7 @@ paths:
         stage: 3
   /v1/invoices/{id}/public/mandate:
     get:
-      description: "Anonymous; billing checks the invoice secret. Returns the newest mandate linked to the invoice's subscription (or unlinked for it), else `404 resource_missing`. The payer may also cancel straight from any NEAR wallet: the vault needs no NearPay involvement."
+      description: "Anonymous; billing checks the invoice secret. Returns the newest mandate linked to the invoice's subscription (or unlinked for it), else `404 resource_missing`. The payer may also cancel straight from any NEAR wallet holding the paying account: the vault needs no NearPay involvement (it accepts `cancel`/`withdraw` only from the payer)."
       operationId: getPublicInvoiceMandate
       parameters:
         - description: invoice id (`in_` + 26 base32 chars).

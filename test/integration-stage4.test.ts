@@ -8,9 +8,12 @@ import {
   DESTINATION_SIGNING_STANDARDS,
   Event,
   Evidence,
+  MANDATE_FUNDING_PAYER_NOTICE,
   Mandate,
+  MandateFundingInstructions,
   PUBLIC_ANONYMOUS_ROUTES,
   PUBLIC_ROUTES,
+  PublicMandate,
   streamEvents,
   VaultConfigView,
   VaultMandateView,
@@ -79,5 +82,22 @@ describe("stage 4 integration (autodebit × chains)", () => {
   it("destination signing standards match the attestation request enum", () => {
     const standard = attestSettlementDestination.body?.shape.standard as unknown as { options: string[] };
     expect([...standard.options].sort()).toEqual([...DESTINATION_SIGNING_STANDARDS].sort());
+  });
+});
+
+describe("spec 0.4.1 change requests", () => {
+  it("mandate funding instructions and the hosted-page mandate carry optional token display data", () => {
+    for (const s of [MandateFundingInstructions, PublicMandate]) {
+      const t = s.shape.token_asset;
+      expect(t.safeParse(undefined).success).toBe(true);
+      expect(t.safeParse({ asset_id: "nep141:usdc.near", symbol: "USDC", decimals: 6 }).success).toBe(true);
+      expect(t.safeParse({ asset_id: "nep141:usdc.near", symbol: "USDC" }).success).toBe(false);
+    }
+  });
+  it("the payer notice says cancel works only from the paying account", () => {
+    expect(MANDATE_FUNDING_PAYER_NOTICE).toContain(
+      "You can cancel at any time from the NEAR account you pay with; the remaining balance goes back to it.",
+    );
+    expect(MANDATE_FUNDING_PAYER_NOTICE).not.toMatch(/any NEAR wallet/);
   });
 });
