@@ -7691,7 +7691,7 @@ components:
               minimum: 0
               type: integer
             - type: "null"
-          description: Last ops decision.
+          description: Last decision (automatic on submission, or by ops).
         editable:
           description: Whether the profile can be updated and submitted now (`not_started` or `needs_info`).
           type: boolean
@@ -7723,13 +7723,13 @@ components:
               minimum: 0
               type: integer
             - type: "null"
-          description: Last submission for review.
+          description: Last submission.
         vendor_flow_url:
           anyOf:
             - format: uri
               type: string
             - type: "null"
-          description: "Always null: KYB is self-declared and decided by NearPay ops; there is no vendor flow (ADR-0020)."
+          description: "Always null: KYB is self-declared and decided automatically on submission (ADR-0024; ops only with manual review on); there is no vendor flow (ADR-0020)."
       required:
         - object
         - status
@@ -7778,7 +7778,7 @@ components:
             - string
             - "null"
         registration_number:
-          description: Company or trade register number (tax id if none).
+          description: "Company or trade register number, or a tax id. Optional: may stay null at submission (ADR-0024)."
           type:
             - string
             - "null"
@@ -15147,7 +15147,7 @@ paths:
         stage: 1
   /v1/account/kyb/submit:
     post:
-      description: "The owner declares the details true and complete. Missing required fields are `400 kyb_profile_incomplete`; a case not in `not_started`/`needs_info` is `409 state_conflict`. Emits `evt.compliance.kyb.submitted` (identity shows `kyb_status: pending`, notify confirms to the owners, the console queues the case)."
+      description: The owner declares the details true and complete. Missing required fields are `400 kyb_profile_incomplete` (`website` and `registration_number` are optional); a case not in `not_started`/`needs_info` is `409 state_conflict`. Emits `evt.compliance.kyb.submitted`; with compliance's default `NP_KYB_MODE=auto` the same request records the system's decision (`approved`, or `rejected` on a geo-policy hit) and emits `evt.compliance.kyb.approved|rejected`, so the response is already decided and identity turns live mode on within seconds. With `NP_KYB_MODE=manual` the case stays `pending` for an ops decision.
       operationId: submitKyb
       parameters:
         - description: Makes the request safe to retry for 24 h (same key + same body = same result).
@@ -15184,7 +15184,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/KybCase"
-          description: Submit the business details for ops review (`pending`).
+          description: Submit the business details; decided at once in open onboarding (ADR-0024).
         "400":
           content:
             application/json:
@@ -15209,7 +15209,7 @@ paths:
           description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
       security:
         - session: []
-      summary: Submit the business details for ops review (`pending`).
+      summary: Submit the business details; decided at once in open onboarding (ADR-0024).
       tags:
         - compliance
       x-nearpay:

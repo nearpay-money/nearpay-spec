@@ -3,6 +3,14 @@
 `@nearpay/spec` and `@nearpay-internal/spec` share one version. Within a version line changes are
 additive only (`pnpm compat` gates every release against `test/compat/baseline/`, the last release).
 
+## Unreleased
+
+Documentation only (descriptions and examples; no schema, route, event or error change — no release
+needed): open onboarding (ADR-0024, owner decision 2026-11-10). `submitKyb`, `KybCase`, `KybProfile`,
+`OpsKybCase` and `KybSubmittedEvent` describe the automatic decision on submission (compliance
+`NP_KYB_MODE=auto`) and that `registration_number` is optional; the `kyb_profile_incomplete` example no
+longer lists `registration_number`.
+
 ## 0.4.1 — 2026-11-09
 
 Stage 4 change requests on top of 0.4.0 (additive; no route, event, webhook type or error code added).

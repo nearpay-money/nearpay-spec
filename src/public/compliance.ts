@@ -33,12 +33,16 @@ export const BusinessAddress = out(addressShape).meta({
 
 /**
  * Minimum business details, self-declared by the owner (no vendor, no documents). Every field is
- * nullable while the case is a draft; `submitKyb` requires all of them except `website`.
+ * nullable while the case is a draft; `submitKyb` requires all of them except `website` and
+ * `registration_number` (optional since ADR-0024, open onboarding).
  */
 export const KybProfile = out({
   legal_name: z.string().nullable().describe("Registered legal name (or the owner's full name for a sole proprietor)."),
   country_of_incorporation: CountryCode.nullable().describe("Country where the business is registered."),
-  registration_number: z.string().nullable().describe("Company or trade register number (tax id if none)."),
+  registration_number: z
+    .string()
+    .nullable()
+    .describe("Company or trade register number, or a tax id. Optional: may stay null at submission (ADR-0024)."),
   business_type: BusinessType.nullable(),
   website: Url.nullable().describe("Public website or store front, if any."),
   business_address: BusinessAddress.nullable().describe("Registered address."),
@@ -85,7 +89,9 @@ export const KybCase = out({
   vendor_flow_url: z
     .url()
     .nullable()
-    .describe("Always null: KYB is self-declared and decided by NearPay ops; there is no vendor flow (ADR-0020)."),
+    .describe(
+      "Always null: KYB is self-declared and decided automatically on submission (ADR-0024; ops only with manual review on); there is no vendor flow (ADR-0020).",
+    ),
   // stage 2 — identity-console (absent from Stage 1 servers)
   profile: KybProfile.optional().describe("Declared business details (all null before the first update)."),
   editable: z
@@ -97,8 +103,8 @@ export const KybCase = out({
     .nullable()
     .optional()
     .describe("What ops asked for (`needs_info` only). Internal decision reasons are never shown."),
-  submitted_at: UnixTime.nullable().optional().describe("Last submission for review."),
-  decided_at: UnixTime.nullable().optional().describe("Last ops decision."),
+  submitted_at: UnixTime.nullable().optional().describe("Last submission."),
+  decided_at: UnixTime.nullable().optional().describe("Last decision (automatic on submission, or by ops)."),
 }).meta({ id: "KybCase", description: "The account's KYB case." });
 
 export const startKyb = route({
@@ -161,9 +167,9 @@ export const submitKyb = route({
   path: "/v1/account/kyb/submit",
   service: "compliance",
   visibility: "public",
-  summary: "Submit the business details for ops review (`pending`).",
+  summary: "Submit the business details; decided at once in open onboarding (ADR-0024).",
   description:
-    "The owner declares the details true and complete. Missing required fields are `400 kyb_profile_incomplete`; a case not in `not_started`/`needs_info` is `409 state_conflict`. Emits `evt.compliance.kyb.submitted` (identity shows `kyb_status: pending`, notify confirms to the owners, the console queues the case).",
+    "The owner declares the details true and complete. Missing required fields are `400 kyb_profile_incomplete` (`website` and `registration_number` are optional); a case not in `not_started`/`needs_info` is `409 state_conflict`. Emits `evt.compliance.kyb.submitted`; with compliance's default `NP_KYB_MODE=auto` the same request records the system's decision (`approved`, or `rejected` on a geo-policy hit) and emits `evt.compliance.kyb.approved|rejected`, so the response is already decided and identity turns live mode on within seconds. With `NP_KYB_MODE=manual` the case stays `pending` for an ops decision.",
   auth: ["session"],
   roles: ["owner"],
   stepUp: true,

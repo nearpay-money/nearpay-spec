@@ -576,7 +576,7 @@ components:
             - string
             - "null"
         registration_number:
-          description: Company or trade register number (tax id if none).
+          description: "Company or trade register number, or a tax id. Optional: may stay null at submission (ADR-0024)."
           type:
             - string
             - "null"
@@ -793,7 +793,7 @@ components:
       type: object
     OpsKybCase:
       additionalProperties: {}
-      description: A KYB case with its self-declared details, for review.
+      description: A KYB case with its self-declared details and decision history.
       properties:
         account_display_name:
           description: Account display name (from identity, cached).
