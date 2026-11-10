@@ -63,6 +63,8 @@ nearpay-spec/
 
 ## Status
 
+`0.4.2` — confirmation samples per ADR-0022 as amended (one block of each chain's own consensus; see `CHANGELOG.md`): Solana `confirmed` commitment and Bitcoin 1 confirmation for every amount in the chain vectors and descriptions, new `BITCOIN_DEFAULT_CONFIRMATION_TIERS` (`BITCOIN_CONFIRMATION_TIERS` unchanged, opt-in). No schema change; counts unchanged from 0.4.0.
+
 `0.4.1` — Stage 4 change requests (additive; see `CHANGELOG.md`): optional `token_asset` display data on mandate funding instructions and the hosted-page mandate, corrected payer notice (cancel only from the paying account). Route, event, webhook and error counts unchanged from 0.4.0.
 
 `0.4.0` — Stage 4 contracts (step 4.1, contract freeze; additive over 0.3.1, see `CHANGELOG.md`): auto-debit (subscription-vault mirror and shared vault test vectors, billing mandates, hosted mandate funding, mandate events, webhooks and emails, the sandbox vault stand-in) and Solana + Bitcoin as Tier A chains (chain helpers, chain evidence, Solana and BIP-322 destination attestation, chain test vectors). 151 public, 62 internal and 47 console routes, 80 domain event subjects, 41 webhook types, 89 error codes.

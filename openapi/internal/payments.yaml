@@ -84,7 +84,7 @@ components:
           minItems: 1
           type: array
         required_confirmations:
-          description: Confirmations the chain profile required for this settlement's USD value (`confirmation_tiers`).
+          description: Confirmations the chain profile required for this settlement's USD value (`confirmation_tiers`; 1 for every amount by default, ADR-0022 as amended).
           maximum: 9007199254740991
           minimum: 1
           type: integer
@@ -609,7 +609,7 @@ components:
             - type: "null"
           description: Block-explorer link for the transaction.
         finality:
-          description: Finality reached when the evidence was accepted.
+          description: "Finality reached when the evidence was accepted: `final` (NEAR), `confirmed` (one block of the chain's own consensus: EVM 1 block, Solana `confirmed` commitment, Bitcoin 1 confirmation — the default, ADR-0022 as amended), `finalized` (a chain's finalized tag/commitment, when configured)."
           type: string
           x-extensible-enum:
             - final
@@ -2849,7 +2849,7 @@ info:
     identifier: Apache-2.0
     name: Apache-2.0
   title: nearpay-payments internal API
-  version: 0.4.1
+  version: 0.4.2
 openapi: 3.1.0
 paths:
   /internal/checkout_sessions:

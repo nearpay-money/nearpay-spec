@@ -55,7 +55,7 @@
           "type": "array"
         },
         "required_confirmations": {
-          "description": "Confirmations the chain profile required for this settlement's USD value (`confirmation_tiers`).",
+          "description": "Confirmations the chain profile required for this settlement's USD value (`confirmation_tiers`; 1 for every amount by default, ADR-0022 as amended).",
           "maximum": 9007199254740991,
           "minimum": 1,
           "type": "integer"
@@ -198,7 +198,7 @@
           "description": "Block-explorer link for the transaction."
         },
         "finality": {
-          "description": "Finality reached when the evidence was accepted.",
+          "description": "Finality reached when the evidence was accepted: `final` (NEAR), `confirmed` (one block of the chain's own consensus: EVM 1 block, Solana `confirmed` commitment, Bitcoin 1 confirmation — the default, ADR-0022 as amended), `finalized` (a chain's finalized tag/commitment, when configured).",
           "type": "string",
           "x-extensible-enum": [
             "final",

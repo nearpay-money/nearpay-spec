@@ -22,6 +22,7 @@ import bs58 from "bs58";
 import { ChainProfile } from "../src/internal-entry.js";
 import {
   BITCOIN_CONFIRMATION_TIERS,
+  BITCOIN_DEFAULT_CONFIRMATION_TIERS,
   BITCOIN_MAINNET,
   bip21Uri,
   Evidence,
@@ -370,7 +371,7 @@ function chainProfiles() {
       tier: "A",
       min_deadline_s: 300,
       default_deadline_s: 1800,
-      finality: "solana: finalized commitment",
+      finality: "solana: confirmed commitment",
       verification_timeout_s: 1800,
       memo_mode: "none",
       explorer_tx_url: "https://solscan.io/tx/{tx}",
@@ -384,12 +385,12 @@ function chainProfiles() {
       tier: "A",
       min_deadline_s: 3600,
       default_deadline_s: 7200,
-      finality: "bitcoin: 1 confirmation below USD 1,000, else 2",
+      finality: "bitcoin: 1 confirmation",
       verification_timeout_s: 7200,
       memo_mode: "none",
       explorer_tx_url: "https://mempool.space/tx/{tx}",
       explorer_address_url: "https://mempool.space/address/{address}",
-      confirmation_tiers: BITCOIN_CONFIRMATION_TIERS,
+      confirmation_tiers: BITCOIN_DEFAULT_CONFIRMATION_TIERS,
     }),
   ];
 }
@@ -554,7 +555,7 @@ function solanaEvidenceCases() {
       recipient: merchant,
       asset_id: o.asset_id,
       amount: o.amount,
-      finality: "finalized",
+      finality: "confirmed",
       tier: "A",
       source: "verifier",
       observed_at: "2026-11-08T12:00:30.000Z",
@@ -579,7 +580,7 @@ function solanaEvidenceCases() {
   const s4 = sig58("failed tx");
   const keys = [solver, solverAta, merchantAta, merchant, USDC_SOL_MINT, TOKEN_PROGRAM];
   return {
-    rule: "getTransaction(signature, {commitment: 'finalized', maxSupportedTransactionVersion: 0, encoding: 'jsonParsed'}); require meta.err == null. SPL: amount = Σ post − Σ pre of the token balances whose `owner` = recipient and `mint` = the asset's mint (a missing pre entry counts 0: the ATA was created in the transaction). SOL: amount = postBalances[i] − preBalances[i] at the recipient's account index (static keys then loadedAddresses.writable, loadedAddresses.readonly). Compare with amount_out_expected: ≥ → pass, 0 < amount < expected → short, else mismatch (rails §8.8).",
+    rule: "getTransaction(signature, {commitment: 'confirmed', maxSupportedTransactionVersion: 0, encoding: 'jsonParsed'}) — `confirmed` is Solana's one-block confirmation (ADR-0022 as amended; `processed` never counts; a post-success re-check reads `finalized`); require meta.err == null. SPL: amount = Σ post − Σ pre of the token balances whose `owner` = recipient and `mint` = the asset's mint (a missing pre entry counts 0: the ATA was created in the transaction). SOL: amount = postBalances[i] − preBalances[i] at the recipient's account index (static keys then loadedAddresses.writable, loadedAddresses.readonly). Compare with amount_out_expected: ≥ → pass, 0 < amount < expected → short, else mismatch (rails §8.8).",
     expected_amount: "25000000",
     cases: [
       {
@@ -724,7 +725,7 @@ function bitcoinEvidenceCases() {
         block_height: height,
         block_hash: blockHash,
         confirmations: tip - height + 1,
-        required_confirmations: requiredConfirmations(BITCOIN_CONFIRMATION_TIERS, usdMicros),
+        required_confirmations: requiredConfirmations(BITCOIN_DEFAULT_CONFIRMATION_TIERS, usdMicros),
       },
     });
   };
@@ -748,9 +749,26 @@ function bitcoinEvidenceCases() {
   );
   const mempool = tx("btc payout mempool", [[merchant, spk, 625_000]], null);
   return {
-    rule: "Esplora GET /tx/{txid} + GET /blocks/tip/height. amount = Σ value of outputs whose scriptpubkey_address (lower-case) = recipient (re-derived from scriptpubkey). confirmations = tip − block_height + 1 (unconfirmed = 0). required = requiredConfirmations(BITCOIN_CONFIRMATION_TIERS, settlement USD value from the execution's price snapshot); below → not final, retry every 10 s until verification_timeout_s → held(evidence_timeout).",
-    tiers: BITCOIN_CONFIRMATION_TIERS,
+    rule: "Esplora GET /tx/{txid} + GET /blocks/tip/height. amount = Σ value of outputs whose scriptpubkey_address (lower-case) = recipient (re-derived from scriptpubkey). confirmations = tip − block_height + 1 (unconfirmed = 0). required = requiredConfirmations(profile confirmation_tiers, settlement USD value from the execution's price snapshot); the default tiers are BITCOIN_DEFAULT_CONFIRMATION_TIERS = 1 confirmation for every amount (ADR-0022 as amended; a post-success re-check follows at 6 confirmations); below → not final, retry until verification_timeout_s → held(evidence_timeout).",
+    tiers: BITCOIN_DEFAULT_CONFIRMATION_TIERS,
     required_confirmations: [
+      {
+        usd_micros: "999999999",
+        confirmations: requiredConfirmations(BITCOIN_DEFAULT_CONFIRMATION_TIERS, 999_999_999n),
+      },
+      {
+        usd_micros: "1000000000",
+        confirmations: requiredConfirmations(BITCOIN_DEFAULT_CONFIRMATION_TIERS, 1_000_000_000n),
+      },
+      {
+        usd_micros: "250000000000",
+        confirmations: requiredConfirmations(BITCOIN_DEFAULT_CONFIRMATION_TIERS, 250_000_000_000n),
+      },
+    ],
+    override_tiers_note:
+      "A profile may opt back into USD tiers via confirmation_tiers (NP_CHAINS_FILE); BITCOIN_CONFIRMATION_TIERS (the Stage 4 tiers, 1 below USD 1,000, else 2) is the example. Not the default.",
+    override_tiers: BITCOIN_CONFIRMATION_TIERS,
+    override_required_confirmations: [
       { usd_micros: "999999999", confirmations: requiredConfirmations(BITCOIN_CONFIRMATION_TIERS, 999_999_999n) },
       { usd_micros: "1000000000", confirmations: requiredConfirmations(BITCOIN_CONFIRMATION_TIERS, 1_000_000_000n) },
       {
@@ -769,13 +787,13 @@ function bitcoinEvidenceCases() {
         evidence: ev(small, 900_000, 500_000_000n),
       },
       {
-        name: "USD 1,000 payout, 1 confirmation: not final yet (needs 2)",
+        name: "USD 1,000 payout, 1 confirmation: final (1 confirmation for every amount)",
         expected_amount: "1250000",
         settlement_usd_micros: "1000000000",
         esplora_tx: large,
         tip_height: 900_000,
-        result: "not_final",
-        evidence: null,
+        result: "pass",
+        evidence: ev(large, 900_000, 1_000_000_000n),
       },
       {
         name: "USD 1,000 payout, 2 confirmations: final",
@@ -811,7 +829,7 @@ function bitcoinEvidenceCases() {
 export function chainsVectors() {
   return {
     description:
-      "Solana and Bitcoin as Tier A chains (spec 0.4.0; lld/rails.md §21). Chain profiles (ChainProfile, rails config/chains.yaml), assets from the live 1Click registry (asset ids are nep141 omft ids; neither chain has a nep245 form for these assets), address rules (kit chains), omft parsing and the SPL mint ↔ asset-id rule (sentinel R4/token reconciliation, checkout), manual-path payment URIs (checkout), and evidence parsing from RPC results (rails verifiers/watchers ↔ sentinel audit).",
+      "Solana and Bitcoin as Tier A chains (spec 0.4.0; confirmation samples per ADR-0022 as amended since 0.4.2: Solana `confirmed` commitment, Bitcoin 1 confirmation for every amount; lld/rails.md §21). Chain profiles (ChainProfile, rails config/chains.yaml), assets from the live 1Click registry (asset ids are nep141 omft ids; neither chain has a nep245 form for these assets), address rules (kit chains), omft parsing and the SPL mint ↔ asset-id rule (sentinel R4/token reconciliation, checkout), manual-path payment URIs (checkout), and evidence parsing from RPC results (rails verifiers/watchers ↔ sentinel audit).",
     chains: chainProfiles(),
     assets: ASSETS.map((a) => ({ ...a, omft: parseOmftAssetId(a.asset_id) })),
     destination_types: {

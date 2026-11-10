@@ -13,6 +13,8 @@ import bs58 from "bs58";
 import { describe, expect, it } from "vitest";
 import { ChainProfile, SimTx } from "../src/internal-entry.js";
 import {
+  BITCOIN_CONFIRMATION_TIERS,
+  BITCOIN_DEFAULT_CONFIRMATION_TIERS,
   BITCOIN_MAINNET,
   BitcoinDestinationAddress,
   Evidence,
@@ -48,8 +50,16 @@ describe("chains-solana-bitcoin.json: profiles and assets", () => {
   it("profiles parse as ChainProfile with the documented CAIP-2 ids", () => {
     const ids = chains.chains.map((p: unknown) => ChainProfile.parse(p).chain);
     expect(ids).toEqual([SOLANA_MAINNET, BITCOIN_MAINNET]);
-    const btcProfile = chains.chains[1];
-    expect(btcProfile.confirmation_tiers).toEqual([
+    // ADR-0022 as amended (owner 2026-11-10 17:10): one block of each chain's own consensus
+    const [solProfile, btcProfile] = chains.chains;
+    expect(solProfile.finality).toBe("solana: confirmed commitment");
+    expect(solProfile.confirmation_tiers).toBeNull();
+    expect(btcProfile.finality).toBe("bitcoin: 1 confirmation");
+    expect(btcProfile.confirmation_tiers).toEqual([{ below_usd_micros: null, confirmations: 1 }]);
+    expect(btcProfile.confirmation_tiers).toEqual(BITCOIN_DEFAULT_CONFIRMATION_TIERS);
+    // the Stage 4 USD tiers stay available as an opt-in override, unchanged
+    expect(chains.evidence.bitcoin.override_tiers).toEqual(BITCOIN_CONFIRMATION_TIERS);
+    expect(BITCOIN_CONFIRMATION_TIERS).toEqual([
       { below_usd_micros: 1_000_000_000, confirmations: 1 },
       { below_usd_micros: null, confirmations: 2 },
     ]);
@@ -163,12 +173,17 @@ describe("chains-solana-bitcoin.json: evidence parsing", () => {
       expect(BigInt(ev.solana?.post_amount ?? "0") - BigInt(ev.solana?.pre_amount ?? "0")).toBe(delta);
     }
   });
-  it("Bitcoin: amount = Σ outputs to the address, confirmations against the tier", () => {
+  it("Bitcoin: amount = Σ outputs to the address, 1 confirmation for every amount (default tiers)", () => {
     const b = chains.evidence.bitcoin;
+    expect(b.tiers).toEqual([{ below_usd_micros: null, confirmations: 1 }]);
+    for (const r of b.required_confirmations) expect(r.confirmations).toBe(1);
+    // opt-in override example (Stage 4 tiers): 1 below USD 1,000, else 2
+    expect(b.override_required_confirmations.map((r: { confirmations: number }) => r.confirmations)).toEqual([1, 2, 2]);
+    const passes = b.cases.filter((c: { result: string }) => c.result === "pass").map((c: { name: string }) => c.name);
+    expect(passes).toContain("USD 1,000 payout, 1 confirmation: final (1 confirmation for every amount)");
     for (const c of b.cases) {
       const t = c.esplora_tx;
-      const usd = BigInt(c.settlement_usd_micros);
-      const required = usd < 1_000_000_000n ? 1 : 2;
+      const required = 1;
       const confs = t.status.confirmed ? c.tip_height - t.status.block_height + 1 : 0;
       if (confs < required) {
         expect(c.result).toBe("not_final");

@@ -52,7 +52,7 @@ const evidence = {
   recipient: "0xpayer",
   asset_id: USDC,
   amount: "1990000",
-  finality: "finalized",
+  finality: "confirmed", // Base: one block (ADR-0022 as amended)
   tier: "A",
   source: "watcher",
   observed_at: TS,
