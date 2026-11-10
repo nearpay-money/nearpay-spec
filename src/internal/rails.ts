@@ -498,7 +498,11 @@ export const ChainProfile = out({
   tier: openEnum(["A", "B"], "Verification tier."),
   min_deadline_s: z.int().min(0).describe("Minimum deposit window."),
   default_deadline_s: z.int().min(0).describe("Default deposit window."),
-  finality: z.string().describe("Finality rule."),
+  finality: z
+    .string()
+    .describe(
+      "Evidence rule as text: one block of the chain's own consensus by default (ADR-0022 as amended) — `final` (NEAR), `1 confirmation` (EVM), `solana: confirmed commitment`, `bitcoin: 1 confirmation`.",
+    ),
   verification_timeout_s: z.int().min(0).describe("Evidence timeout before `held`."),
   memo_mode: closedEnum(["none", "required"], "Memo mode."),
   explorer_tx_url: z.string().describe("Explorer URL template with `{tx}`."),
@@ -513,7 +517,7 @@ export const ChainProfile = out({
     .nullable()
     .optional()
     .describe(
-      "Confirmations required by settlement value, ascending, last tier unbounded (Bitcoin: 1 below USD 1,000, else 2); null/absent for chains with a finality flag (EVM `finalized`, NEAR `final`, Solana `finalized`). Spec 0.4.0.",
+      "Confirmations required by settlement value, ascending, last tier unbounded (Bitcoin family: `[{below_usd_micros: null, confirmations: 1}]` = 1 confirmation for every amount by default, ADR-0022 as amended; a profile may require more above a USD value); null/absent for chains with a finality rule instead (EVM 1 block, NEAR `final`, Solana `confirmed` commitment). Spec 0.4.0.",
     ),
 }).meta({ id: "ChainProfile", description: "Chain profile (public subset)." });
 

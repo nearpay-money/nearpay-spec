@@ -15,7 +15,10 @@ export const Evidence = out({
   recipient: ChainAddress.describe("Recipient that received the funds (the merchant destination)."),
   asset_id: AssetId.describe("Asset that settled."),
   amount: BaseUnits.describe("Amount received by the recipient, base units."),
-  finality: openEnum(["final", "finalized", "confirmed"], "Finality reached when the evidence was accepted."),
+  finality: openEnum(
+    ["final", "finalized", "confirmed"],
+    "Finality reached when the evidence was accepted: `final` (NEAR), `confirmed` (one block of the chain's own consensus: EVM 1 block, Solana `confirmed` commitment, Bitcoin 1 confirmation — the default, ADR-0022 as amended), `finalized` (a chain's finalized tag/commitment, when configured).",
+  ),
   tier: openEnum(
     ["A", "B"],
     "Verification tier: A = independently verified on chain, B = provider-attested within limits.",

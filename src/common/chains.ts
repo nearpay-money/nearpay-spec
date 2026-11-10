@@ -65,8 +65,9 @@ export const DESTINATION_SIGNING_STANDARDS = ["nep413", "eip191", "solana", "bip
 
 /**
  * Settlement detail of a Solana transfer (lld/rails.md §21.3). The amount is the owner's balance
- * delta for the mint (all of its token accounts of that mint, or lamports for SOL) in a finalized,
- * successful transaction: `Evidence.amount = post_amount − pre_amount`.
+ * delta for the mint (all of its token accounts of that mint, or lamports for SOL) in a successful
+ * transaction read at `confirmed` commitment (ADR-0022 as amended; `finalized` when rails is configured
+ * so): `Evidence.amount = post_amount − pre_amount`.
  */
 export const SolanaEvidence = out({
   signature: SolanaSignature.describe("Transaction signature (= `Evidence.tx_hash`)."),
@@ -117,7 +118,9 @@ export const BitcoinEvidence = out({
   required_confirmations: z
     .int()
     .min(1)
-    .describe("Confirmations the chain profile required for this settlement's USD value (`confirmation_tiers`)."),
+    .describe(
+      "Confirmations the chain profile required for this settlement's USD value (`confirmation_tiers`; 1 for every amount by default, ADR-0022 as amended).",
+    ),
 }).meta({ id: "BitcoinEvidence", description: "Bitcoin-specific settlement detail (outputs and confirmations)." });
 export type BitcoinEvidence = z.infer<typeof BitcoinEvidence>;
 
@@ -206,7 +209,20 @@ export function requiredConfirmations(tiers: readonly ConfirmationTier[], usdMic
   throw new RangeError("confirmation tiers must end with an unbounded tier");
 }
 
-/** Bitcoin mainnet tiers (lld/rails.md §21.1): 1 confirmation below USD 1,000, else 2. */
+/**
+ * Default Bitcoin-family confirmations (BTC; LTC/DOGE profiles): ONE confirmation for every amount
+ * (ADR-0022 as amended by the owner 2026-11-10 17:10 — every chain confirms on one block of its own
+ * consensus). Rails uses this when a profile sets no `confirmation_tiers`. Spec 0.4.2.
+ */
+export const BITCOIN_DEFAULT_CONFIRMATION_TIERS: readonly ConfirmationTier[] = Object.freeze([
+  { below_usd_micros: null, confirmations: 1 },
+]);
+
+/**
+ * The Stage 4 USD tiers (lld/rails.md §21.1): 1 confirmation below USD 1,000, else 2. No longer the
+ * default since ADR-0022 as amended (see {@link BITCOIN_DEFAULT_CONFIRMATION_TIERS}); kept unchanged for
+ * profiles that opt back in via `confirmation_tiers` and for sentinel's stricter independent audit.
+ */
 export const BITCOIN_CONFIRMATION_TIERS: readonly ConfirmationTier[] = Object.freeze([
   { below_usd_micros: 1_000_000_000, confirmations: 1 },
   { below_usd_micros: null, confirmations: 2 },

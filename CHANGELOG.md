@@ -3,13 +3,39 @@
 `@nearpay/spec` and `@nearpay-internal/spec` share one version. Within a version line changes are
 additive only (`pnpm compat` gates every release against `test/compat/baseline/`, the last release).
 
-## Unreleased
+## 0.4.2 — 2026-11-11
 
-Documentation only (descriptions and examples; no schema, route, event or error change — no release
-needed): open onboarding (ADR-0024, owner decision 2026-11-10). `submitKyb`, `KybCase`, `KybProfile`,
-`OpsKybCase` and `KybSubmittedEvent` describe the automatic decision on submission (compliance
-`NP_KYB_MODE=auto`) and that `registration_number` is optional; the `kyb_profile_incomplete` example no
-longer lists `registration_number`.
+Confirmation samples brought to ADR-0022 as amended by the owner (2026-11-10 17:10): every chain confirms on
+ONE block of its own consensus — EVM 1 block (Ethereum included), Solana `confirmed` commitment, Bitcoin
+family 1 confirmation for every amount (no USD tiers by default), NEAR `final` (unchanged). Patch release:
+descriptions, examples, test vectors and one new constant; no schema, route, event, webhook type or error
+code added or removed.
+
+- **Test vectors** (`chains-solana-bitcoin.json`): Solana profile `finality` `"solana: finalized commitment"`
+  → `"solana: confirmed commitment"`; Solana evidence `finality` `finalized` → `confirmed` and the parsing
+  `rule` reads at `commitment: 'confirmed'` (`processed` never counts; rails re-checks at `finalized` after
+  success). Bitcoin profile `finality` `"bitcoin: 1 confirmation below USD 1,000, else 2"` →
+  `"bitcoin: 1 confirmation"`, `confirmation_tiers` → `[{below_usd_micros: null, confirmations: 1}]`;
+  `evidence.bitcoin.tiers` / `required_confirmations` are the default (1 for every amount), case 1 ("USD
+  1,000 payout, 1 confirmation") now passes with evidence (`required_confirmations: 1`; was `not_final`),
+  case 2 records `required_confirmations: 1`. Case order and count unchanged. The Stage 4 USD tiers move to
+  the new keys `override_tiers` / `override_required_confirmations` (opt-in profile example).
+- **`BITCOIN_DEFAULT_CONFIRMATION_TIERS`** (new export, `[{below_usd_micros: null, confirmations: 1}]`): the
+  default rails applies when a profile sets no `confirmation_tiers`. **`BITCOIN_CONFIRMATION_TIERS` is
+  unchanged** (1 below USD 1,000, else 2) and documented as the opt-in override; sentinel's independent audit
+  keeps using it as a stricter second check.
+- **Descriptions:** `Evidence.finality` (which value each chain records), `BitcoinEvidence.required_confirmations`,
+  `ChainProfile.finality` and `ChainProfile.confirmation_tiers` (no more "Bitcoin: 1 below USD 1,000, else 2" /
+  "Solana `finalized`" / "EVM `finalized`" defaults), `SolanaEvidence` doc comment.
+- Open onboarding (ADR-0024, owner decision 2026-11-10; documentation only, previously unreleased):
+  `submitKyb`, `KybCase`, `KybProfile`, `OpsKybCase` and `KybSubmittedEvent` describe the automatic decision on
+  submission (compliance `NP_KYB_MODE=auto`) and that `registration_number` is optional; the
+  `kyb_profile_incomplete` example no longer lists `registration_number`.
+
+**Compatibility notes.** Description text, one new exported constant and test-vector values only; no request
+or response shape changed, no required set grew, no enum changed. Expected oasdiff result against the 0.4.1
+baseline: no findings at `ERR` (`pnpm compat` not run for this release: oasdiff/Docker Hub unavailable in the
+build sandbox). Consumers that assert the old vector values (rails adapted its tests to them) must bump.
 
 ## 0.4.1 — 2026-11-09
 
