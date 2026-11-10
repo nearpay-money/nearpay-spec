@@ -600,7 +600,7 @@ errors:
     retryable: false
     generic: false
     message: "The business details are incomplete: {fields}"
-    example: "The business details are incomplete: registration_number, business_address."
+    example: "The business details are incomplete: business_type, business_address."
     doc_url: https://docs.nearpay.money/errors/kyb_profile_incomplete
     since: 0.2.0
   - code: intent_not_succeeded

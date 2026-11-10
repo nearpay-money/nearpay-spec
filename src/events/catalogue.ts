@@ -133,7 +133,10 @@ export const KybSubmittedEvent = out({
   account_id: id("acct"),
   status: KybStatus,
   submitted_at: Timestamp.describe("Submission time."),
-}).meta({ id: "KybSubmittedEvent", description: "The owner submitted self-declared business details for review." });
+}).meta({
+  id: "KybSubmittedEvent",
+  description: "The owner submitted self-declared business details (decided at once in open onboarding, ADR-0024).",
+});
 
 // stage 2 — contracts integration: unified console audit trail (T-12)
 export const OpsActionEvent = out({

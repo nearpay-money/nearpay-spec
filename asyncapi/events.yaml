@@ -12634,7 +12634,7 @@ components:
       type: object
     KybSubmittedEvent:
       additionalProperties: {}
-      description: The owner submitted self-declared business details for review.
+      description: The owner submitted self-declared business details (decided at once in open onboarding, ADR-0024).
       properties:
         account_id:
           description: account id (`acct_` + 26 base32 chars).

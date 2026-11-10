@@ -322,7 +322,7 @@ export const OpsKybCase = out({
       }),
     )
     .describe("Transitions, oldest first."),
-}).meta({ id: "OpsKybCase", description: "A KYB case with its self-declared details, for review." });
+}).meta({ id: "OpsKybCase", description: "A KYB case with its self-declared details and decision history." });
 
 export const listOpsKybCases = route({
   ...cmp,

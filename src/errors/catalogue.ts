@@ -553,7 +553,7 @@ export const ERRORS = {
     type: "invalid_request_error",
     retryable: false,
     message: "The business details are incomplete: {fields}",
-    example: "The business details are incomplete: registration_number, business_address.",
+    example: "The business details are incomplete: business_type, business_address.",
   }),
   // stage 2 — payments
   intent_not_succeeded: e2({
