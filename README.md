@@ -2,14 +2,14 @@
 
 > Single source of truth for every contract, authored as zod schemas in TypeScript and emitted as OpenAPI 3.1 / AsyncAPI / JSON Schema: public REST, internal service APIs, domain events, webhook payloads, error catalogue, NearPay x402 scheme, shared test vectors.
 
-|                                       |                                                               |
-| ------------------------------------- | ------------------------------------------------------------- |
-| Group                                 | Contracts & shared                                            |
-| Kind                                  | spec                                                          |
-| Ships as                              | npm: @nearpay/spec (public), @nearpay-internal/spec (private) |
-| Owns                                  | API/event/webhook/error contracts                             |
-| Depends on (published artifacts only) | —                                                             |
-| First built in                        | Stage 1 (step 1.1)                                            |
+|                                       |                                                                     |
+| ------------------------------------- | ------------------------------------------------------------------- |
+| Group                                 | Contracts & shared                                                  |
+| Kind                                  | spec                                                                |
+| Ships as                              | npm: @nearpay-money/spec (public), @nearpay-internal/spec (private) |
+| Owns                                  | API/event/webhook/error contracts                                   |
+| Depends on (published artifacts only) | —                                                                   |
+| First built in                        | Stage 1 (step 1.1)                                                  |
 
 ## Documentation
 
@@ -43,8 +43,8 @@ nearpay-spec/
 ├── errors/              GENERATED catalogue.yaml
 ├── test-vectors/        GENERATED shared fixtures (attestations, tickets, webhook signatures, Intents payloads, ids)
 ├── packages/
-│   ├── spec-public/     @nearpay/spec
-│   └── spec-internal/   @nearpay-internal/spec (depends on @nearpay/spec)
+│   ├── spec-public/     @nearpay-money/spec
+│   └── spec-internal/   @nearpay-internal/spec (depends on @nearpay-money/spec)
 └── test/                rule tests (descriptions, routes, errors, events, vectors, artifacts) · compat/ (oasdiff gate + release baseline)
 ```
 
@@ -62,6 +62,8 @@ nearpay-spec/
 `nearpay-deploy/scripts/up.sh` publishes these packages automatically when the pinned version is missing from the local registry.
 
 ## Status
+
+`0.5.0` — package rename (ADR-0025): the public package is now `@nearpay-money/spec` (the `@nearpay` npm scope belongs to an unrelated company), published to the public npm registry by `.github/workflows/release.yml`; `@nearpay-internal/spec` depends on it. Contracts are identical to 0.4.2.
 
 `0.4.2` — confirmation samples per ADR-0022 as amended (one block of each chain's own consensus; see `CHANGELOG.md`): Solana `confirmed` commitment and Bitcoin 1 confirmation for every amount in the chain vectors and descriptions, new `BITCOIN_DEFAULT_CONFIRMATION_TIERS` (`BITCOIN_CONFIRMATION_TIERS` unchanged, opt-in). No schema change; counts unchanged from 0.4.0.
 

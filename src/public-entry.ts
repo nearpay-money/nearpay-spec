@@ -1,5 +1,5 @@
 /**
- * @nearpay/spec — public contracts: public REST routes and objects, webhook events and
+ * @nearpay-money/spec — public contracts: public REST routes and objects, webhook events and
  * signatures, the NearPay x402 scheme, NEAR Intents payloads, the error catalogue and helpers.
  */
 export * from "./common/auth.js";
@@ -26,4 +26,4 @@ export * from "./x402/near-intents.js";
 export * from "./x402/scheme.js";
 
 /** Version of this contract package (kept equal to package.json by `test/package.test.ts`). */
-export const SPEC_VERSION = "0.4.2";
+export const SPEC_VERSION = "0.5.0";

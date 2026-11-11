@@ -1,0 +1,54 @@
+# Publishes `@nearpay-money/spec` to the public npm registry.
+# Trigger: push a version tag (`git tag v<version> && git push origin v<version>`) or run it by hand
+# (Actions → release → Run workflow; "dry_run" packs and runs `npm publish --dry-run` only).
+# Release order across repositories: nearpay-spec first (every package depends on @nearpay-money/spec), then nearpay-node, nearpay-js, nearpay-agentkit, and nearpay-cli last (nearpay/RELEASING.md).
+# Idempotent: versions already on npm are skipped. Provenance is attached only when this repository is public.
+name: release
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Pack and run npm publish --dry-run only
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  id-token: write # npm provenance (used only when the repository is public)
+concurrency:
+  group: release-${{ github.repository }}
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+      TESTCONTAINERS_RYUK_DISABLED: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: Install oasdiff (compat gate)
+        run: |
+          curl -fsSL -o oasdiff.tgz https://github.com/oasdiff/oasdiff/releases/download/v1.34.1/oasdiff_1.34.1_linux_amd64.tar.gz
+          tar -xzf oasdiff.tgz oasdiff && sudo mv oasdiff /usr/local/bin/ && rm oasdiff.tgz
+      - run: pnpm install --frozen-lockfile
+      - name: Verify
+        run: pnpm verify
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+          DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
+          REPO_PRIVATE: ${{ github.event.repository.private }}
+        run: |
+          flags=()
+          [ "$DRY_RUN" = true ] && flags+=(--dry-run)
+          [ "$REPO_PRIVATE" = false ] && flags+=(--provenance)
+          scripts/publish-npm.sh "${flags[@]}" packages/spec-public

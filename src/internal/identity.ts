@@ -14,7 +14,7 @@ import {
   SettlementDestination,
   Timestamp,
   z,
-} from "@nearpay/spec";
+} from "@nearpay-money/spec";
 
 export const RouteClassFeeRule = out({
   total_bps: Bps.describe("All-in fee for this route class."),

@@ -3,7 +3,7 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: {
-    alias: { "@nearpay/spec": fileURLToPath(new URL("./src/public-entry.ts", import.meta.url)) },
+    alias: { "@nearpay-money/spec": fileURLToPath(new URL("./src/public-entry.ts", import.meta.url)) },
   },
   test: {
     include: ["test/**/*.test.ts"],

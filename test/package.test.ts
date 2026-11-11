@@ -13,7 +13,7 @@ describe("package metadata", () => {
     expect(pkg("package.json").version).toBe(SPEC_VERSION);
   });
   it("pins the public package from the internal one and keeps zod a peer", () => {
-    expect(pkg("packages/spec-internal/package.json").dependencies["@nearpay/spec"]).toBe("workspace:*");
+    expect(pkg("packages/spec-internal/package.json").dependencies["@nearpay-money/spec"]).toBe("workspace:*");
     for (const p of ["packages/spec-public/package.json", "packages/spec-internal/package.json"]) {
       expect(pkg(p).peerDependencies.zod).toBe("^4.6.7");
       expect(pkg(p).license).toBe("Apache-2.0");

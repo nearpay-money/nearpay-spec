@@ -14,7 +14,7 @@
  * - pending requests expire (`expires_at`: kill-switch release 1 h, account actions 24 h);
  * - rejecting executes nothing, so any `ops_admin` (the requester included, to withdraw) may reject.
  */
-import { id, OpsRoleSchema, openEnum, out, UnixTime, z } from "@nearpay/spec";
+import { id, OpsRoleSchema, openEnum, out, UnixTime, z } from "@nearpay-money/spec";
 
 export const OpsApprovalAction = openEnum(
   ["account.suspend", "account.reinstate", "kill_switch.release"],

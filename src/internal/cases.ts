@@ -6,7 +6,7 @@
  * `reconciliation_diff` case for every reconciliation run that ends in `diff` or `error` (RB-05),
  * so reconciliation differences land in the same queue as screening hits and audit findings.
  */
-import { closedEnum, id, inp, openEnum, out, route, UnixTime, z } from "@nearpay/spec";
+import { closedEnum, id, inp, openEnum, out, route, UnixTime, z } from "@nearpay-money/spec";
 
 export const CaseKind = openEnum(
   ["screening_hit", "post_screen_hit", "held_execution", "audit_mismatch", "merchant_report", "reconciliation_diff"],

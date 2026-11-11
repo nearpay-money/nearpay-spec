@@ -1,5 +1,5 @@
 /** Internal route table (`/internal/*` and the sandbox mirror). */
-import type { AnyRoute } from "@nearpay/spec";
+import type { AnyRoute } from "@nearpay-money/spec";
 import * as billing from "./billing.js"; // stage 3 — billing
 import * as cases from "./cases.js"; // stage 2 — contracts integration
 import * as identity from "./identity.js";

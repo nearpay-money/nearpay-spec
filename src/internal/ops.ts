@@ -35,7 +35,7 @@ import {
   route,
   UnixTime,
   z,
-} from "@nearpay/spec";
+} from "@nearpay-money/spec";
 import { AuditFinding } from "../events/catalogue.js";
 import { CaseKind, CaseResolution, CaseSeverity, CaseStatus, ComplianceCase } from "./cases.js";
 import { OpsApproval } from "./ops-approval.js";

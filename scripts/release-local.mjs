@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Publishes @nearpay/spec and @nearpay-internal/spec to the local registry (Verdaccio in the
+ * Publishes @nearpay-money/spec and @nearpay-internal/spec to the local registry (Verdaccio in the
  * nearpay-deploy Compose stack, system audit S-11). Idempotent: a version that is already
  * published with identical contents is skipped; different contents under the same version fail
  * (bump the version — semver, foundations §3).
@@ -144,9 +144,23 @@ async function main() {
         console.log(`= ${name}@${version} already published (identical)`);
         continue;
       }
-      run("npm", ["publish", tgz, "--userconfig", npmrc, "--registry", `${registry}/`, "--access", "public"], {
-        env: npmEnv,
-      });
+      run(
+        "npm",
+        [
+          "publish",
+          tgz,
+          "--userconfig",
+          npmrc,
+          "--registry",
+          `${registry}/`,
+          "--access",
+          "public",
+          "--provenance=false",
+        ],
+        {
+          env: npmEnv,
+        },
+      );
       console.log(`+ ${name}@${version} published to ${registry}`);
     }
   } finally {

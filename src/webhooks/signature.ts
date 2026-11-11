@@ -1,6 +1,6 @@
 /**
  * `NearPay-Signature` header format (api-conventions §9, lld/webhooks.md §6). Pure string
- * functions; HMAC/Ed25519 live in the signer (webhooks) and verifiers (`@nearpay/node`).
+ * functions; HMAC/Ed25519 live in the signer (webhooks) and verifiers (`@nearpay-money/node`).
  *
  *   t=<unix>,v1=<hex hmac-sha256>[,v1=<hex for the secondary secret>],v1a=<base64url ed25519>,kid=<kid>
  *

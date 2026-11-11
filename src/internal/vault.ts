@@ -19,7 +19,7 @@ import {
   type VaultErrorCode,
   VaultEvent,
   z,
-} from "@nearpay/spec";
+} from "@nearpay-money/spec";
 
 // =============================================================================================
 // evt.rails.vault.event (rails §8.6)

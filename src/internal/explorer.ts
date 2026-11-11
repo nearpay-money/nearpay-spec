@@ -9,7 +9,7 @@
  * (an unknown value is recorded as an observation and never moves an execution; domain-model §4.3)
  * and rows are loose objects.
  */
-import { inp, out, z } from "@nearpay/spec";
+import { inp, out, z } from "@nearpay-money/spec";
 
 /** Statuses the Explorer documents (2026-11-07). The API's default filter omits the two `*_DEPOSIT` ones. */
 export const EXPLORER_STATUSES = [
