@@ -288,6 +288,18 @@ channels:
     messages:
       evt_identity_settlement_destination_pending_approval:
         $ref: "#/components/messages/evt_identity_settlement_destination_pending_approval"
+  evt_identity_user_google_linked:
+    address: evt.identity.user.google_linked
+    description: "Stream `EVT_IDENTITY`. Producer: identity. Consumers: notify."
+    messages:
+      evt_identity_user_google_linked:
+        $ref: "#/components/messages/evt_identity_user_google_linked"
+  evt_identity_user_google_unlinked:
+    address: evt.identity.user.google_unlinked
+    description: "Stream `EVT_IDENTITY`. Producer: identity. Consumers: notify."
+    messages:
+      evt_identity_user_google_unlinked:
+        $ref: "#/components/messages/evt_identity_user_google_unlinked"
   evt_identity_user_recovered:
     address: evt.identity.user.recovered
     description: "Stream `EVT_IDENTITY`. Producer: identity. Consumers: notify."
@@ -6194,6 +6206,244 @@ components:
           - data
         type: object
       title: evt.identity.settlement_destination.pending_approval
+    evt_identity_user_google_linked:
+      contentType: application/json
+      headers:
+        properties:
+          Nats-Msg-Id:
+            description: Event id (de-duplication window 120 s).
+            type: string
+        required:
+          - Nats-Msg-Id
+        type: object
+      name: evt.identity.user.google_linked
+      payload:
+        additionalProperties: {}
+        description: Envelope of `evt.identity.user.google_linked`.
+        properties:
+          account_id:
+            anyOf:
+              - description: UUID (RFC 9562).
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                type: string
+              - type: "null"
+            description: Merchant account UUID (null for platform events).
+          aggregate:
+            additionalProperties: {}
+            description: The aggregate that changed.
+            properties:
+              id:
+                description: Aggregate id (prefixed).
+                type: string
+              type:
+                description: Aggregate type.
+                type: string
+              version:
+                description: Aggregate version after the change.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+            required:
+              - type
+              - id
+              - version
+            type: object
+          data:
+            additionalProperties: {}
+            description: Payload.
+            properties:
+              object:
+                $ref: "#/components/schemas/UserSignInMethodEvent"
+              previous:
+                additionalProperties: {}
+                description: Changed fields with previous values.
+                propertyNames:
+                  type: string
+                type: object
+            required:
+              - object
+            type: object
+          id:
+            description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+            format: uuid
+            pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            type: string
+          livemode:
+            description: Mode (null for platform events).
+            type:
+              - boolean
+              - "null"
+          occurred_at:
+            description: When the state change committed.
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            type: string
+          request:
+            additionalProperties: {}
+            description: Request context (copied into public events).
+            properties:
+              id:
+                anyOf:
+                  - description: Request id, also returned in the `X-Request-Id` header.
+                    examples:
+                      - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                    pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                    type: string
+                  - type: "null"
+                description: API request that caused the change.
+              idempotency_key:
+                description: Its Idempotency-Key.
+                type:
+                  - string
+                  - "null"
+            required:
+              - id
+              - idempotency_key
+            type: object
+          subject:
+            const: evt.identity.user.google_linked
+            description: Subject.
+            type: string
+          trace:
+            additionalProperties: {}
+            description: Trace context.
+            properties:
+              traceparent:
+                description: W3C traceparent.
+                type: string
+            required:
+              - traceparent
+            type: object
+        required:
+          - id
+          - occurred_at
+          - account_id
+          - livemode
+          - aggregate
+          - subject
+          - data
+        type: object
+      title: evt.identity.user.google_linked
+    evt_identity_user_google_unlinked:
+      contentType: application/json
+      headers:
+        properties:
+          Nats-Msg-Id:
+            description: Event id (de-duplication window 120 s).
+            type: string
+        required:
+          - Nats-Msg-Id
+        type: object
+      name: evt.identity.user.google_unlinked
+      payload:
+        additionalProperties: {}
+        description: Envelope of `evt.identity.user.google_unlinked`.
+        properties:
+          account_id:
+            anyOf:
+              - description: UUID (RFC 9562).
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                type: string
+              - type: "null"
+            description: Merchant account UUID (null for platform events).
+          aggregate:
+            additionalProperties: {}
+            description: The aggregate that changed.
+            properties:
+              id:
+                description: Aggregate id (prefixed).
+                type: string
+              type:
+                description: Aggregate type.
+                type: string
+              version:
+                description: Aggregate version after the change.
+                maximum: 9007199254740991
+                minimum: 0
+                type: integer
+            required:
+              - type
+              - id
+              - version
+            type: object
+          data:
+            additionalProperties: {}
+            description: Payload.
+            properties:
+              object:
+                $ref: "#/components/schemas/UserSignInMethodEvent"
+              previous:
+                additionalProperties: {}
+                description: Changed fields with previous values.
+                propertyNames:
+                  type: string
+                type: object
+            required:
+              - object
+            type: object
+          id:
+            description: Event id (UUIDv7); also the NATS `Nats-Msg-Id` for de-duplication.
+            format: uuid
+            pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            type: string
+          livemode:
+            description: Mode (null for platform events).
+            type:
+              - boolean
+              - "null"
+          occurred_at:
+            description: When the state change committed.
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            type: string
+          request:
+            additionalProperties: {}
+            description: Request context (copied into public events).
+            properties:
+              id:
+                anyOf:
+                  - description: Request id, also returned in the `X-Request-Id` header.
+                    examples:
+                      - req_01jbz9k3m4n5p6q7r8s9t0v1w2
+                    pattern: ^req_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+                    type: string
+                  - type: "null"
+                description: API request that caused the change.
+              idempotency_key:
+                description: Its Idempotency-Key.
+                type:
+                  - string
+                  - "null"
+            required:
+              - id
+              - idempotency_key
+            type: object
+          subject:
+            const: evt.identity.user.google_unlinked
+            description: Subject.
+            type: string
+          trace:
+            additionalProperties: {}
+            description: Trace context.
+            properties:
+              traceparent:
+                description: W3C traceparent.
+                type: string
+            required:
+              - traceparent
+            type: object
+        required:
+          - id
+          - occurred_at
+          - account_id
+          - livemode
+          - aggregate
+          - subject
+          - data
+        type: object
+      title: evt.identity.user.google_unlinked
     evt_identity_user_recovered:
       contentType: application/json
       headers:
@@ -15044,6 +15294,41 @@ components:
         - recovered_at
         - lock_until
       type: object
+    UserSignInMethodEvent:
+      additionalProperties: {}
+      description: A user linked or unlinked an external sign-in identity (platform event; ids only — no email or provider subject). Aggregate `user_sign_in_methods` = the `usr_` id, version = the user's sign-in-method change count.
+      properties:
+        account_ids:
+          description: Accounts the user is a member of (their owners and admins may be told; the audit row is in each).
+          items:
+            description: account id (`acct_` + 26 base32 chars).
+            examples:
+              - acct_01jbz9k3m4n5p6q7r8s9t0v1w2
+            pattern: ^acct_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+            type: string
+          type: array
+        occurred_at:
+          description: When the link or unlink committed.
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+          type: string
+        provider:
+          description: The external sign-in provider.
+          enum:
+            - google
+          type: string
+        user_id:
+          description: user id (`usr_` + 26 base32 chars).
+          examples:
+            - usr_01jbz9k3m4n5p6q7r8s9t0v1w2
+          pattern: ^usr_[0-7][0123456789abcdefghjkmnpqrstvwxyz]{25}$
+          type: string
+      required:
+        - user_id
+        - provider
+        - account_ids
+        - occurred_at
+      type: object
     VaultEvent:
       description: A subscription-vault NEP-297 event (contracts-vault §4.1). Valid only in a successful receipt executed by the vault account itself (rails §8.6).
       oneOf:
@@ -15501,7 +15786,7 @@ info:
   license:
     name: Apache-2.0
   title: NearPay domain events
-  version: 0.5.0
+  version: 0.5.1
 operations:
   evt_agentpay_agent_payment_failed_send:
     action: send
@@ -15969,6 +16254,24 @@ operations:
       - notify
     x-producer: identity
     x-stage: 2
+  evt_identity_user_google_linked_send:
+    action: send
+    channel:
+      $ref: "#/channels/evt_identity_user_google_linked"
+    summary: identity publishes evt.identity.user.google_linked
+    x-consumers:
+      - notify
+    x-producer: identity
+    x-stage: 4
+  evt_identity_user_google_unlinked_send:
+    action: send
+    channel:
+      $ref: "#/channels/evt_identity_user_google_unlinked"
+    summary: identity publishes evt.identity.user.google_unlinked
+    x-consumers:
+      - notify
+    x-producer: identity
+    x-stage: 4
   evt_identity_user_recovered_send:
     action: send
     channel:

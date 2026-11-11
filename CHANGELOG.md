@@ -3,6 +3,43 @@
 `@nearpay-money/spec` and `@nearpay-internal/spec` share one version. Within a version line changes are
 additive only (`pnpm compat` gates every release against `test/compat/baseline/`, the last release).
 
+## 0.5.1 — 2026-11-11
+
+Continue with Google for the merchant dashboard (ADR-0026, owner decisions 2026-11-11; identity LLD §22). Additive:
+new routes, objects, error codes, events and constants; one optional response field; three existing routes list
+new error codes; the route type admits a `303` redirect.
+
+- **Routes (identity, stage 4):** `getAuthMethods` `GET /v1/auth/methods` (anonymous; `AuthMethods {passkey,
+  google}` — the dashboard shows the Google button only when identity has a Google client), `startGoogleSignIn`
+  `POST /v1/auth/google/start` (anonymous; body `{intent?: signin|signup, next?}` → `GoogleAuthorization
+  {authorization_url, expires_at}` + the flow cookie `__Host-np_google`), `googleCallback` `GET
+  /v1/auth/google/callback` (anonymous, Google's redirect target, always a `303` to a dashboard page — success or
+  `?google_error=<GoogleSignInError>`; its query is loose because Google appends `scope`, `authuser`, `hd`, …),
+  `startGoogleLink` `POST /v1/auth/google/link` (session + step-up), `listLinkedIdentities` `GET
+  /v1/auth/linked_identities` (session), `unlinkIdentity` `DELETE /v1/auth/linked_identities/{provider}` (session +
+  step-up; refused without a passkey). The three anonymous routes join `PUBLIC_ANONYMOUS_ROUTES`.
+- **Objects and constants:** `AuthMethods`, `GoogleAuthorization`, `LinkedIdentity` (+ `LinkedIdentityList`),
+  `AuthProvider` / `AUTH_PROVIDERS` (`google`), `GoogleSignInError` / `GOOGLE_SIGNIN_ERRORS` (open),
+  `GOOGLE_FLOW_COOKIE`, `GOOGLE_FLOW_TTL_SECONDS` (600), `PASSKEY_SETUP_WINDOW_SECONDS` (600),
+  `GOOGLE_CALLBACK_DASHBOARD_PATH` (`/api/auth/google/callback`).
+- **`DashboardSession.sign_in`** (optional): `{method: passkey|google|recovery (open), passkeys, google_linked,
+  passkey_setup_until}`.
+- **Errors:** `google_signin_disabled` (404), `google_already_linked` (409), `passkey_required` (403; also on
+  `stepUpOptions` for a user without a passkey), `reauthentication_required` (401; also on
+  `passkeyRegistrationOptions` / `passkeyRegistrationVerify`: a Google-only user adds a first passkey only within
+  10 minutes of a Google sign-in).
+- **Events (`@nearpay-internal/spec`):** `evt.identity.user.google_linked` / `.google_unlinked`
+  (`UserSignInMethodEvent {user_id, provider, account_ids, occurred_at}`, ids only; aggregate
+  `user_sign_in_methods`, added to the documentation enum `AggregateType`; consumer notify — template follow-up).
+- **Route type:** `SuccessStatus` gains `303`; `route()` requires a 303 route to be a bodyless `GET` with
+  `responseHeaders`. Servers on kit 0.3.x write such a redirect themselves (the kit binding emits 2xx only).
+
+**Compatibility notes.** New paths, optional response fields, open-enum values (error codes, sign-in method) and
+new response codes on three existing routes; no request field became required, nothing was removed or narrowed.
+Expected oasdiff result against the 0.4.1 baseline: no findings at `ERR`. `pnpm compat` not run for this release
+(oasdiff binary / Docker Hub image unavailable in the build sandbox, as for 0.4.2); every other `pnpm verify` step
+passes.
+
 ## 0.5.0 — 2026-11-11
 
 Package rename, no contract change (ADR-0025). The public package is published as **`@nearpay-money/spec`**

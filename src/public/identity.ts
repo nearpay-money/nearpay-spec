@@ -111,6 +111,22 @@ export const DashboardSession = out({
   role: closedEnum(ROLES, "Role of the user in the account."),
   csrf_token: z.string().min(32).describe("Send as `X-CSRF-Token` on every unsafe request."),
   expires_at: UnixTime.describe("Absolute session expiry."),
+  // spec 0.5.1 — Google sign-in (ADR-0026)
+  sign_in: out({
+    method: openEnum(
+      ["passkey", "google", "recovery"],
+      "How the session was created: a passkey (sign-in, sign-up or invitation), Continue with Google, or email recovery.",
+    ),
+    passkeys: z.int().min(0).describe("Dashboard passkeys of the user; 0 = a Google-only user who cannot step up yet."),
+    google_linked: z.boolean().describe("The user has a linked Google account (Continue with Google signs them in)."),
+    passkey_setup_until: UnixTime.nullable().describe(
+      "A Google-only user may register a first passkey from this session until this time (Google sign-in + 10 minutes); null otherwise. After it, continue with Google again.",
+    ),
+  })
+    .optional()
+    .describe(
+      "How the user signed in and what they can confirm with (ADR-0026); absent from servers before 0.5.1. Step-ups always need a passkey.",
+    ),
 }).meta({
   id: "DashboardSession",
   description:
@@ -274,7 +290,8 @@ export const passkeyRegistrationOptions = route({
   service: "identity",
   visibility: "public",
   summary: "WebAuthn creation options for a new passkey.",
-  description: "Called with a registration token (new user) or a session (additional passkey).",
+  description:
+    "Called with a registration token (new user) or a session (additional passkey). Spec 0.5.1 (ADR-0026): a session adds a passkey only after a fresh confirmation — a step-up within 10 minutes when the user already has a passkey (`401 step_up_required`), or, for a Google-only user, a Google sign-in within the last 10 minutes (`401 reauthentication_required`; `DashboardSession.sign_in.passkey_setup_until`).",
   auth: ["anonymous", "session"],
   idempotent: false,
   body: inp({
@@ -282,7 +299,7 @@ export const passkeyRegistrationOptions = route({
   }),
   response: CreationOptionsJSON,
   status: 200,
-  errors: ["link_expired"],
+  errors: ["link_expired", "reauthentication_required"],
   stage: 1,
 });
 
@@ -303,7 +320,7 @@ export const passkeyRegistrationVerify = route({
   }),
   response: DashboardSession,
   status: 200,
-  errors: ["webauthn_failed", "link_expired"],
+  errors: ["webauthn_failed", "link_expired", "reauthentication_required"],
   stage: 1,
 });
 
@@ -346,12 +363,14 @@ export const stepUpOptions = route({
   service: "identity",
   visibility: "public",
   summary: "WebAuthn request options for a step-up confirmation.",
+  description:
+    "Step-ups are passkey assertions only. Spec 0.5.1 (ADR-0026): a user without a passkey (signed up with Google) gets `403 passkey_required` and must add a passkey first.",
   auth: ["session"],
   idempotent: false,
   body: inp({}),
   response: RequestOptionsJSON,
   status: 200,
-  errors: [],
+  errors: ["passkey_required"],
   stage: 1,
 });
 
@@ -1102,4 +1121,208 @@ export const listAccountAuditEvents = route({
   status: 200,
   errors: [],
   stage: 2,
+});
+
+// =============================================================================================
+// spec 0.5.1 — Continue with Google (ADR-0026, lld/identity.md §22): OpenID Connect authorization
+// code flow with PKCE (S256), `state` and `nonce`, run server-side by identity. Optional: off unless
+// identity has a Google OAuth client (`NP_GOOGLE_CLIENT_ID` + client secret file). A Google login is
+// keyed on the Google `sub` (linked identity), never on the email alone; a Google login never counts
+// as a step-up.
+// =============================================================================================
+
+/** External sign-in providers a user can link (ADR-0026). */
+export const AUTH_PROVIDERS = ["google"] as const;
+export const AuthProvider = closedEnum(AUTH_PROVIDERS, "External sign-in provider.");
+
+/** Lifetime of a Google sign-in/link flow (state, nonce, PKCE verifier and its cookie), seconds. */
+export const GOOGLE_FLOW_TTL_SECONDS = 600;
+/** HttpOnly, Secure, `SameSite=Lax`, `Path=/` cookie binding the browser to its flow (set by the start routes). */
+export const GOOGLE_FLOW_COOKIE = "__Host-np_google";
+/** How long after a Google sign-in a Google-only user may register a first passkey, seconds. */
+export const PASSKEY_SETUP_WINDOW_SECONDS = 600;
+/** Path of the callback under the dashboard origin (`https://dashboard.<domain>/api/auth/google/callback`). */
+export const GOOGLE_CALLBACK_DASHBOARD_PATH = "/api/auth/google/callback";
+
+/**
+ * `google_error` values the callback appends to the dashboard page it redirects to (`/signin`, `/signup`
+ * or `/settings/account`). Open: dashboards show a generic message for unknown values.
+ */
+export const GOOGLE_SIGNIN_ERRORS = [
+  "cancelled",
+  "state_invalid",
+  "token_invalid",
+  "email_unverified",
+  "email_exists",
+  "account_disabled",
+  "no_account",
+  "identity_in_use",
+  "already_linked",
+  "link_session_invalid",
+  "unavailable",
+  "disabled",
+] as const;
+export const GoogleSignInError = openEnum(
+  GOOGLE_SIGNIN_ERRORS,
+  "Why Continue with Google did not complete: `cancelled` (the user declined at Google), `state_invalid` (unknown, expired, replayed or foreign flow), `token_invalid` (the code or ID token did not verify), `email_unverified` (Google has not verified the address), `email_exists` (the email already has a NearPay user that has not linked Google: sign in with a passkey, then connect Google in Settings), `account_disabled`, `no_account` (the user belongs to no account), `identity_in_use` (the Google account is linked to another NearPay user), `already_linked` (this user already has a Google account linked), `link_session_invalid` (the session that started a link ended), `unavailable` (Google could not be reached), `disabled` (Google sign-in is off).",
+);
+
+export const AuthMethods = out({
+  object: z.literal("auth_methods").describe("Always `auth_methods`."),
+  passkey: z.literal(true).describe("Passkeys are always available."),
+  google: z.boolean().describe("Continue with Google is available on this deployment (identity has a Google client)."),
+}).meta({ id: "AuthMethods", description: "Sign-in methods the dashboard may offer (ADR-0026)." });
+
+export const GoogleAuthorization = out({
+  object: z.literal("google_authorization").describe("Always `google_authorization`."),
+  authorization_url: Url.describe(
+    "Google's authorization endpoint with `client_id`, `redirect_uri`, `scope=openid email profile`, `state`, `nonce` and the S256 PKCE `code_challenge`. Navigate the top-level window to it (never a popup or iframe).",
+  ),
+  expires_at: UnixTime.describe("The flow (and its cookie) expires at this time (10 minutes)."),
+}).meta({
+  id: "GoogleAuthorization",
+  description:
+    "A started Google flow. The response sets the flow cookie `__Host-np_google` (HttpOnly, Secure, SameSite=Lax, 10 minutes); the callback accepts the flow only from the browser holding it.",
+});
+
+export const LinkedIdentity = out({
+  object: z.literal("linked_identity").describe("Always `linked_identity`."),
+  provider: AuthProvider,
+  email: z.email().describe("Email of the provider account when it was linked (shown only; sign-in uses the subject)."),
+  created: UnixTime.describe("When it was linked."),
+}).meta({ id: "LinkedIdentity", description: "An external sign-in identity linked to the user (ADR-0026)." });
+
+const GOOGLE_REDIRECT_HEADERS = z.object({
+  location: z
+    .string()
+    .describe(
+      "Dashboard page to continue on: the requested `next` path or `/` (signed in), `/setup` (new account), `/settings/account?google=linked` (linked), or `/signin`, `/signup`, `/settings/account` with `?google_error=<GoogleSignInError>`.",
+    ),
+  "set-cookie": z
+    .string()
+    .describe("Always clears `__Host-np_google`; on a sign-in also sets the session cookie `__Host-np_session`."),
+});
+
+export const getAuthMethods = route({
+  id: "getAuthMethods",
+  method: "GET",
+  path: "/v1/auth/methods",
+  service: "identity",
+  visibility: "public",
+  summary: "Sign-in methods the dashboard may offer.",
+  description:
+    "Lets the sign-in and sign-up pages show Continue with Google only when identity has a Google client configured (no build flag).",
+  auth: ["anonymous"],
+  idempotent: false,
+  response: AuthMethods,
+  status: 200,
+  errors: [],
+  stage: 4,
+});
+
+export const startGoogleSignIn = route({
+  id: "startGoogleSignIn",
+  method: "POST",
+  path: "/v1/auth/google/start",
+  service: "identity",
+  visibility: "public",
+  summary: "Start Continue with Google (sign-in or sign-up).",
+  description:
+    "Creates a 10-minute flow (random `state`, `nonce` and PKCE verifier; only hashes and the encrypted verifier are stored) and sets its cookie. The callback then: signs in the user whose linked Google `sub` matches; creates a user and account (owner) for a new verified email, like sign-up but without a magic link; and refuses (`google_error=email_exists`) an email that already has a NearPay user without a Google link — it is never linked automatically. A Google sign-in carries no step-up. Rate-limited per client IP.",
+  auth: ["anonymous"],
+  idempotent: false,
+  body: inp({
+    intent: closedEnum(["signin", "signup"], "Which page started the flow (errors return to it).")
+      .optional()
+      .describe("Which page started the flow; errors return there (default `signin`)."),
+    next: z
+      .string()
+      .max(512)
+      .regex(/^\/(?![/\\])[^\s\\]*$/)
+      .optional()
+      .describe("Dashboard path to continue on after signing in an existing user (same-origin path only)."),
+  }),
+  response: GoogleAuthorization,
+  status: 200,
+  errors: ["google_signin_disabled"],
+  stage: 4,
+});
+
+export const googleCallback = route({
+  id: "googleCallback",
+  method: "GET",
+  path: "/v1/auth/google/callback",
+  service: "identity",
+  visibility: "public",
+  summary: "Google's redirect target: completes the flow and redirects to the dashboard.",
+  description:
+    "Registered at Google as `https://dashboard.<domain>/api/auth/google/callback` (the gateway maps it here). Accepts the flow only once, before it expires, from the browser holding its cookie; exchanges the code with the PKCE verifier and the client secret; verifies the ID token (Google's JWKS signature, `iss`, `aud` = the client id, `exp`, `nonce`, `email_verified`). Never answers with JSON: success and every failure are `303` redirects to a dashboard page.",
+  auth: ["anonymous"],
+  idempotent: false,
+  // Google appends parameters of its own (`scope`, `authuser`, `prompt`, `hd`, `iss`, …): unknown ones are ignored.
+  query: z
+    .looseObject({
+      code: z.string().min(1).max(2048).optional().describe("Authorization code."),
+      state: z.string().min(1).max(256).optional().describe("The flow's `state`."),
+      error: z.string().max(256).optional().describe("OAuth error from Google, e.g. `access_denied`."),
+    })
+    .describe("Parameters Google appends to the redirect URI."),
+  response: null,
+  status: 303,
+  responseHeaders: GOOGLE_REDIRECT_HEADERS,
+  errors: [],
+  stage: 4,
+});
+
+export const startGoogleLink = route({
+  id: "startGoogleLink",
+  method: "POST",
+  path: "/v1/auth/google/link",
+  service: "identity",
+  visibility: "public",
+  summary: "Connect a Google account to the signed-in user (step-up).",
+  description:
+    "Starts a flow bound to this session (same cookie rules as `startGoogleSignIn`). The callback links the Google `sub` to the user unless that Google account is linked to another user (`google_error=identity_in_use`). Audited (`user.google_linked`) and emitted as `evt.identity.user.google_linked`.",
+  auth: ["session"],
+  stepUp: true,
+  idempotent: false,
+  body: inp({}),
+  response: GoogleAuthorization,
+  status: 200,
+  errors: ["google_signin_disabled", "google_already_linked"],
+  stage: 4,
+});
+
+export const listLinkedIdentities = route({
+  id: "listLinkedIdentities",
+  method: "GET",
+  path: "/v1/auth/linked_identities",
+  service: "identity",
+  visibility: "public",
+  summary: "External sign-in identities linked to the signed-in user.",
+  auth: ["session"],
+  idempotent: false,
+  response: listOf(LinkedIdentity, "LinkedIdentityList", "Linked identities of the user (at most one per provider)."),
+  status: 200,
+  errors: [],
+  stage: 4,
+});
+
+export const unlinkIdentity = route({
+  id: "unlinkIdentity",
+  method: "DELETE",
+  path: "/v1/auth/linked_identities/{provider}",
+  service: "identity",
+  visibility: "public",
+  summary: "Disconnect a linked sign-in identity (step-up; the user keeps a passkey).",
+  description:
+    "Only while the user still has a passkey (`403 passkey_required`). Ends the user's other sessions that were created by that provider. Audited (`user.google_unlinked`) and emitted as `evt.identity.user.google_unlinked`. No link → `404 resource_missing`.",
+  auth: ["session"],
+  stepUp: true,
+  idempotent: false,
+  params: inp({ provider: AuthProvider }),
+  response: null,
+  status: 204,
+  errors: ["passkey_required"],
+  stage: 4,
 });

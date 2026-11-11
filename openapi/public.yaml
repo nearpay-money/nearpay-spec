@@ -986,6 +986,26 @@ components:
         - has_more
         - url
       type: object
+    AuthMethods:
+      additionalProperties: {}
+      description: Sign-in methods the dashboard may offer (ADR-0026).
+      properties:
+        google:
+          description: Continue with Google is available on this deployment (identity has a Google client).
+          type: boolean
+        object:
+          const: auth_methods
+          description: Always `auth_methods`.
+          type: string
+        passkey:
+          const: true
+          description: Passkeys are always available.
+          type: boolean
+      required:
+        - object
+        - passkey
+        - google
+      type: object
     BalanceTransaction:
       additionalProperties: {}
       description: "A statement line: what settled where, with its evidence."
@@ -2417,6 +2437,39 @@ components:
             - support
             - viewer
           type: string
+        sign_in:
+          additionalProperties: {}
+          description: How the user signed in and what they can confirm with (ADR-0026); absent from servers before 0.5.1. Step-ups always need a passkey.
+          properties:
+            google_linked:
+              description: The user has a linked Google account (Continue with Google signs them in).
+              type: boolean
+            method:
+              description: "How the session was created: a passkey (sign-in, sign-up or invitation), Continue with Google, or email recovery."
+              type: string
+              x-extensible-enum:
+                - passkey
+                - google
+                - recovery
+            passkey_setup_until:
+              anyOf:
+                - description: Unix time in seconds.
+                  maximum: 9007199254740991
+                  minimum: 0
+                  type: integer
+                - type: "null"
+              description: A Google-only user may register a first passkey from this session until this time (Google sign-in + 10 minutes); null otherwise. After it, continue with Google again.
+            passkeys:
+              description: Dashboard passkeys of the user; 0 = a Google-only user who cannot step up yet.
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+          required:
+            - method
+            - passkeys
+            - google_linked
+            - passkey_setup_until
+          type: object
         user:
           additionalProperties: {}
           description: Signed-in user.
@@ -2866,6 +2919,10 @@ components:
             - invoice_not_payable
             - auto_debit_unavailable
             - vault_cap_exceeded
+            - google_signin_disabled
+            - google_already_linked
+            - passkey_required
+            - reauthentication_required
         doc_url:
           description: Documentation page for this error code.
           format: uri
@@ -6423,6 +6480,29 @@ components:
         - bearer
         - total_bps
       type: object
+    GoogleAuthorization:
+      additionalProperties: {}
+      description: A started Google flow. The response sets the flow cookie `__Host-np_google` (HttpOnly, Secure, SameSite=Lax, 10 minutes); the callback accepts the flow only from the browser holding it.
+      properties:
+        authorization_url:
+          description: Google's authorization endpoint with `client_id`, `redirect_uri`, `scope=openid email profile`, `state`, `nonce` and the S256 PKCE `code_challenge`. Navigate the top-level window to it (never a popup or iframe).
+          format: uri
+          maxLength: 2048
+          type: string
+        expires_at:
+          description: The flow (and its cookie) expires at this time (10 minutes).
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        object:
+          const: google_authorization
+          description: Always `google_authorization`.
+          type: string
+      required:
+        - object
+        - authorization_url
+        - expires_at
+      type: object
     IntentMessage:
       additionalProperties: {}
       description: Verifier message (`DefusePayload`).
@@ -7933,6 +8013,60 @@ components:
               type: string
             - type: "null"
           description: Website (https).
+      type: object
+    LinkedIdentity:
+      additionalProperties: {}
+      description: An external sign-in identity linked to the user (ADR-0026).
+      properties:
+        created:
+          description: When it was linked.
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        email:
+          description: Email of the provider account when it was linked (shown only; sign-in uses the subject).
+          format: email
+          pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+          type: string
+        object:
+          const: linked_identity
+          description: Always `linked_identity`.
+          type: string
+        provider:
+          description: External sign-in provider.
+          enum:
+            - google
+          type: string
+      required:
+        - object
+        - provider
+        - email
+        - created
+      type: object
+    LinkedIdentityList:
+      additionalProperties: {}
+      description: Linked identities of the user (at most one per provider).
+      properties:
+        data:
+          description: Objects on this page.
+          items:
+            $ref: "#/components/schemas/LinkedIdentity"
+          type: array
+        has_more:
+          description: Whether more objects exist after this page.
+          type: boolean
+        object:
+          const: list
+          description: Always `list`.
+          type: string
+        url:
+          description: Path of this list endpoint.
+          type: string
+      required:
+        - object
+        - data
+        - has_more
+        - url
       type: object
     Mandate:
       additionalProperties: {}
@@ -14529,7 +14663,7 @@ info:
     identifier: Apache-2.0
     name: Apache-2.0
   title: NearPay API
-  version: 0.5.0
+  version: 0.5.1
 openapi: 3.1.0
 paths:
   /v1/account:
@@ -16153,6 +16287,195 @@ paths:
         idempotent: false
         service: identity
         stage: 2
+  /v1/auth/google/callback:
+    get:
+      description: "Registered at Google as `https://dashboard.<domain>/api/auth/google/callback` (the gateway maps it here). Accepts the flow only once, before it expires, from the browser holding its cookie; exchanges the code with the PKCE verifier and the client secret; verifies the ID token (Google's JWKS signature, `iss`, `aud` = the client id, `exp`, `nonce`, `email_verified`). Never answers with JSON: success and every failure are `303` redirects to a dashboard page."
+      operationId: googleCallback
+      parameters:
+        - description: Authorization code.
+          in: query
+          name: code
+          schema:
+            description: Authorization code.
+            maxLength: 2048
+            minLength: 1
+            type: string
+        - description: The flow's `state`.
+          in: query
+          name: state
+          schema:
+            description: The flow's `state`.
+            maxLength: 256
+            minLength: 1
+            type: string
+        - description: OAuth error from Google, e.g. `access_denied`.
+          in: query
+          name: error
+          schema:
+            description: OAuth error from Google, e.g. `access_denied`.
+            maxLength: 256
+            type: string
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      responses:
+        "303":
+          description: "Google's redirect target: completes the flow and redirects to the dashboard."
+          headers:
+            location:
+              description: "Dashboard page to continue on: the requested `next` path or `/` (signed in), `/setup` (new account), `/settings/account?google=linked` (linked), or `/signin`, `/signup`, `/settings/account` with `?google_error=<GoogleSignInError>`."
+              required: true
+              schema:
+                description: "Dashboard page to continue on: the requested `next` path or `/` (signed in), `/setup` (new account), `/settings/account?google=linked` (linked), or `/signin`, `/signup`, `/settings/account` with `?google_error=<GoogleSignInError>`."
+                type: string
+            set-cookie:
+              description: Always clears `__Host-np_google`; on a sign-in also sets the session cookie `__Host-np_session`.
+              required: true
+              schema:
+                description: Always clears `__Host-np_google`; on a sign-in also sets the session cookie `__Host-np_session`.
+                type: string
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - {}
+      summary: "Google's redirect target: completes the flow and redirects to the dashboard."
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - anonymous
+        idempotent: false
+        service: identity
+        stage: 4
+  /v1/auth/google/link:
+    post:
+      description: Starts a flow bound to this session (same cookie rules as `startGoogleSignIn`). The callback links the Google `sub` to the user unless that Google account is linked to another user (`google_error=identity_in_use`). Audited (`user.google_linked`) and emitted as `evt.identity.user.google_linked`.
+      operationId: startGoogleLink
+      parameters:
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties: {}
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoogleAuthorization"
+          description: Connect a Google account to the signed-in user (step-up).
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `google_signin_disabled`."
+          x-error-codes:
+            - google_signin_disabled
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `google_already_linked`."
+          x-error-codes:
+            - google_already_linked
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - session: []
+      summary: Connect a Google account to the signed-in user (step-up).
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - session
+        idempotent: false
+        service: identity
+        stage: 4
+        step_up: true
+  /v1/auth/google/start:
+    post:
+      description: "Creates a 10-minute flow (random `state`, `nonce` and PKCE verifier; only hashes and the encrypted verifier are stored) and sets its cookie. The callback then: signs in the user whose linked Google `sub` matches; creates a user and account (owner) for a new verified email, like sign-up but without a magic link; and refuses (`google_error=email_exists`) an email that already has a NearPay user without a Google link — it is never linked automatically. A Google sign-in carries no step-up. Rate-limited per client IP."
+      operationId: startGoogleSignIn
+      parameters:
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                intent:
+                  description: Which page started the flow; errors return there (default `signin`).
+                  enum:
+                    - signin
+                    - signup
+                  type: string
+                next:
+                  description: Dashboard path to continue on after signing in an existing user (same-origin path only).
+                  maxLength: 512
+                  pattern: ^\/(?![/\\])[^\s\\]*$
+                  type: string
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoogleAuthorization"
+          description: Start Continue with Google (sign-in or sign-up).
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `google_signin_disabled`."
+          x-error-codes:
+            - google_signin_disabled
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - {}
+      summary: Start Continue with Google (sign-in or sign-up).
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - anonymous
+        idempotent: false
+        service: identity
+        stage: 4
   /v1/auth/invitations/accept:
     post:
       description: The invitation's email must equal the user's email. Returns the re-issued session (same cookie, new account and role, step-up cleared).
@@ -16211,6 +16534,89 @@ paths:
         idempotent: false
         service: identity
         stage: 2
+  /v1/auth/linked_identities:
+    get:
+      operationId: listLinkedIdentities
+      parameters:
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkedIdentityList"
+          description: External sign-in identities linked to the signed-in user.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - session: []
+      summary: External sign-in identities linked to the signed-in user.
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - session
+        idempotent: false
+        service: identity
+        stage: 4
+  /v1/auth/linked_identities/{provider}:
+    delete:
+      description: Only while the user still has a passkey (`403 passkey_required`). Ends the user's other sessions that were created by that provider. Audited (`user.google_unlinked`) and emitted as `evt.identity.user.google_unlinked`. No link → `404 resource_missing`.
+      operationId: unlinkIdentity
+      parameters:
+        - description: External sign-in provider.
+          in: path
+          name: provider
+          required: true
+          schema:
+            description: External sign-in provider.
+            enum:
+              - google
+            type: string
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      responses:
+        "204":
+          description: Disconnect a linked sign-in identity (step-up; the user keeps a passkey).
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `passkey_required`."
+          x-error-codes:
+            - passkey_required
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - session: []
+      summary: Disconnect a linked sign-in identity (step-up; the user keeps a passkey).
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - session
+        idempotent: false
+        service: identity
+        stage: 4
+        step_up: true
   /v1/auth/logout:
     post:
       operationId: logout
@@ -16307,6 +16713,41 @@ paths:
         idempotent: false
         service: identity
         stage: 1
+  /v1/auth/methods:
+    get:
+      description: Lets the sign-in and sign-up pages show Continue with Google only when identity has a Google client configured (no build flag).
+      operationId: getAuthMethods
+      parameters:
+        - description: "API version (default: the account's pinned version)."
+          in: header
+          name: NearPay-Version
+          schema:
+            description: "API version (default: the account's pinned version)."
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthMethods"
+          description: Sign-in methods the dashboard may offer.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Generic errors that apply to every route: `invalid_request`, `resource_missing`, `authentication_required`, `invalid_api_key`, `permission_denied`, `csrf_token_invalid`, `ip_not_allowed`, `account_suspended`, `step_up_required`, `rate_limited`, `idempotency_key_reused`, `idempotency_in_progress`, `api_error`."
+      security:
+        - {}
+      summary: Sign-in methods the dashboard may offer.
+      tags:
+        - identity
+      x-nearpay:
+        auth:
+          - anonymous
+        idempotent: false
+        service: identity
+        stage: 4
   /v1/auth/passkeys/authentication/options:
     post:
       operationId: passkeyAuthenticationOptions
@@ -16410,7 +16851,7 @@ paths:
         stage: 1
   /v1/auth/passkeys/registration/options:
     post:
-      description: Called with a registration token (new user) or a session (additional passkey).
+      description: "Called with a registration token (new user) or a session (additional passkey). Spec 0.5.1 (ADR-0026): a session adds a passkey only after a fresh confirmation — a step-up within 10 minutes when the user already has a passkey (`401 step_up_required`), or, for a Google-only user, a Google sign-in within the last 10 minutes (`401 reauthentication_required`; `DashboardSession.sign_in.passkey_setup_until`)."
       operationId: passkeyRegistrationOptions
       parameters:
         - description: "API version (default: the account's pinned version)."
@@ -16438,6 +16879,14 @@ paths:
               schema:
                 $ref: "#/components/schemas/WebAuthnCreationOptions"
           description: WebAuthn creation options for a new passkey.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `reauthentication_required`."
+          x-error-codes:
+            - reauthentication_required
         "410":
           content:
             application/json:
@@ -16516,6 +16965,14 @@ paths:
           description: "Error: `webauthn_failed`."
           x-error-codes:
             - webauthn_failed
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `reauthentication_required`."
+          x-error-codes:
+            - reauthentication_required
         "410":
           content:
             application/json:
@@ -16752,6 +17209,7 @@ paths:
         stage: 1
   /v1/auth/step_up/options:
     post:
+      description: "Step-ups are passkey assertions only. Spec 0.5.1 (ADR-0026): a user without a passkey (signed up with Google) gets `403 passkey_required` and must add a passkey first."
       operationId: stepUpOptions
       parameters:
         - description: "API version (default: the account's pinned version)."
@@ -16775,6 +17233,14 @@ paths:
               schema:
                 $ref: "#/components/schemas/WebAuthnRequestOptions"
           description: WebAuthn request options for a step-up confirmation.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: "Error: `passkey_required`."
+          x-error-codes:
+            - passkey_required
         default:
           content:
             application/json:

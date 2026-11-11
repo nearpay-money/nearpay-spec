@@ -7,7 +7,11 @@ import type { OpsRole, Role, RouteAuth, ServiceName } from "./auth.js";
 import { z } from "./schema.js";
 
 export type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
-export type SuccessStatus = 200 | 201 | 202 | 204;
+/**
+ * `303` (spec 0.5.1 — Google sign-in, ADR-0026): a browser-facing redirect (`Location`), used only by
+ * routes a browser navigates to (the OAuth callback); the body is empty.
+ */
+export type SuccessStatus = 200 | 201 | 202 | 204 | 303;
 /**
  * `ops` (stage 2 — identity-console): console routes under `/ops/…`, served by the owning service
  * and routed by the gateway only on the console host (`ops.<domain>/api/ops/*`, ForwardAuth with
@@ -104,6 +108,10 @@ export function route<
   }
   if (def.auth.length === 0) throw new Error(`route ${def.id}: auth must not be empty`);
   if (def.status === 204 && def.response !== null) throw new Error(`route ${def.id}: 204 must not have a body`);
+  // spec 0.5.1: redirects carry no body, are browser navigations (GET) and declare their Location header
+  if (def.status === 303 && (def.response !== null || def.method !== "GET" || !def.responseHeaders)) {
+    throw new Error(`route ${def.id}: 303 is a GET redirect without a body and with responseHeaders (Location)`);
+  }
   if (def.body && def.method === "GET") throw new Error(`route ${def.id}: GET must not have a body`);
   // stage 3 — billing
   if (def.binaryResponse && (def.response !== null || def.stream)) {
