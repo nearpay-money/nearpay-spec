@@ -10,7 +10,7 @@
  * `OneClickStatusQuoteResponse`, so the adapter parses live bodies without normalising them and the
  * sandbox can serve the live shape.
  */
-import { out, z } from "@nearpay/spec";
+import { out, z } from "@nearpay-money/spec";
 
 const AmountString = z.string().regex(/^\d+$/).describe("Integer amount in base units, as a string.");
 

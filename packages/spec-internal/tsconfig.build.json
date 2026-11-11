@@ -4,7 +4,7 @@
     "rootDir": "../../src",
     "outDir": "dist",
     "types": [],
-    "paths": { "@nearpay/spec": ["../spec-public/dist/public-entry.d.ts"] }
+    "paths": { "@nearpay-money/spec": ["../spec-public/dist/public-entry.d.ts"] }
   },
   "files": ["../../src/internal-entry.ts"]
 }

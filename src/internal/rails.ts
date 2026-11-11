@@ -29,7 +29,7 @@ import {
   TokenContract,
   TxHash,
   z,
-} from "@nearpay/spec";
+} from "@nearpay-money/spec";
 import { FeeSchedule } from "./identity.js";
 import { FxRate, PriceRate } from "./pricing.js";
 

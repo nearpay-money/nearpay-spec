@@ -1,6 +1,6 @@
 {
   "name": "@nearpay-internal/spec",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "description": "NearPay internal contracts: service-to-service routes, domain events and streams, 1Click wire schemas.",
   "license": "Apache-2.0",
   "type": "module",
@@ -27,7 +27,7 @@
     "node": ">=22.11.0"
   },
   "dependencies": {
-    "@nearpay/spec": "workspace:*"
+    "@nearpay-money/spec": "workspace:*"
   },
   "peerDependencies": {
     "zod": "^4.6.7"

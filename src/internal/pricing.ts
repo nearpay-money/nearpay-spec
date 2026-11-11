@@ -5,7 +5,7 @@
  * rational `{num, den}` of integer strings; `decimal` is a rounded rendering for display only and
  * is never used in arithmetic. No floats anywhere.
  */
-import { AssetId, Currency, openEnum, out, Timestamp, z } from "@nearpay/spec";
+import { AssetId, Currency, openEnum, out, Timestamp, z } from "@nearpay-money/spec";
 
 /** Non-negative integer as a decimal string (≤ 78 digits). */
 const IntString = z

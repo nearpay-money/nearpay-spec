@@ -1,8 +1,30 @@
 {
-  "name": "@nearpay/spec",
-  "version": "0.4.2",
-  "description": "NearPay public contracts: REST routes and objects, webhook events and signatures, the NearPay x402 scheme, NEAR Intents payloads and the error catalogue (zod 4).",
+  "name": "@nearpay-money/spec",
+  "version": "0.5.0",
+  "description": "NearPay public API contracts as zod 4 schemas: REST routes and objects, webhook events and signatures, the NearPay x402 scheme, NEAR Intents payloads, the error catalogue, OpenAPI 3.1 and JSON Schemas.",
+  "keywords": [
+    "nearpay",
+    "payments",
+    "crypto",
+    "near",
+    "near-intents",
+    "x402",
+    "webhooks",
+    "openapi",
+    "zod",
+    "schemas"
+  ],
+  "homepage": "https://docs.nearpay.money",
+  "bugs": {
+    "url": "https://github.com/nearpay-money/nearpay-spec/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nearpay-money/nearpay-spec.git",
+    "directory": "packages/spec-public"
+  },
   "license": "Apache-2.0",
+  "author": "NearPay <nearpaydotmoney@gmail.com> (https://nearpay.money)",
   "type": "module",
   "sideEffects": false,
   "exports": {
@@ -18,6 +40,7 @@
   },
   "files": [
     "dist",
+    "!dist/**/*.map",
     "test-vectors",
     "openapi",
     "schemas",
@@ -28,13 +51,17 @@
   "engines": {
     "node": ">=22.11.0"
   },
+  "scripts": {
+    "build": "node ../../scripts/build-package.mjs public"
+  },
   "peerDependencies": {
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "zod": "4.6.7"
   },
-  "scripts": {
-    "build": "node ../../scripts/build-package.mjs public"
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }

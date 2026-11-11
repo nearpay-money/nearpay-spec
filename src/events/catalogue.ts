@@ -29,7 +29,7 @@ import {
   Timestamp,
   Uuid,
   z,
-} from "@nearpay/spec";
+} from "@nearpay-money/spec";
 import { InternalSettlementDestination } from "../internal/identity.js";
 import { OpsApproval } from "../internal/ops-approval.js";
 import { Execution } from "../internal/rails.js";

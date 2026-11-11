@@ -1,7 +1,21 @@
 # Changelog
 
-`@nearpay/spec` and `@nearpay-internal/spec` share one version. Within a version line changes are
+`@nearpay-money/spec` and `@nearpay-internal/spec` share one version. Within a version line changes are
 additive only (`pnpm compat` gates every release against `test/compat/baseline/`, the last release).
+
+## 0.5.0 — 2026-11-11
+
+Package rename, no contract change (ADR-0025). The public package is published as **`@nearpay-money/spec`**
+(npm org `nearpay-money`); the `@nearpay` npm scope belongs to an unrelated company, and the earlier
+`@nearpay/spec` versions were only ever on NearPay's local registry, so every reference in this changelog now
+uses the new name. `@nearpay-internal/spec` 0.5.0 depends on `@nearpay-money/spec` 0.5.0. Minor bump on 0.x
+because consumers must change their dependency name and imports (`@nearpay/spec` → `@nearpay-money/spec`);
+schemas, routes, events, webhooks, vectors and error codes are identical to 0.4.2.
+
+- Package metadata for the public registry: `repository`, `homepage`, `bugs`, `keywords`, `author`,
+  `publishConfig` (`access: public`, provenance).
+- `.github/workflows/release.yml`: on a `v*` tag (or manual run) verifies and publishes `@nearpay-money/spec` to
+  npm (skips a version that is already there). `@nearpay-internal/spec` is never published to npm.
 
 ## 0.4.2 — 2026-11-11
 
@@ -240,7 +254,7 @@ Stage 3 billing contracts (step 3.1; `lld/billing.md` v1.2 §11, ADR-0008). Addi
   pricing, immutable except `active`/`nickname`/`metadata`), `TaxRate` (exact decimal `percentage` ≤ 4
   decimals + `rate_ppm`, `inclusive`, `jurisdiction`, `country`; percentage/inclusive immutable).
   Create/get/list/update for each; no deletes (archive with `active: false`).
-- **Normative arithmetic** exported from `@nearpay/spec`: `taxPercentageToPpm`, `divRoundHalfUp`,
+- **Normative arithmetic** exported from `@nearpay-money/spec`: `taxPercentageToPpm`, `divRoundHalfUp`,
   `computeLineTax`, `computeInvoiceTotals` (bigint; tax per line, round half-up; inclusive
   `amount × ppm / (10⁶ + Σppm)`; no mixing inclusive/exclusive on one line) and `periodBoundary`
   (anchor-based calendar months, clamped to month end). Vectors: `test-vectors/billing-tax.json`.
@@ -568,7 +582,7 @@ v1.3, `lld/sandbox.md` v1.3, ADR-0020 decision 5). All additive.
   optional `PaymentOption.token` (public) and `InternalPaymentOption.token`. Producers: **nearpay-rails**
   → **nearpay-payments**; reader: **nearpay-checkout**.
 - **CR-15-07** optional `Attestation.asset` `{asset_id, symbol, decimals}` of the asset the payer sends.
-  Producer: **nearpay-sentinel**; reader: **nearpay-checkout**, `@nearpay/agent-signer`.
+  Producer: **nearpay-sentinel**; reader: **nearpay-checkout**, `@nearpay-money/agent-signer`.
 - **CR-15-04** optional `DestinationSnapshot.fingerprint`; types `WebhookObjectOf<T>`, `TypedEvent` and
   schema `EventDataObject` (typed `data.object` per event type). Producer: **nearpay-payments**;
   readers: **nearpay-dashboard**, **nearpay-node**.
@@ -581,7 +595,7 @@ v1.3, `lld/sandbox.md` v1.3, ADR-0020 decision 5). All additive.
 ## 0.1.5 — Stage 1, step 1.4 (change requests from steps 1.2/1.3)
 
 All changes are additive (`pnpm compat`: no breaking change since 0.1.4; oasdiff reports info-level changes only).
-Request IDs refer to `nearpay-brain/roadmap/open-questions.md` ("Planned `@nearpay/spec` 0.1.5").
+Request IDs refer to `nearpay-brain/roadmap/open-questions.md` ("Planned `@nearpay-money/spec` 0.1.5").
 
 - `PublicCheckoutSession.payment_intent` (`pi_…`, required; also in the `session` event of
   `streamCheckoutSession`) — the embedded checkout's `np:complete` reports the intent id without

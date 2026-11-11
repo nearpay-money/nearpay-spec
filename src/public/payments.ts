@@ -578,7 +578,7 @@ export const CreatedPaymentIntent = PaymentIntent.extend({
     .string()
     .regex(/^cs_[0-9a-z]{26}_secret_[0-9A-Za-z]{32}$/)
     .describe(
-      "Client secret of `checkout_session` for the payer API (`@nearpay/js`); returned only here, never in events.",
+      "Client secret of `checkout_session` for the payer API (`@nearpay-money/js`); returned only here, never in events.",
     ),
 }).meta({
   id: "CreatedPaymentIntent",
@@ -593,7 +593,7 @@ export const createPaymentIntent = route({
   visibility: "public",
   summary: "Create a payment intent for a custom payer UI.",
   description:
-    "Creates the intent (`source: api`) together with a headless checkout session (`ui_mode: hosted`, `success_url` = `return_url`). A custom UI built on `@nearpay/js` pays it through the payer API (`/v1/checkout/sessions/{checkout_session}/public/*`) with `client_secret`; the hosted page also works. The intent expires with that session.",
+    "Creates the intent (`source: api`) together with a headless checkout session (`ui_mode: hosted`, `success_url` = `return_url`). A custom UI built on `@nearpay-money/js` pays it through the payer API (`/v1/checkout/sessions/{checkout_session}/public/*`) with `client_secret`; the hosted page also works. The intent expires with that session.",
   auth: ["secret_key", "restricted_key:payment_intents.write"],
   idempotent: true,
   body: PaymentIntentCreate,

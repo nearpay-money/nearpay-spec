@@ -1,7 +1,7 @@
 /**
  * NEAR Intents Verifier payloads (lld/00-foundations.md §14). Build/sign/verify lives in
  * `@nearpay-internal/intents`; these schemas are the wire contract shared by checkout, agentpay,
- * `@nearpay/agent-signer` and the sandbox Verifier.
+ * `@nearpay-money/agent-signer` and the sandbox Verifier.
  */
 import { AssetId, BaseUnits, CurvePublicKey, CurveSignature, NearAccountId, Timestamp } from "../common/primitives.js";
 import { closedEnum, out, z } from "../common/schema.js";

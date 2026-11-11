@@ -30,7 +30,7 @@ import {
   Timestamp,
   Url,
   z,
-} from "@nearpay/spec";
+} from "@nearpay-money/spec";
 
 // =============================================================================================
 // payments

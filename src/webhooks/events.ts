@@ -184,7 +184,7 @@ export const EventEnvelopeLoose = out({
 }).meta({ id: "EventEnvelope", description: "Event envelope (type-agnostic)." });
 
 // ---------------------------------------------------------------------------------------------
-// Version rendering (lld/webhooks.md §4: transformers live in @nearpay/spec)
+// Version rendering (lld/webhooks.md §4: transformers live in @nearpay-money/spec)
 // ---------------------------------------------------------------------------------------------
 
 /** Renders a canonical (latest-version) event object into an older API version. */

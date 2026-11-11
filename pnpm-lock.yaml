@@ -63,7 +63,7 @@ importers:
 
   packages/spec-internal:
     dependencies:
-      '@nearpay/spec':
+      '@nearpay-money/spec':
         specifier: workspace:*
         version: link:../spec-public
     devDependencies:

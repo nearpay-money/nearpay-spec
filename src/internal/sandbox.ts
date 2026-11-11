@@ -16,7 +16,7 @@ import {
   route,
   TxHash,
   z,
-} from "@nearpay/spec";
+} from "@nearpay-money/spec";
 import { ExplorerTransactionList, ExplorerTransactionsQuery } from "./explorer.js";
 import {
   OneClickQuoteRequest,

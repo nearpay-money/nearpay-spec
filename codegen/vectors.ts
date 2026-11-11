@@ -6,10 +6,10 @@
  *   destination-fingerprint.json sentinel/identity fingerprint
  *   sentinel-attestation.json   sentinel (signer) ↔ checkout, agent-signer (verifiers)
  *   attestation-ticket.json     payments (signer) ↔ sentinel (verifier)
- *   webhook-signatures.json     webhooks (signer) ↔ @nearpay/node (verifier)
+ *   webhook-signatures.json     webhooks (signer) ↔ @nearpay-money/node (verifier)
  *   intents-payloads.json       checkout, agent-signer (signers) ↔ agentpay, sandbox (verifiers)
  *   billing-tax.json            billing (invoices, PDF) ↔ dashboard, checkout (display): tax + periods
- *   x402-near-intents.json      agentpay (binding, operation token) ↔ @nearpay/x402, agent-signer (wire shapes)
+ *   x402-near-intents.json      agentpay (binding, operation token) ↔ @nearpay-money/x402, agent-signer (wire shapes)
  *   vault.json                  subscription vault (events, errors, views) ↔ rails, billing keeper, sandbox stand-in
  *   chains-solana-bitcoin.json, destination-attestation.json, solana-transfer.json — stage 4 chains (vectors-chains.ts)
  *
