@@ -43,6 +43,8 @@ const e2 = (d: Omit<ErrorDefinition, "since">): ErrorDefinition => ({ ...d, sinc
 const e3 = (d: Omit<ErrorDefinition, "since">): ErrorDefinition => ({ ...d, since: "0.3.0" });
 /** Codes introduced with the Stage 4 contract freeze (stage 4 — autodebit). */
 const e4 = (d: Omit<ErrorDefinition, "since">): ErrorDefinition => ({ ...d, since: "0.4.0" });
+/** Codes introduced with Continue with Google (spec 0.5.1, ADR-0026). */
+const e51 = (d: Omit<ErrorDefinition, "since">): ErrorDefinition => ({ ...d, since: "0.5.1" });
 
 export const ERRORS = {
   // ------------------------------------------------------------------ generic (every route)
@@ -720,6 +722,36 @@ export const ERRORS = {
       "Funding 300000000000 exceeds the vault's per-mandate cap for nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1; fund fewer periods.",
   }),
   // end stage 4 — autodebit
+  // spec 0.5.1 — Continue with Google (ADR-0026)
+  // ------------------------------------------------------------------ identity: sign-in methods
+  google_signin_disabled: e51({
+    status: 404,
+    type: "invalid_request_error",
+    retryable: false,
+    message: "Continue with Google is not enabled on this NearPay deployment.",
+    example: "Continue with Google is not enabled on this NearPay deployment.",
+  }),
+  google_already_linked: e51({
+    status: 409,
+    type: "state_conflict",
+    retryable: false,
+    message: "Your NearPay user is already connected to a Google account; disconnect it first.",
+    example: "Your NearPay user is already connected to a Google account; disconnect it first.",
+  }),
+  passkey_required: e51({
+    status: 403,
+    type: "permission_error",
+    retryable: false,
+    message: "Add a passkey first: {reason}",
+    example: "Add a passkey first: sensitive actions are confirmed with a passkey.",
+  }),
+  reauthentication_required: e51({
+    status: 401,
+    type: "authentication_error",
+    retryable: false,
+    message: "Sign in again to continue: {reason}",
+    example: "Sign in again to continue: continue with Google again to add your first passkey.",
+  }),
 } as const satisfies Record<string, ErrorDefinition>;
 
 export type ErrorCode = keyof typeof ERRORS;

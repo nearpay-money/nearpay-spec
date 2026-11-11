@@ -183,6 +183,20 @@ export const UserRecoveredEvent = out({
     "A user regained access by email recovery and registered a new passkey (platform event; ids only, notify resolves emails through identity).",
 });
 
+// spec 0.5.1 — Continue with Google (ADR-0026): a sign-in method was linked or unlinked
+export const UserSignInMethodEvent = out({
+  user_id: id("usr"),
+  provider: closedEnum(["google"], "The external sign-in provider."),
+  account_ids: z
+    .array(id("acct"))
+    .describe("Accounts the user is a member of (their owners and admins may be told; the audit row is in each)."),
+  occurred_at: Timestamp.describe("When the link or unlink committed."),
+}).meta({
+  id: "UserSignInMethodEvent",
+  description:
+    "A user linked or unlinked an external sign-in identity (platform event; ids only — no email or provider subject). Aggregate `user_sign_in_methods` = the `usr_` id, version = the user's sign-in-method change count.",
+});
+
 // spec 0.2.1 — webhooks CR: signing-secret rotation (notify tells developers/owners)
 export const EndpointSecretRotatedEvent = out({
   endpoint_id: id("we"),
@@ -670,6 +684,21 @@ export const SUBJECTS = {
     consumers: ["notify"],
     stage: 2,
   }),
+  // spec 0.5.1 — Continue with Google (ADR-0026); notify: security notice to the user (follow-up)
+  "evt.identity.user.google_linked": s({
+    object: UserSignInMethodEvent,
+    aggregate: "user_sign_in_methods",
+    producer: "identity",
+    consumers: ["notify"],
+    stage: 4,
+  }),
+  "evt.identity.user.google_unlinked": s({
+    object: UserSignInMethodEvent,
+    aggregate: "user_sign_in_methods",
+    producer: "identity",
+    consumers: ["notify"],
+    stage: 4,
+  }),
   "evt.webhooks.endpoint.secret_rotated": s({
     object: EndpointSecretRotatedEvent,
     aggregate: "webhook_endpoint",
@@ -995,6 +1024,8 @@ export const AggregateType = closedEnum(
     // stage 4 — autodebit
     "mandate",
     "vault_mandate",
+    // spec 0.5.1 — Continue with Google (ADR-0026)
+    "user_sign_in_methods",
   ],
   "Aggregate type.",
 );

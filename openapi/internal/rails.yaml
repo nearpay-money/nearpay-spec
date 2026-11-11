@@ -711,6 +711,10 @@ components:
             - invoice_not_payable
             - auto_debit_unavailable
             - vault_cap_exceeded
+            - google_signin_disabled
+            - google_already_linked
+            - passkey_required
+            - reauthentication_required
         doc_url:
           description: Documentation page for this error code.
           format: uri
@@ -2427,7 +2431,7 @@ info:
     identifier: Apache-2.0
     name: Apache-2.0
   title: nearpay-rails internal API
-  version: 0.5.0
+  version: 0.5.1
 openapi: 3.1.0
 paths:
   /internal/assets/{asset_id}:

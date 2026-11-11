@@ -99,6 +99,10 @@ describe("anonymous allow-list (identity §11, system audit S-03)", () => {
     ["GET|POST", /^\/v1\/invoices\/\{id\}\/public(\/.*)?$/],
     // stage 3 — agent-commerce: CLI login (identity §11, device authorization)
     ["POST", /^\/v1\/cli\/logins(\/poll)?$/],
+    // spec 0.5.1 — Continue with Google (ADR-0026, identity §22): methods, flow start, Google's redirect target
+    ["GET", /^\/v1\/auth\/methods$/],
+    ["POST", /^\/v1\/auth\/google\/start$/],
+    ["GET", /^\/v1\/auth\/google\/callback$/],
   ];
   it("contains exactly the routes the LLD allows", () => {
     for (const r of PUBLIC_ANONYMOUS_ROUTES) {

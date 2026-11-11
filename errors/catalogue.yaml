@@ -1,4 +1,4 @@
-version: 0.5.0
+version: 0.5.1
 errors:
   - code: invalid_request
     status: 400
@@ -801,3 +801,39 @@ errors:
     example: Funding 300000000000 exceeds the vault's per-mandate cap for nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1; fund fewer periods.
     doc_url: https://docs.nearpay.money/errors/vault_cap_exceeded
     since: 0.4.0
+  - code: google_signin_disabled
+    status: 404
+    type: invalid_request_error
+    retryable: false
+    generic: false
+    message: Continue with Google is not enabled on this NearPay deployment.
+    example: Continue with Google is not enabled on this NearPay deployment.
+    doc_url: https://docs.nearpay.money/errors/google_signin_disabled
+    since: 0.5.1
+  - code: google_already_linked
+    status: 409
+    type: state_conflict
+    retryable: false
+    generic: false
+    message: Your NearPay user is already connected to a Google account; disconnect it first.
+    example: Your NearPay user is already connected to a Google account; disconnect it first.
+    doc_url: https://docs.nearpay.money/errors/google_already_linked
+    since: 0.5.1
+  - code: passkey_required
+    status: 403
+    type: permission_error
+    retryable: false
+    generic: false
+    message: "Add a passkey first: {reason}"
+    example: "Add a passkey first: sensitive actions are confirmed with a passkey."
+    doc_url: https://docs.nearpay.money/errors/passkey_required
+    since: 0.5.1
+  - code: reauthentication_required
+    status: 401
+    type: authentication_error
+    retryable: false
+    generic: false
+    message: "Sign in again to continue: {reason}"
+    example: "Sign in again to continue: continue with Google again to add your first passkey."
+    doc_url: https://docs.nearpay.money/errors/reauthentication_required
+    since: 0.5.1
