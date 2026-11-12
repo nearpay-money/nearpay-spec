@@ -3,6 +3,23 @@
 `@nearpay-money/spec` and `@nearpay-internal/spec` share one version. Within a version line changes are
 additive only (`pnpm compat` gates every release against `test/compat/baseline/`, the last release).
 
+## 0.5.2 — 2026-11-12
+
+Asset id shapes (incident 2026-11-11 18:58 UTC: sentinel read a genuine `nep141:bnb-0x….omdep.near` deposit as a NEAR asset
+and refused it with "R4 deposit chain differs"; ADR-0028). Additive: new pure helpers and constants, one test-vector file;
+no route, object, event or error changes.
+
+- **`parseAssetId(assetId)`** → `AssetIdInfo`: PoA bridge ids with either suffix (`omft`, `omdep`; `kind` native / evm /
+  hash20 / bridged, Solana SPL hash20 written `sol-<hex>` or `sol-0x<hex>`), `1cs_v1:<chain>:<standard>:<address>`, NEAR
+  NEP-141, or `unknown`. Safety rule: a NEP-141 account that looks bridged (`<prefix>-0x<40 hex>.…`, `<chain>.<x>.near`,
+  `<chain>[-…].om….near`) is `unknown`, never NEAR.
+- **`assetIdBlockchain(assetId)`**: the 1Click `blockchain` code the id names, or null (not derivable — skip a chain
+  check, never fail one). **`BRIDGE_PREFIX_ALIASES`** (`bnb` → `bsc`), **`blockchainOfPrefix`**, **`BRIDGE_SUFFIXES`**,
+  **`KNOWN_CHAIN_PREFIXES`**.
+- `parseOmftAssetId` is unchanged (omft only); use `parseAssetId` to know an asset's chain.
+- **Test vectors:** `test-vectors/asset-ids.json` (real ids of the live 1Click list, both suffixes, the `bnb` prefix,
+  `1cs_v1`, safety-rule probes).
+
 ## 0.5.1 — 2026-11-11
 
 Continue with Google for the merchant dashboard (ADR-0026, owner decisions 2026-11-11; identity LLD §22). Additive:

@@ -1,6 +1,6 @@
 {
   "name": "@nearpay-money/spec",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "NearPay public API contracts as zod 4 schemas: REST routes and objects, webhook events and signatures, the NearPay x402 scheme, NEAR Intents payloads, the error catalogue, OpenAPI 3.1 and JSON Schemas.",
   "keywords": [
     "nearpay",

@@ -12,6 +12,7 @@
  *   x402-near-intents.json      agentpay (binding, operation token) ↔ @nearpay-money/x402, agent-signer (wire shapes)
  *   vault.json                  subscription vault (events, errors, views) ↔ rails, billing keeper, sandbox stand-in
  *   chains-solana-bitcoin.json, destination-attestation.json, solana-transfer.json — stage 4 chains (vectors-chains.ts)
+ *   asset-ids.json              which chain an asset id names (omft, omdep, 1cs_v1, NEP-141; vectors-asset-ids.ts)
  *
  * Keys here are TEST-ONLY seeds derived from fixed strings; never use them for anything else.
  * Usage: tsx codegen/vectors.ts [--check]
@@ -74,6 +75,7 @@ import {
   X402PaymentRequiredAny,
 } from "../src/public-entry.js";
 import { type Output, toJson, writeOutputs } from "./lib.js";
+import { assetIdVectors } from "./vectors-asset-ids.js";
 // stage 4 — chains
 import {
   chainsVectors,
@@ -945,6 +947,7 @@ export function vectorOutputs(): Output[] {
     { path: "test-vectors/vault.json", content: toJson(vaultVectors()) },
     // stage 4 — chains
     { path: "test-vectors/chains-solana-bitcoin.json", content: toJson(chainsVectors()) },
+    { path: "test-vectors/asset-ids.json", content: toJson(assetIdVectors()) },
     { path: "test-vectors/destination-attestation.json", content: toJson(destinationAttestationVectors()) },
     { path: "test-vectors/solana-transfer.json", content: toJson(solanaTransferVectors()) },
   ];
