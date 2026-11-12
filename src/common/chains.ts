@@ -175,7 +175,9 @@ export interface OmftAsset {
 }
 
 /**
- * Parses an omft asset id. Returns null for anything else (NEAR NEP-141 tokens, `nep245:` ids).
+ * Parses an omft asset id. Returns null for anything else (NEAR NEP-141 tokens, `nep245:` ids, and the 2026-11
+ * `omdep` / `1cs_v1:` shapes). To know which chain an asset lives on, use `parseAssetId` / `assetIdBlockchain`
+ * (common/asset-ids.ts, spec 0.5.2), which also read `omdep` and `1cs_v1:` ids and never guess NEAR.
  * Sentinel R4 derives the deposit chain from `blockchain`; checkout reconciles the attested SPL
  * mint with `token` (lld/sentinel.md §16, lld/checkout-and-js.md §5.4).
  */

@@ -1,0 +1,323 @@
+{
+  "description": "Which chain an asset id names (spec 0.5.2, parseAssetId / assetIdBlockchain). `blockchain` is a 1Click blockchain code (aliases resolved: bnb → bsc); null = not derivable (never guess NEAR): a chain check is skipped, never failed. omdep Solana tokens write the SPL hash20 as `sol-0x<hex>`.",
+  "cases": [
+    {
+      "asset_id": "nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near",
+      "blockchain": "base",
+      "parsed": {
+        "scheme": "omft",
+        "prefix": "base",
+        "blockchain": "base",
+        "kind": "evm",
+        "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
+      }
+    },
+    {
+      "asset_id": "nep141:eth.omft.near",
+      "blockchain": "eth",
+      "parsed": {
+        "scheme": "omft",
+        "prefix": "eth",
+        "blockchain": "eth",
+        "kind": "native",
+        "token": null
+      }
+    },
+    {
+      "asset_id": "nep141:sol-5ce3bf3a31af18be40ba30f721101b4341690186.omft.near",
+      "blockchain": "sol",
+      "parsed": {
+        "scheme": "omft",
+        "prefix": "sol",
+        "blockchain": "sol",
+        "kind": "hash20",
+        "token": "5ce3bf3a31af18be40ba30f721101b4341690186"
+      }
+    },
+    {
+      "asset_id": "nep141:btc.omft.near",
+      "blockchain": "btc",
+      "parsed": {
+        "scheme": "omft",
+        "prefix": "btc",
+        "blockchain": "btc",
+        "kind": "native",
+        "token": null
+      }
+    },
+    {
+      "asset_id": "nep141:hood.omft.near",
+      "blockchain": "hood",
+      "parsed": {
+        "scheme": "omft",
+        "prefix": "hood",
+        "blockchain": "hood",
+        "kind": "native",
+        "token": null
+      }
+    },
+    {
+      "asset_id": "nep141:bnb-0x55d398326f99059ff775485246999027b3197955.omdep.near",
+      "blockchain": "bsc",
+      "parsed": {
+        "scheme": "omdep",
+        "prefix": "bnb",
+        "blockchain": "bsc",
+        "kind": "evm",
+        "token": "0x55d398326f99059ff775485246999027b3197955"
+      }
+    },
+    {
+      "asset_id": "nep141:bnb.omdep.near",
+      "blockchain": "bsc",
+      "parsed": {
+        "scheme": "omdep",
+        "prefix": "bnb",
+        "blockchain": "bsc",
+        "kind": "native",
+        "token": null
+      }
+    },
+    {
+      "asset_id": "nep141:pol-0x3c499c542cef5e3811e1192ce70d8cc03d5c3359.omdep.near",
+      "blockchain": "pol",
+      "parsed": {
+        "scheme": "omdep",
+        "prefix": "pol",
+        "blockchain": "pol",
+        "kind": "evm",
+        "token": "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359"
+      }
+    },
+    {
+      "asset_id": "nep141:pol.omdep.near",
+      "blockchain": "pol",
+      "parsed": {
+        "scheme": "omdep",
+        "prefix": "pol",
+        "blockchain": "pol",
+        "kind": "native",
+        "token": null
+      }
+    },
+    {
+      "asset_id": "nep141:avax-0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e.omdep.near",
+      "blockchain": "avax",
+      "parsed": {
+        "scheme": "omdep",
+        "prefix": "avax",
+        "blockchain": "avax",
+        "kind": "evm",
+        "token": "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e"
+      }
+    },
+    {
+      "asset_id": "nep141:base-0xc2bc2a4cd04358281c7cf36a057fc15e5552b18b.omdep.near",
+      "blockchain": "base",
+      "parsed": {
+        "scheme": "omdep",
+        "prefix": "base",
+        "blockchain": "base",
+        "kind": "evm",
+        "token": "0xc2bc2a4cd04358281c7cf36a057fc15e5552b18b"
+      }
+    },
+    {
+      "asset_id": "nep141:abs.omdep.near",
+      "blockchain": "abs",
+      "parsed": {
+        "scheme": "omdep",
+        "prefix": "abs",
+        "blockchain": "abs",
+        "kind": "native",
+        "token": null
+      }
+    },
+    {
+      "asset_id": "nep141:fogo.omdep.near",
+      "blockchain": "fogo",
+      "parsed": {
+        "scheme": "omdep",
+        "prefix": "fogo",
+        "blockchain": "fogo",
+        "kind": "native",
+        "token": null
+      }
+    },
+    {
+      "asset_id": "nep141:sol-0xaad74c68eecfc9f8c5bdcea614f6167048c795ef.omdep.near",
+      "blockchain": "sol",
+      "parsed": {
+        "scheme": "omdep",
+        "prefix": "sol",
+        "blockchain": "sol",
+        "kind": "hash20",
+        "token": "aad74c68eecfc9f8c5bdcea614f6167048c795ef"
+      }
+    },
+    {
+      "asset_id": "nep141:strk-0xe646ef2a705bf5147ceffc8dfbcc7bee4946b8f7.omdep.near",
+      "blockchain": "strk",
+      "parsed": {
+        "scheme": "omdep",
+        "prefix": "strk",
+        "blockchain": "strk",
+        "kind": "evm",
+        "token": "0xe646ef2a705bf5147ceffc8dfbcc7bee4946b8f7"
+      }
+    },
+    {
+      "asset_id": "1cs_v1:base:erc20:0x0382e3fee4a420bd446367d468a6f00225853420",
+      "blockchain": "base",
+      "parsed": {
+        "scheme": "1cs_v1",
+        "blockchain": "base",
+        "standard": "erc20",
+        "address": "0x0382e3fee4a420bd446367d468a6f00225853420"
+      }
+    },
+    {
+      "asset_id": "1cs_v1:bsc:bep20:0x5382555840ef9f54ef6d3ee5da60f12bcabf4b87",
+      "blockchain": "bsc",
+      "parsed": {
+        "scheme": "1cs_v1",
+        "blockchain": "bsc",
+        "standard": "bep20",
+        "address": "0x5382555840ef9f54ef6d3ee5da60f12bcabf4b87"
+      }
+    },
+    {
+      "asset_id": "1cs_v1:sol:spl:A7bdiYdS5GjqGFtxf17ppRHtDKPkkRqbKtR27dxvQXaS",
+      "blockchain": "sol",
+      "parsed": {
+        "scheme": "1cs_v1",
+        "blockchain": "sol",
+        "standard": "spl",
+        "address": "A7bdiYdS5GjqGFtxf17ppRHtDKPkkRqbKtR27dxvQXaS"
+      }
+    },
+    {
+      "asset_id": "1cs_v1:btc:native:coin",
+      "blockchain": "btc",
+      "parsed": {
+        "scheme": "1cs_v1",
+        "blockchain": "btc",
+        "standard": "native",
+        "address": "coin"
+      }
+    },
+    {
+      "asset_id": "1cs_v1:near:nep141:zec.omft.near",
+      "blockchain": "near",
+      "parsed": {
+        "scheme": "1cs_v1",
+        "blockchain": "near",
+        "standard": "nep141",
+        "address": "zec.omft.near"
+      }
+    },
+    {
+      "asset_id": "1cs_v1:hypercore:hip1:0x6d1e7cde53ba9467b783cb7c530ce054",
+      "blockchain": "hypercore",
+      "parsed": {
+        "scheme": "1cs_v1",
+        "blockchain": "hypercore",
+        "standard": "hip1",
+        "address": "0x6d1e7cde53ba9467b783cb7c530ce054"
+      }
+    },
+    {
+      "asset_id": "nep141:wrap.near",
+      "blockchain": "near",
+      "parsed": {
+        "scheme": "nep141",
+        "blockchain": "near",
+        "account": "wrap.near"
+      }
+    },
+    {
+      "asset_id": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+      "blockchain": "near",
+      "parsed": {
+        "scheme": "nep141",
+        "blockchain": "near",
+        "account": "17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1"
+      }
+    },
+    {
+      "asset_id": "nep141:usdt.tether-token.near",
+      "blockchain": "near",
+      "parsed": {
+        "scheme": "nep141",
+        "blockchain": "near",
+        "account": "usdt.tether-token.near"
+      }
+    },
+    {
+      "asset_id": "nep141:853d955acef822db058eb8505911ed77f175b99e.factory.bridge.near",
+      "blockchain": "near",
+      "parsed": {
+        "scheme": "nep141",
+        "blockchain": "near",
+        "account": "853d955acef822db058eb8505911ed77f175b99e.factory.bridge.near"
+      }
+    },
+    {
+      "asset_id": "nep141:token.sweat",
+      "blockchain": "near",
+      "parsed": {
+        "scheme": "nep141",
+        "blockchain": "near",
+        "account": "token.sweat"
+      }
+    },
+    {
+      "asset_id": "nep245:v2_1.omni.hot.tg:56_11111111111111111111",
+      "blockchain": null,
+      "parsed": {
+        "scheme": "unknown",
+        "reason": "not an omft/omdep, 1cs_v1 or NEP-141 id"
+      }
+    },
+    {
+      "asset_id": "nep141:bnb-0x55d398326f99059ff775485246999027b3197955.omxyz.near",
+      "blockchain": null,
+      "parsed": {
+        "scheme": "unknown",
+        "reason": "a bridged-looking NEP-141 account (<prefix>-0x<40 hex>.…)"
+      }
+    },
+    {
+      "asset_id": "nep141:eth.bridge.near",
+      "blockchain": null,
+      "parsed": {
+        "scheme": "unknown",
+        "reason": "a NEP-141 account named after chain eth (<chain>.<x>.near)"
+      }
+    },
+    {
+      "asset_id": "nep141:sol-0xaad74c68eecfc9f8c5bdcea614f6167048c795ef.example.near",
+      "blockchain": null,
+      "parsed": {
+        "scheme": "unknown",
+        "reason": "a bridged-looking NEP-141 account (<prefix>-0x<40 hex>.…)"
+      }
+    },
+    {
+      "asset_id": "nep141:avax.omnew.near",
+      "blockchain": null,
+      "parsed": {
+        "scheme": "unknown",
+        "reason": "an unknown bridge suffix (.omnew.near) for chain prefix avax"
+      }
+    },
+    {
+      "asset_id": "garbage",
+      "blockchain": null,
+      "parsed": {
+        "scheme": "unknown",
+        "reason": "not an omft/omdep, 1cs_v1 or NEP-141 id"
+      }
+    }
+  ]
+}

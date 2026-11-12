@@ -32,7 +32,8 @@ import {
 const parse = (s: unknown, v: unknown) => (s as z.ZodType).safeParse(v).success;
 
 describe("spec 0.5.1: Google routes", () => {
-  it("version", () => expect(SPEC_VERSION).toBe("0.5.1"));
+  it("version (0.5.1 or later)", () =>
+    expect(SPEC_VERSION.localeCompare("0.5.1", undefined, { numeric: true })).toBeGreaterThanOrEqual(0));
 
   it("anonymous: methods, start and Google's callback; nothing else of the Google set", () => {
     const anon = (m: string, p: string) => PUBLIC_ANONYMOUS_ROUTES.some((r) => r.method === m && r.path === p);
