@@ -1,6 +1,11 @@
 # nearpay-spec
 
-> Single source of truth for every contract, authored as zod schemas in TypeScript and emitted as OpenAPI 3.1 / AsyncAPI / JSON Schema: public REST, internal service APIs, domain events, webhook payloads, error catalogue, NearPay x402 scheme, shared test vectors.
+The single source of truth for every NearPay contract, written as zod schemas in TypeScript and emitted as OpenAPI 3.1, AsyncAPI and JSON Schema: the public REST API, internal service APIs, domain events, webhook payloads, the error catalogue, the NearPay x402 scheme and shared test vectors.
+
+Part of [NearPay](https://github.com/nearpay-money/nearpay) — start there for the live demo, the architecture diagram and the full "do X, see Y" walkthrough.
+
+- **Where it sits:** at the bottom of the dependency graph. Every service, frontend, SDK and tool imports its request, response, event and error shapes from the two packages built here (`@nearpay-money/spec`, public; `@nearpay-internal/spec`, internal). It depends on no other NearPay repo.
+- **Status:** [`@nearpay-money/spec`](https://www.npmjs.com/package/@nearpay-money/spec) 0.5.0 is on npm. This repo is at 0.5.2; 0.5.1 and 0.5.2 are additive and so far published only to NearPay's local package registry, where the services pin them. NearPay runs on NEAR mainnet as a closed beta (https://nearpay.money); the rendered API reference is at https://docs.nearpay.money.
 
 |                                       |                                                                     |
 | ------------------------------------- | ------------------------------------------------------------------- |
@@ -13,15 +18,15 @@
 
 ## Documentation
 
-This repo stays surgical: design docs live in [`nearpay-brain`](../nearpay-brain/README.md), not here.
+Design docs live in [`nearpay-brain`](https://github.com/nearpay-money/nearpay-brain), not here.
 
-- `nearpay-brain/lld/00-foundations.md` — **low-level design (dev-ready; implement from this)**
-- `nearpay-brain/lld/audits/00-foundations.md` — audit findings already folded into the LLD
-- `nearpay-brain/roadmap/development-plan.md` — stage and step this repo is built in
-- `nearpay-brain/architecture/hld.md` — system design
-- `nearpay-brain/architecture/repositories.md` — repo topology and dependency rules
-- `nearpay-brain/architecture/api-conventions.md`
-- `nearpay-brain/decisions/ADR-0001-polyrepo-contract-first.md`
+- [`lld/00-foundations.md`](https://github.com/nearpay-money/nearpay-brain/blob/main/lld/00-foundations.md) — low-level design this repo is implemented from
+- [`lld/audits/00-foundations.md`](https://github.com/nearpay-money/nearpay-brain/blob/main/lld/audits/00-foundations.md) — audit findings already folded into the LLD
+- [`roadmap/development-plan.md`](https://github.com/nearpay-money/nearpay-brain/blob/main/roadmap/development-plan.md) — stage and step this repo is built in
+- [`architecture/hld.md`](https://github.com/nearpay-money/nearpay-brain/blob/main/architecture/hld.md) — system design
+- [`architecture/repositories.md`](https://github.com/nearpay-money/nearpay-brain/blob/main/architecture/repositories.md) — repo topology and dependency rules
+- [`architecture/api-conventions.md`](https://github.com/nearpay-money/nearpay-brain/blob/main/architecture/api-conventions.md)
+- [`decisions/ADR-0001-polyrepo-contract-first.md`](https://github.com/nearpay-money/nearpay-brain/blob/main/decisions/ADR-0001-polyrepo-contract-first.md)
 
 ## Layout
 
@@ -48,20 +53,35 @@ nearpay-spec/
 └── test/                rule tests (descriptions, routes, errors, events, vectors, artifacts) · compat/ (oasdiff gate + release baseline)
 ```
 
+## Verify this repo
+
+Needs Node 22 (`.nvmrc`) and pnpm 9. This repo has no NearPay dependencies, so it installs straight from npmjs.com: no local registry.
+
+1. `pnpm install --frozen-lockfile` → ends with `Done in …`.
+2. `pnpm test` (rule tests over every route, event and error; validation of the generated documents against the official OpenAPI 3.1 and AsyncAPI 3.0 schemas; test-vector checks) → `Test Files  24 passed (24)`, `Tests  680 passed (680)`.
+3. `pnpm emit:check && pnpm vectors:check` → `generated files are up to date` and `test vectors are up to date`: the committed `openapi/`, `asyncapi/`, `schemas/`, `errors/` and `test-vectors/` are exactly what `src/` generates.
+4. `pnpm verify` (the full gate: typecheck, lint, steps 2–3, the compatibility gate against the last release, build of both packages) → exits 0. The compatibility step (`pnpm compat`) needs `oasdiff` on the `PATH`, or Docker to run the `tufin/oasdiff:v1.34.1` image; everything else needs neither.
+
+By reading: `openapi/public.yaml` is the public API as generated; `test-vectors/` holds the fixtures that the services, SDKs and frontends test against (sentinel attestations, webhook signatures, NEAR Intents payloads, asset ids, chain evidence).
+
 ## Commands
 
-| Command                      | What it does                                                                                                     |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `pnpm install`               | Install (Node 22, pnpm 9)                                                                                        |
-| `pnpm emit` / `pnpm vectors` | Regenerate artifacts / test vectors after changing `src/`                                                        |
-| `pnpm test`                  | Rule tests, artifact validation (official OpenAPI 3.1 + AsyncAPI 3.0 schemas), vector checks                     |
-| `pnpm compat`                | oasdiff gate against `test/compat/baseline/` (last release); self-tests first. Needs `oasdiff` or Docker         |
-| `pnpm verify`                | typecheck + lint + test + emit/vectors up to date + compat + build                                               |
-| `pnpm release:local`         | Verify, then publish both packages to the local registry (`NP_REGISTRY_URL`, `NP_REGISTRY_PASSWORD`); idempotent |
+| Command                          | What it does                                                                                                     |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `pnpm install --frozen-lockfile` | Install (Node 22, pnpm 9)                                                                                        |
+| `pnpm emit` / `pnpm vectors`     | Regenerate artifacts / test vectors after changing `src/`                                                        |
+| `pnpm test`                      | Rule tests, artifact validation (official OpenAPI 3.1 + AsyncAPI 3.0 schemas), vector checks                     |
+| `pnpm compat`                    | oasdiff gate against `test/compat/baseline/` (last release); self-tests first. Needs `oasdiff` or Docker         |
+| `pnpm verify`                    | typecheck + lint + test + emit/vectors up to date + compat + build                                               |
+| `pnpm release:local`             | Verify, then publish both packages to the local registry (`NP_REGISTRY_URL`, `NP_REGISTRY_PASSWORD`); idempotent |
 
 `nearpay-deploy/scripts/up.sh` publishes these packages automatically when the pinned version is missing from the local registry.
 
 ## Status
+
+`0.5.2` — asset id shapes (additive; see `CHANGELOG.md`): `parseAssetId` and `assetIdBlockchain` read the 1Click `.omft.near` and `.omdep.near` bridge ids and `1cs_v1:` ids, and never treat a bridged id as a NEAR token; new `test-vectors/asset-ids.json`. No route, object, event or error change.
+
+`0.5.1` — Continue with Google for the merchant dashboard (ADR-0026; additive, see `CHANGELOG.md`): the Google sign-in and link routes, `AuthMethods`, `LinkedIdentity`, four error codes, two identity events.
 
 `0.5.0` — package rename (ADR-0025): the public package is now `@nearpay-money/spec` (the `@nearpay` npm scope belongs to an unrelated company), published to the public npm registry by `.github/workflows/release.yml`; `@nearpay-internal/spec` depends on it. Contracts are identical to 0.4.2.
 
@@ -85,4 +105,8 @@ nearpay-spec/
 
 ## Built with
 
-zod 4, zod-openapi, TypeScript 5, Vitest, Biome, yaml, canonicalize (RFC 8785), @noble/curves and @noble/hashes (test vectors), bs58, oasdiff (compat gate), @seriousme/openapi-schema-validator and @asyncapi/parser (artifact validation). Code and documentation are written with AI assistance (Claude) under human direction and review.
+- Runtime (peer dependency of both packages): zod 4.
+- Development: zod-openapi, TypeScript 5, tsx, Vitest, Biome, yaml, canonicalize (RFC 8785), `@noble/curves`, `@noble/hashes`, `@scure/base` and `@scure/btc-signer` (test vectors), bs58, oasdiff (compatibility gate), `@seriousme/openapi-schema-validator` and `@asyncapi/parser` (artifact validation).
+- Licence: Apache-2.0 (`LICENSE`).
+
+Code and documentation are written with AI assistance (Claude) under human direction and review. Built for the NEAR Hackathon (Nov 2026).

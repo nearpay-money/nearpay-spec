@@ -1,6 +1,6 @@
 # AGENTS.md — nearpay-spec
 
-You are working in **nearpay-spec**, one of 27 NearPay repositories (`nearpay-brain/architecture/repositories.md`).
+You are working in **nearpay-spec**, one of 26 NearPay repositories (`nearpay-brain/architecture/repositories.md`).
 Scope: Single source of truth for every contract, authored as zod schemas in TypeScript and emitted as OpenAPI 3.1 / AsyncAPI / JSON Schema: public REST, internal service APIs, domain events, webhook payloads, error catalogue, NearPay x402 scheme, shared test vectors.
 
 ## Before changing anything
