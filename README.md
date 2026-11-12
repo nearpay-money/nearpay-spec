@@ -66,14 +66,14 @@ By reading: `openapi/public.yaml` is the public API as generated; `test-vectors/
 
 ## Commands
 
-| Command                      | What it does                                                                                                     |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `pnpm install --frozen-lockfile` | Install (Node 22, pnpm 9)                                                                                    |
-| `pnpm emit` / `pnpm vectors` | Regenerate artifacts / test vectors after changing `src/`                                                        |
-| `pnpm test`                  | Rule tests, artifact validation (official OpenAPI 3.1 + AsyncAPI 3.0 schemas), vector checks                     |
-| `pnpm compat`                | oasdiff gate against `test/compat/baseline/` (last release); self-tests first. Needs `oasdiff` or Docker         |
-| `pnpm verify`                | typecheck + lint + test + emit/vectors up to date + compat + build                                               |
-| `pnpm release:local`         | Verify, then publish both packages to the local registry (`NP_REGISTRY_URL`, `NP_REGISTRY_PASSWORD`); idempotent |
+| Command                          | What it does                                                                                                     |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `pnpm install --frozen-lockfile` | Install (Node 22, pnpm 9)                                                                                        |
+| `pnpm emit` / `pnpm vectors`     | Regenerate artifacts / test vectors after changing `src/`                                                        |
+| `pnpm test`                      | Rule tests, artifact validation (official OpenAPI 3.1 + AsyncAPI 3.0 schemas), vector checks                     |
+| `pnpm compat`                    | oasdiff gate against `test/compat/baseline/` (last release); self-tests first. Needs `oasdiff` or Docker         |
+| `pnpm verify`                    | typecheck + lint + test + emit/vectors up to date + compat + build                                               |
+| `pnpm release:local`             | Verify, then publish both packages to the local registry (`NP_REGISTRY_URL`, `NP_REGISTRY_PASSWORD`); idempotent |
 
 `nearpay-deploy/scripts/up.sh` publishes these packages automatically when the pinned version is missing from the local registry.
 
